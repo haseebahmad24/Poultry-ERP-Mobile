@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Poultry ERP",
+    "slug": "poultry-erp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#1565c0"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.poultryerp.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1565c0"
+      },
+      "package": "com.poultryerp.mobile"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
