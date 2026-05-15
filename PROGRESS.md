@@ -62,10 +62,19 @@
   - Company cards with status, fiscal year, contact info
   - API: `src/api/companies.ts`
 
-**Phase 6 — Polish**
-- **FinanceNavigator** — Stack navigator for Finance tab (AP, AR, JE, Trial Balance)
-- **MoreNavigator** — Stack navigator for More tab (Materials, POs, SOs, GRN, Partners, Companies)
-- **Dashboard Quick Actions** — All 6 tiles wired to real screens via tab navigation
+**Phase 4 Remainder**
+- **Financial Reports** (`src/screens/financialReports/FinancialReportsScreen.tsx`)
+  - P&L tab: revenue/expense accounts, net income summary
+  - Balance Sheet tab: assets/liabilities/equity, balance check
+  - Company selector + date picker (shared with Trial Balance)
+
+**Phase 6 — Polish (Full)**
+- **FinanceNavigator** — Stack: AP, AR, JE, Trial Balance, Financial Reports
+- **MoreNavigator** — Stack: Materials, POs, SOs, GRN, Partners, Companies
+- **Dashboard Quick Actions** — All 6 tiles wired to real screens
+- **CompanyContext** (`src/context/CompanyContext.tsx`) — global company selector
+- **CompanyPicker** (`src/components/CompanyPicker.tsx`) — horizontal chips component
+- **Inventory, AP, AR** — use global company filter from context
 - **Empty states** — All screens have empty state UI with icons
 - **Pull-to-refresh** — All list screens support pull-to-refresh
 
@@ -73,9 +82,9 @@
 
 ## What's Next (Session 3)
 
-1. **Financial Reports** (Phase 4 remaining) — P&L and Balance Sheet computed from trial balance
-2. **Global Company Filter** — Company selector in app header filtering all screens
-3. **Additional Polish** — Better loading skeletons, date range pickers for filters
+1. Apply **CompanyPicker** to more screens (Dashboard, Materials, JE, Partners)
+2. **Better error recovery** — retry on network failures
+3. Any remaining polish or bug fixes based on testing
 
 ---
 
@@ -132,10 +141,10 @@
 | Accounts Receivable | ✅ Done |
 | Journal Entries | ✅ Done |
 | Trial Balance | ✅ Done |
-| Financial Reports (P&L, BS) | 🔲 Next |
+| Financial Reports (P&L, BS) | ✅ Done |
 | Business Partners | ✅ Done |
 | Companies | ✅ Done |
 | Dashboard Quick Actions wired | ✅ Done |
-| Global Company Filter | 🔲 Next |
+| Global Company Filter | ✅ Done (partial — Inventory, AP, AR) |
 | Pull-to-refresh (all screens) | ✅ Done |
 | Empty States | ✅ Done |
