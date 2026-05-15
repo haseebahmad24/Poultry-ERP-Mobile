@@ -49,8 +49,8 @@ const MENU_ITEMS: MenuItem[] = [
     icon: '⚖️',
     label: 'Trial Balance',
     subtitle: 'Account balances as of selected date',
-    screen: null,
-    available: false,
+    screen: 'TrialBalance',
+    available: true,
   },
   {
     icon: '📊',

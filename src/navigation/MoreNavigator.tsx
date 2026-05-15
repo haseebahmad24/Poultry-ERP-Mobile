@@ -8,6 +8,8 @@ import PurchaseOrderDetailScreen from '@/screens/purchaseOrders/PurchaseOrderDet
 import SalesOrdersScreen from '@/screens/salesOrders/SalesOrdersScreen';
 import SalesOrderDetailScreen from '@/screens/salesOrders/SalesOrderDetailScreen';
 import GRNScreen from '@/screens/grn/GRNScreen';
+import PartnersScreen from '@/screens/partners/PartnersScreen';
+import CompaniesScreen from '@/screens/companies/CompaniesScreen';
 
 export type MoreStackParamList = {
   MoreMenu: undefined;
@@ -17,6 +19,8 @@ export type MoreStackParamList = {
   SalesOrders: undefined;
   SalesOrderDetail: { id: number };
   GRN: undefined;
+  Partners: undefined;
+  Companies: undefined;
 };
 
 const Stack = createNativeStackNavigator<MoreStackParamList>();
@@ -64,6 +68,16 @@ export default function MoreNavigator() {
       <Stack.Screen
         name="GRN"
         component={GRNScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Partners"
+        component={PartnersScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Companies"
+        component={CompaniesScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>
