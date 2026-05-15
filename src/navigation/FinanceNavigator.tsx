@@ -6,6 +6,7 @@ import AccountsPayableScreen from '@/screens/finance/AccountsPayableScreen';
 import AccountsReceivableScreen from '@/screens/finance/AccountsReceivableScreen';
 import JournalEntriesScreen from '@/screens/journalEntries/JournalEntriesScreen';
 import TrialBalanceScreen from '@/screens/trialBalance/TrialBalanceScreen';
+import FinancialReportsScreen from '@/screens/financialReports/FinancialReportsScreen';
 
 export type FinanceStackParamList = {
   FinanceMenu: undefined;
@@ -13,6 +14,7 @@ export type FinanceStackParamList = {
   AccountsReceivable: undefined;
   JournalEntries: undefined;
   TrialBalance: undefined;
+  FinancialReports: undefined;
 };
 
 const Stack = createNativeStackNavigator<FinanceStackParamList>();
@@ -50,6 +52,11 @@ export default function FinanceNavigator() {
       <Stack.Screen
         name="TrialBalance"
         component={TrialBalanceScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="FinancialReports"
+        component={FinancialReportsScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

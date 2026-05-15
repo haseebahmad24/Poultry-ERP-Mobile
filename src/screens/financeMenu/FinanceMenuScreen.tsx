@@ -55,9 +55,9 @@ const MENU_ITEMS: MenuItem[] = [
   {
     icon: '📊',
     label: 'Financial Reports',
-    subtitle: 'P&L and Balance Sheet views',
-    screen: null,
-    available: false,
+    subtitle: 'P&L and Balance Sheet computed from trial balance',
+    screen: 'FinancialReports',
+    available: true,
   },
 ];
 
