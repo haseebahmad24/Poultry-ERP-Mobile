@@ -1,28 +1,23 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { NavigatorScreenParams } from '@react-navigation/native';
 import { Text } from 'react-native';
 import DashboardScreen from '@/screens/dashboard/DashboardScreen';
 import InventoryScreen from '@/screens/inventory/InventoryScreen';
 import MoreNavigator from '@/navigation/MoreNavigator';
 import FinanceNavigator from '@/navigation/FinanceNavigator';
 import { Colors } from '@/theme';
+import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
+import type { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 export type AppTabParamList = {
   Dashboard: undefined;
   Inventory: undefined;
-  Finance: undefined;
-  More: undefined;
+  Finance: NavigatorScreenParams<FinanceStackParamList>;
+  More: NavigatorScreenParams<MoreStackParamList>;
 };
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
-
-function PlaceholderScreen({ route }: any) {
-  return (
-    <Text style={{ flex: 1, textAlign: 'center', marginTop: 80, color: Colors.textSecondary }}>
-      {route.name} — Coming soon
-    </Text>
-  );
-}
 
 export default function AppNavigator() {
   return (
@@ -40,7 +35,7 @@ export default function AppNavigator() {
           shadowRadius: 8,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
-        tabBarIcon: ({ color, size }) => {
+        tabBarIcon: ({ size }) => {
           const icons: Record<string, string> = {
             Dashboard: '📊',
             Inventory: '🏭',
