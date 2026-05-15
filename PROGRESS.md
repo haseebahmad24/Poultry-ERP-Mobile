@@ -1,13 +1,91 @@
 # Mobile App Progress
 
+## Session 2 — 2026-05-15
+
+### Completed This Session
+
+**Phase 1 — Core Data Screens**
+- **Inventory Screen** (`src/screens/inventory/InventoryScreen.tsx`)
+  - Internal tab view: Stock Balances / Stock Ledger
+  - Search filter, pull-to-refresh, empty states
+  - API: `src/api/inventory.ts` — fetchStockBalances, fetchStockLedger
+
+- **Materials Screen** (`src/screens/materials/MaterialsScreen.tsx`)
+  - Searchable list by name, code, type, category
+  - Horizontal type filter chips
+  - Status badges (Active/Inactive), unit chip
+  - API: `src/api/materials.ts`
+
+- **Purchase Orders Screen** (`src/screens/purchaseOrders/`)
+  - All/Open/In Progress status tabs
+  - PO cards with progress bar
+  - Detail screen with receipt progress + line items
+  - API: `src/api/purchaseOrders.ts`
+
+**Phase 2 — Sales & Delivery**
+- **Sales Orders Screen** (`src/screens/salesOrders/`)
+  - All/Open/Approved/Closed tabs
+  - Detail screen with line items and total row
+  - API: `src/api/salesOrders.ts`
+
+- **GRN Screen** (`src/screens/grn/GRNScreen.tsx`)
+  - Overall receipt summary card
+  - Per-PO progress bars with line item preview
+
+**Phase 3 — Finance**
+- **Accounts Payable** (`src/screens/finance/AccountsPayableScreen.tsx`)
+  - Summary/Bills/Vendors tabs, aging analysis bars
+  - API: `src/api/accountsPayable.ts`
+
+- **Accounts Receivable** (`src/screens/finance/AccountsReceivableScreen.tsx`)
+  - Summary/Invoices/Customers tabs, aging analysis
+  - API: `src/api/accountsReceivable.ts`
+
+- **Journal Entries** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+  - Voucher type filter chips (JV, GRN, PAY, etc.)
+  - Expandable cards showing journal lines
+  - API: `src/api/journalEntries.ts`
+
+**Phase 4 — Reports**
+- **Trial Balance** (`src/screens/trialBalance/TrialBalanceScreen.tsx`)
+  - Company selector, date picker, account table
+  - Balance diff warning, hierarchical indentation
+  - API: `src/api/trialBalance.ts`
+
+**Phase 5 — Admin**
+- **Business Partners** (`src/screens/partners/PartnersScreen.tsx`)
+  - Customer/Vendor role filter, search
+  - Avatar initials, role badges
+  - API: `src/api/partners.ts`
+
+- **Companies** (`src/screens/companies/CompaniesScreen.tsx`)
+  - Company cards with status, fiscal year, contact info
+  - API: `src/api/companies.ts`
+
+**Phase 6 — Polish**
+- **FinanceNavigator** — Stack navigator for Finance tab (AP, AR, JE, Trial Balance)
+- **MoreNavigator** — Stack navigator for More tab (Materials, POs, SOs, GRN, Partners, Companies)
+- **Dashboard Quick Actions** — All 6 tiles wired to real screens via tab navigation
+- **Empty states** — All screens have empty state UI with icons
+- **Pull-to-refresh** — All list screens support pull-to-refresh
+
+---
+
+## What's Next (Session 3)
+
+1. **Financial Reports** (Phase 4 remaining) — P&L and Balance Sheet computed from trial balance
+2. **Global Company Filter** — Company selector in app header filtering all screens
+3. **Additional Polish** — Better loading skeletons, date range pickers for filters
+
+---
+
 ## Session 1 — 2026-05-12
 
 ### Completed
 
 **Project Scaffolding**
-- Initialized Expo 51 / React Native 0.74 project in `/mobile`
-- TypeScript configured with `@/` path aliases
-- `babel-plugin-module-resolver` set up for clean imports
+- Initialized Expo 51 / React Native 0.74 project
+- TypeScript with `@/` path aliases via `babel-plugin-module-resolver`
 - `.gitignore` for mobile artifacts
 
 **Design System (`src/theme/index.ts`)**
@@ -15,21 +93,14 @@
 - Voucher type badge colors (JV, GRN, DN, PAY, REC, INV, SO, PO)
 - Spacing, border radius, shadow, and typography scales
 
-**Utilities (`src/utils/currency.ts`)**
-- `formatCurrency(amount)` — PKR with M/B abbreviations for large numbers
-- `formatDate` / `formatShortDate` helpers
-
 **API Layer**
-- `src/api/client.ts` — Fetch wrapper with `expo-secure-store` JWT token storage; attaches `Cookie: auth_token=...` header to all requests. Configure `EXPO_PUBLIC_API_URL` env var to point at the Next.js server.
-- `src/api/auth.ts` — `fetchEmployees()`, `loginAs(id)` (captures `Set-Cookie` token), `logout()`
-- `src/api/dashboard.ts` — `fetchDashboardData(companyId?)` calling `/api/dashboard`
-
-**New Web API Endpoint**
-- `src/app/api/dashboard/route.ts` — GET endpoint returning `{ kpis, recentVouchers }`. Requires valid JWT in `Cookie` or `Authorization: Bearer` header. Queries same DB as the home page server component.
+- `src/api/client.ts` — Fetch wrapper with JWT token storage via expo-secure-store
+- `src/api/auth.ts` — fetchEmployees(), loginAs(id), logout()
+- `src/api/dashboard.ts` — fetchDashboardData(companyId?)
 
 **Auth Context (`src/context/AuthContext.tsx`)**
 - React context with `loginAs` / `logout` actions
-- Restores session from stored JWT on app start (decodes payload without re-fetching)
+- Restores session from stored JWT on app start
 - `useAuth()` hook
 
 **Shared Components**
@@ -38,48 +109,11 @@
 - `KPICard` — metric card (label / value / subtext, optional tap handler)
 - `SectionHeader` — section title + optional right-side meta text
 
-**Login Screen (`src/screens/auth/LoginScreen.tsx`)**
-- Fetches all employees from `/api/employees`
-- Displays a card list with avatar initials, name, email, and role badge
-- Tap to login as that user (POST `/api/auth/switch`, stores JWT)
-- Loading and error states with retry
+**Login Screen** — Employee selector with card list, avatar initials, role badges
 
-**Dashboard Screen (`src/screens/dashboard/DashboardScreen.tsx`)**
-- Top bar with greeting (morning/afternoon/evening), user name/role, sign out button
-- Pull-to-refresh
-- 3×2 grid of KPI cards: Revenue, Expenses, Net Income, Cash & Bank, Receivables, Payables
-- Working Capital panel (Cash + AR − AP = Net)
-- Quick Actions grid (Journal Entry, Purchase Order, Sales Order, GRN, Trial Balance, Inventory)
-- Recent Activity list (last 20 vouchers with type badge, number, date, amount, status)
+**Dashboard Screen** — KPI grid, working capital panel, quick actions, recent vouchers
 
-**Navigation (`src/navigation/`)**
-- `AuthNavigator` — native stack with Login screen
-- `AppNavigator` — bottom tabs: Dashboard, Inventory (placeholder), Finance (placeholder), More (placeholder)
-- `RootNavigator` — switches between Auth/App based on `AuthContext` state
-
-**App Entry (`App.tsx`)**
-- `SafeAreaProvider` → `AuthProvider` → `RootNavigator`
-
----
-
-## What's Next (Session 2)
-
-Priority order per the task spec:
-
-1. **Inventory** screen — stock balance by material/warehouse, filter by company
-2. **Materials** screen — list and detail view for material master
-3. **Purchase Orders** screen — list and status overview
-4. **GRN (Goods Receipt Note)** screen — list + detail
-5. Navigation wiring for Quick Action tiles on Dashboard
-
-### Setup Notes
-
-- Set `EXPO_PUBLIC_API_URL` in `mobile/.env` to your Next.js dev server LAN IP:
-  ```
-  EXPO_PUBLIC_API_URL=http://192.168.1.x:3000
-  ```
-- Run `npm install --legacy-peer-deps` inside `mobile/` before first start
-- Start with `npm run start` from `mobile/`, then scan the QR with Expo Go
+**Navigation** — AuthNavigator, AppNavigator (bottom tabs), RootNavigator
 
 ---
 
@@ -89,15 +123,19 @@ Priority order per the task spec:
 |---|---|
 | Login (user selector) | ✅ Done |
 | Dashboard / Home | ✅ Done |
-| Inventory | 🔲 Next |
-| Materials | 🔲 Next |
-| Purchase Orders | 🔲 Planned |
-| GRN | 🔲 Planned |
-| Accounts Payable | 🔲 Planned |
-| Accounts Receivable | 🔲 Planned |
-| Journal Entries | 🔲 Planned |
-| Trial Balance | 🔲 Planned |
-| Financial Statements | 🔲 Planned |
-| Business Partners | 🔲 Planned |
-| Companies | 🔲 Planned |
-| Users / Admin | 🔲 Planned |
+| Inventory | ✅ Done |
+| Materials | ✅ Done |
+| Purchase Orders + Detail | ✅ Done |
+| Sales Orders + Detail | ✅ Done |
+| GRN | ✅ Done |
+| Accounts Payable | ✅ Done |
+| Accounts Receivable | ✅ Done |
+| Journal Entries | ✅ Done |
+| Trial Balance | ✅ Done |
+| Financial Reports (P&L, BS) | 🔲 Next |
+| Business Partners | ✅ Done |
+| Companies | ✅ Done |
+| Dashboard Quick Actions wired | ✅ Done |
+| Global Company Filter | 🔲 Next |
+| Pull-to-refresh (all screens) | ✅ Done |
+| Empty States | ✅ Done |
