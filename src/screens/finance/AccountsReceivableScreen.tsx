@@ -21,6 +21,8 @@ import {
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
+import CompanyPicker from '@/components/CompanyPicker';
+import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 
 type Tab = 'summary' | 'invoices' | 'customers';
@@ -34,6 +36,7 @@ const INVOICE_STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
 };
 
 export default function AccountsReceivableScreen() {
+  const { companyId } = useCompany();
   const [activeTab, setActiveTab] = useState<Tab>('summary');
   const [summary, setSummary] = useState<ARSummary>({});
   const [invoices, setInvoices] = useState<ARInvoice[]>([]);
@@ -48,9 +51,9 @@ export default function AccountsReceivableScreen() {
     setError(null);
     try {
       const [sum, invs, custs] = await Promise.all([
-        fetchARSummary(),
-        fetchARInvoices(),
-        fetchARCustomers(),
+        fetchARSummary(companyId),
+        fetchARInvoices(companyId),
+        fetchARCustomers(companyId),
       ]);
       setSummary(sum);
       setInvoices(invs);
@@ -61,7 +64,7 @@ export default function AccountsReceivableScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -81,6 +84,8 @@ export default function AccountsReceivableScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Accounts Receivable</Text>
       </View>
+
+      <CompanyPicker />
 
       <View style={styles.tabBar}>
         {(['summary', 'invoices', 'customers'] as Tab[]).map((t) => (

@@ -15,6 +15,8 @@ import { fetchStockBalances, fetchStockLedger, StockBalance, StockLedgerEntry } 
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
+import CompanyPicker from '@/components/CompanyPicker';
+import { useCompany } from '@/context/CompanyContext';
 import { formatShortDate } from '@/utils/currency';
 
 type Tab = 'stock' | 'ledger';
@@ -28,6 +30,7 @@ const VOUCHER_COLORS: Record<string, { bg: string; fg: string }> = {
 };
 
 export default function InventoryScreen() {
+  const { companyId } = useCompany();
   const [activeTab, setActiveTab] = useState<Tab>('stock');
   const [stockData, setStockData] = useState<StockBalance[]>([]);
   const [ledgerData, setLedgerData] = useState<StockLedgerEntry[]>([]);
@@ -37,14 +40,14 @@ export default function InventoryScreen() {
   const [search, setSearch] = useState('');
 
   const loadStock = useCallback(async () => {
-    const data = await fetchStockBalances();
+    const data = await fetchStockBalances(companyId);
     setStockData(data);
-  }, []);
+  }, [companyId]);
 
   const loadLedger = useCallback(async () => {
-    const data = await fetchStockLedger();
+    const data = await fetchStockLedger({ companyId });
     setLedgerData(data);
-  }, []);
+  }, [companyId]);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -86,6 +89,9 @@ export default function InventoryScreen() {
           {activeTab === 'stock' ? `${stockData.length} items` : `${ledgerData.length} entries`}
         </Text>
       </View>
+
+      {/* Company picker */}
+      <CompanyPicker />
 
       {/* Tab Bar */}
       <View style={styles.tabBar}>

@@ -21,6 +21,8 @@ import {
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
+import CompanyPicker from '@/components/CompanyPicker';
+import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 
 type Tab = 'summary' | 'bills' | 'vendors';
@@ -34,6 +36,7 @@ const BILL_STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
 };
 
 export default function AccountsPayableScreen() {
+  const { companyId } = useCompany();
   const [activeTab, setActiveTab] = useState<Tab>('summary');
   const [summary, setSummary] = useState<APSummary>({});
   const [bills, setBills] = useState<APBill[]>([]);
@@ -48,9 +51,9 @@ export default function AccountsPayableScreen() {
     setError(null);
     try {
       const [sum, bls, vend] = await Promise.all([
-        fetchAPSummary(),
-        fetchAPBills(),
-        fetchAPVendors(),
+        fetchAPSummary(companyId),
+        fetchAPBills(companyId),
+        fetchAPVendors(companyId),
       ]);
       setSummary(sum);
       setBills(bls);
@@ -61,7 +64,7 @@ export default function AccountsPayableScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -81,6 +84,8 @@ export default function AccountsPayableScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Accounts Payable</Text>
       </View>
+
+      <CompanyPicker />
 
       <View style={styles.tabBar}>
         {(['summary', 'bills', 'vendors'] as Tab[]).map((t) => (
