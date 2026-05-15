@@ -4,6 +4,7 @@ import { Text } from 'react-native';
 import DashboardScreen from '@/screens/dashboard/DashboardScreen';
 import InventoryScreen from '@/screens/inventory/InventoryScreen';
 import MoreNavigator from '@/navigation/MoreNavigator';
+import FinanceNavigator from '@/navigation/FinanceNavigator';
 import { Colors } from '@/theme';
 
 export type AppTabParamList = {
@@ -54,7 +55,7 @@ export default function AppNavigator() {
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Inventory" component={InventoryScreen} />
-      <Tab.Screen name="Finance" component={PlaceholderScreen} />
+      <Tab.Screen name="Finance" component={FinanceNavigator} />
       <Tab.Screen name="More" component={MoreNavigator} />
     </Tab.Navigator>
   );
