@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { useAuth } from '@/context/AuthContext';
 import AuthNavigator from './AuthNavigator';
-import AppNavigator from './AppNavigator';
+import AppStack from './AppStack';
 import LoadingView from '@/components/LoadingView';
 
 export default function RootNavigator() {
@@ -14,7 +14,7 @@ export default function RootNavigator() {
 
   return (
     <NavigationContainer>
-      {authState.status === 'authenticated' ? <AppNavigator /> : <AuthNavigator />}
+      {authState.status === 'authenticated' ? <AppStack /> : <AuthNavigator />}
     </NavigationContainer>
   );
 }

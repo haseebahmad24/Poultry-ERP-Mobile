@@ -1,24 +1,26 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import DashboardScreen from '@/screens/dashboard/DashboardScreen';
+import InventoryScreen from '@/screens/inventory/InventoryScreen';
 import { Colors } from '@/theme';
 
 export type AppTabParamList = {
   Dashboard: undefined;
-  Inventory: undefined;
+  InventoryTab: undefined;
   Finance: undefined;
   More: undefined;
 };
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 
-// Placeholder screen for tabs not yet built
 function PlaceholderScreen({ route }: any) {
   return (
-    <Text style={{ flex: 1, textAlign: 'center', marginTop: 80, color: Colors.textSecondary }}>
-      {route.name} — Coming soon
-    </Text>
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <Text style={{ color: Colors.textSecondary, fontSize: 14 }}>
+        {route.name} — Coming soon
+      </Text>
+    </View>
   );
 }
 
@@ -41,7 +43,7 @@ export default function AppNavigator() {
         tabBarIcon: ({ color, size }) => {
           const icons: Record<string, string> = {
             Dashboard: '📊',
-            Inventory: '🏭',
+            InventoryTab: '🏭',
             Finance: '💰',
             More: '⋯',
           };
@@ -52,7 +54,11 @@ export default function AppNavigator() {
       })}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="Inventory" component={PlaceholderScreen} />
+      <Tab.Screen
+        name="InventoryTab"
+        component={InventoryScreen}
+        options={{ tabBarLabel: 'Inventory' }}
+      />
       <Tab.Screen name="Finance" component={PlaceholderScreen} />
       <Tab.Screen name="More" component={PlaceholderScreen} />
     </Tab.Navigator>

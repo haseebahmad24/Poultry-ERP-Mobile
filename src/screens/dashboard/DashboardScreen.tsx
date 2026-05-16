@@ -30,15 +30,16 @@ const VOUCHER_COLORS: Record<string, { bg: string; fg: string }> = {
 };
 
 const QUICK_ACTIONS = [
-  { label: 'Journal Entry', icon: '📒', screen: 'JournalEntries' },
-  { label: 'Purchase Order', icon: '🛒', screen: 'PurchaseOrders' },
-  { label: 'Sales Order', icon: '📦', screen: 'SalesOrders' },
-  { label: 'Goods Receipt', icon: '🚚', screen: 'GRN' },
-  { label: 'Trial Balance', icon: '⚖️', screen: 'TrialBalance' },
-  { label: 'Inventory', icon: '🏭', screen: 'Inventory' },
+  { label: 'Journal Entry', icon: '📒', screen: 'JournalEntries', enabled: false },
+  { label: 'Purchase Order', icon: '🛒', screen: 'PurchaseOrders', enabled: true },
+  { label: 'Sales Order', icon: '📦', screen: 'SalesOrders', enabled: false },
+  { label: 'Goods Receipt', icon: '🚚', screen: 'GRN', enabled: false },
+  { label: 'Trial Balance', icon: '⚖️', screen: 'TrialBalance', enabled: false },
+  { label: 'Inventory', icon: '🏭', screen: 'Inventory', enabled: true },
+  { label: 'Materials', icon: '🧪', screen: 'Materials', enabled: true },
 ];
 
-export default function DashboardScreen() {
+export default function DashboardScreen({ navigation }: any) {
   const { authState, logout } = useAuth();
   const user = authState.status === 'authenticated' ? authState.user : null;
 
@@ -181,9 +182,16 @@ export default function DashboardScreen() {
         <SectionHeader title="Quick Actions" />
         <View style={styles.quickGrid}>
           {QUICK_ACTIONS.map((qa) => (
-            <TouchableOpacity key={qa.screen} style={styles.quickCard} activeOpacity={0.7}>
-              <Text style={styles.quickIcon}>{qa.icon}</Text>
-              <Text style={styles.quickLabel}>{qa.label}</Text>
+            <TouchableOpacity
+              key={qa.screen}
+              style={[styles.quickCard, !qa.enabled && styles.quickCardDisabled]}
+              activeOpacity={qa.enabled ? 0.7 : 1}
+              onPress={() => qa.enabled && navigation.navigate(qa.screen)}
+            >
+              <Text style={[styles.quickIcon, !qa.enabled && { opacity: 0.4 }]}>{qa.icon}</Text>
+              <Text style={[styles.quickLabel, !qa.enabled && styles.quickLabelDisabled]}>
+                {qa.label}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -328,6 +336,7 @@ const styles = StyleSheet.create({
     gap: 6,
     ...Shadow.subtle,
   },
+  quickCardDisabled: { opacity: 0.55 },
   quickIcon: { fontSize: 26 },
   quickLabel: {
     fontSize: 11,
@@ -335,6 +344,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
   },
+  quickLabelDisabled: { color: Colors.textMuted },
 
   voucherList: {
     marginHorizontal: Spacing.md,
