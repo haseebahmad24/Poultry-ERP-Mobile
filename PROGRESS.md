@@ -5,81 +5,69 @@
 ### Completed
 
 **Project Scaffolding**
-- Initialized Expo 51 / React Native 0.74 project in `/mobile`
-- TypeScript configured with `@/` path aliases
-- `babel-plugin-module-resolver` set up for clean imports
-- `.gitignore` for mobile artifacts
+- Initialized Expo 51 / React Native 0.74 project
+- TypeScript with `@/` path aliases via `babel-plugin-module-resolver`
 
 **Design System (`src/theme/index.ts`)**
-- Full color palette matching the web app (blues, greens, reds, oranges)
-- Voucher type badge colors (JV, GRN, DN, PAY, REC, INV, SO, PO)
-- Spacing, border radius, shadow, and typography scales
+- Full color palette matching web app
+- Voucher badge colors, spacing, radius, shadow, typography scales
 
 **Utilities (`src/utils/currency.ts`)**
-- `formatCurrency(amount)` — PKR with M/B abbreviations for large numbers
-- `formatDate` / `formatShortDate` helpers
+- `formatCurrency`, `formatDate`, `formatShortDate`
 
 **API Layer**
-- `src/api/client.ts` — Fetch wrapper with `expo-secure-store` JWT token storage; attaches `Cookie: auth_token=...` header to all requests. Configure `EXPO_PUBLIC_API_URL` env var to point at the Next.js server.
-- `src/api/auth.ts` — `fetchEmployees()`, `loginAs(id)` (captures `Set-Cookie` token), `logout()`
-- `src/api/dashboard.ts` — `fetchDashboardData(companyId?)` calling `/api/dashboard`
-
-**New Web API Endpoint**
-- `src/app/api/dashboard/route.ts` — GET endpoint returning `{ kpis, recentVouchers }`. Requires valid JWT in `Cookie` or `Authorization: Bearer` header. Queries same DB as the home page server component.
-
-**Auth Context (`src/context/AuthContext.tsx`)**
-- React context with `loginAs` / `logout` actions
-- Restores session from stored JWT on app start (decodes payload without re-fetching)
-- `useAuth()` hook
+- `src/api/client.ts` — fetch wrapper with JWT via `Cookie` header
+- `src/api/auth.ts` — `fetchEmployees()`, `loginAs(id)`, `logout()`
+- `src/api/dashboard.ts` — `fetchDashboardData(companyId?)`
 
 **Shared Components**
-- `LoadingView` — centered spinner with optional message
-- `ErrorView` — error message with retry button
-- `KPICard` — metric card (label / value / subtext, optional tap handler)
-- `SectionHeader` — section title + optional right-side meta text
+- `LoadingView`, `ErrorView`, `KPICard`, `SectionHeader`
 
-**Login Screen (`src/screens/auth/LoginScreen.tsx`)**
-- Fetches all employees from `/api/employees`
-- Displays a card list with avatar initials, name, email, and role badge
-- Tap to login as that user (POST `/api/auth/switch`, stores JWT)
-- Loading and error states with retry
+**Login Screen** — Employee card list, tap to login, stores JWT
 
-**Dashboard Screen (`src/screens/dashboard/DashboardScreen.tsx`)**
-- Top bar with greeting (morning/afternoon/evening), user name/role, sign out button
-- Pull-to-refresh
-- 3×2 grid of KPI cards: Revenue, Expenses, Net Income, Cash & Bank, Receivables, Payables
-- Working Capital panel (Cash + AR − AP = Net)
-- Quick Actions grid (Journal Entry, Purchase Order, Sales Order, GRN, Trial Balance, Inventory)
-- Recent Activity list (last 20 vouchers with type badge, number, date, amount, status)
+**Dashboard Screen** — KPI grid, Working Capital panel, Quick Actions, Recent Vouchers
 
-**Navigation (`src/navigation/`)**
-- `AuthNavigator` — native stack with Login screen
-- `AppNavigator` — bottom tabs: Dashboard, Inventory (placeholder), Finance (placeholder), More (placeholder)
-- `RootNavigator` — switches between Auth/App based on `AuthContext` state
-
-**App Entry (`App.tsx`)**
-- `SafeAreaProvider` → `AuthProvider` → `RootNavigator`
+**Navigation** — `AuthNavigator`, `AppNavigator` (bottom tabs), `RootNavigator`
 
 ---
 
-## What's Next (Session 2)
+## Session 2 — 2026-05-16
 
-Priority order per the task spec:
+### Completed
 
-1. **Inventory** screen — stock balance by material/warehouse, filter by company
-2. **Materials** screen — list and detail view for material master
-3. **Purchase Orders** screen — list and status overview
-4. **GRN (Goods Receipt Note)** screen — list + detail
-5. Navigation wiring for Quick Action tiles on Dashboard
+**API Services**
+- `src/api/inventory.ts` — `fetchStockBalances()`, `fetchStockLedger()`, `fetchInventoryItems()`
+- `src/api/materials.ts` — `fetchMaterials()`, `fetchMaterialTypes()`
+- `src/api/purchaseOrders.ts` — `fetchPurchaseOrders()`, `fetchPODetail()`
 
-### Setup Notes
+**Inventory Screen (`src/screens/inventory/InventoryScreen.tsx`)**
+- In-screen tabs: Stock Balances | Stock Ledger
+- Stock tab: summary strip (count/total value), search bar, item cards with warehouse/category/quantity/value
+- Ledger tab: transaction rows with voucher badge, qty in/out/balance
+- Pull-to-refresh; lazy-loads Ledger on first tab switch
 
-- Set `EXPO_PUBLIC_API_URL` in `mobile/.env` to your Next.js dev server LAN IP:
-  ```
-  EXPO_PUBLIC_API_URL=http://192.168.1.x:3000
-  ```
-- Run `npm install --legacy-peer-deps` inside `mobile/` before first start
-- Start with `npm run start` from `mobile/`, then scan the QR with Expo Go
+**Materials Screen (`src/screens/materials/MaterialsScreen.tsx`)**
+- Search bar (name/code/type/description)
+- Status filter chips: All / Active / Inactive
+- Type filter horizontal scroll pills
+- Material cards with icon, name, code, unit, type badge, active/inactive indicator
+- Pull-to-refresh
+
+**Purchase Orders Screen (`src/screens/purchaseOrders/PurchaseOrdersScreen.tsx`)**
+- Horizontal status tabs: All / Open / Approved / Closed / Draft with live counts
+- PO cards: number badge, vendor, date, status badge, amount, receiving progress bar
+- Tap → navigates to PO Detail
+
+**PO Detail Screen (`src/screens/purchaseOrders/PODetailScreen.tsx`)**
+- PO header info (number, status, vendor, date, company, total)
+- Receiving progress card with stats + large progress bar
+- Line items list with ordered/received/balance quantities, mini progress bars
+- Notes section
+
+**Navigation Wiring (`src/navigation/AppStack.tsx`)**
+- New `AppStack` native stack wrapping tabs + feature screens
+- Dashboard Quick Actions wired: Inventory ✅, Materials ✅, Purchase Order ✅
+- Disabled (not yet built): Journal Entry, Sales Order, GRN, Trial Balance
 
 ---
 
@@ -89,10 +77,11 @@ Priority order per the task spec:
 |---|---|
 | Login (user selector) | ✅ Done |
 | Dashboard / Home | ✅ Done |
-| Inventory | 🔲 Next |
-| Materials | 🔲 Next |
-| Purchase Orders | 🔲 Planned |
-| GRN | 🔲 Planned |
+| Inventory (Stock + Ledger) | ✅ Done |
+| Materials | ✅ Done |
+| Purchase Orders (list + detail) | ✅ Done |
+| Sales Orders | 🔲 Next |
+| GRN / Goods Receipt | 🔲 Next |
 | Accounts Payable | 🔲 Planned |
 | Accounts Receivable | 🔲 Planned |
 | Journal Entries | 🔲 Planned |
@@ -100,4 +89,20 @@ Priority order per the task spec:
 | Financial Statements | 🔲 Planned |
 | Business Partners | 🔲 Planned |
 | Companies | 🔲 Planned |
-| Users / Admin | 🔲 Planned |
+
+---
+
+## What's Next (Session 3)
+
+Per roadmap **Phase 2: Sales & Delivery**:
+
+1. **Sales Orders Screen** — status tabs (Open/Approved/Closed), detail view with line items. API: `/api/mobile/sales-orders`
+2. **GRN Screen** — received POs with quantities. Reuse purchase-orders endpoint with `?view=progress`
+
+Then **Phase 3: Finance**:
+3. **Accounts Payable Screen** — summary dashboard, vendor list, bills list
+4. **Accounts Receivable Screen** — same pattern as AP
+
+### Setup Notes
+- Set `EXPO_PUBLIC_API_URL` in `.env` to your Next.js server URL
+- Run with `npx expo start` then scan QR with Expo Go
