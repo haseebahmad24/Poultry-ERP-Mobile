@@ -42,6 +42,7 @@ function voucherColors(type?: string) {
 }
 
 export default function InventoryScreen({ navigation }: any) {
+  const canGoBack = navigation.canGoBack();
   const [activeTab, setActiveTab] = useState<Tab>('stock');
 
   // Stock state
@@ -111,9 +112,13 @@ export default function InventoryScreen({ navigation }: any) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹</Text>
-        </TouchableOpacity>
+        {canGoBack ? (
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <Text style={styles.backText}>‹</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
         <Text style={styles.headerTitle}>Inventory</Text>
         <View style={{ width: 40 }} />
       </View>
