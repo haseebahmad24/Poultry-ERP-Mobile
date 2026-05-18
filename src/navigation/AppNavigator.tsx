@@ -38,7 +38,7 @@ export default function AppNavigator() {
         tabBarIcon: ({ size }) => {
           const icons: Record<string, string> = {
             Dashboard: '📊',
-            InventoryTab: '🏭',
+            Inventory: '🏭',
             Finance: '💰',
             More: '⋯',
           };
