@@ -1,30 +1,27 @@
 import { apiRequest } from './client';
 
 export interface StockBalance {
-  item_id: number;
+  item_id?: number;
   item_name: string;
   item_code?: string;
-  category?: string;
-  uom?: string;
   warehouse_id?: number;
   warehouse_name?: string;
-  quantity: number;
-  unit_cost?: number;
-  total_value?: number;
+  qty: number;
+  unit?: string;
 }
 
 export interface StockLedgerEntry {
-  id: number;
+  id?: number;
   dt: string;
   voucher_type?: string;
-  voucher_number?: string;
+  voucher_no?: string;
   item_id?: number;
   item_name?: string;
   warehouse_name?: string;
   qty_in?: number;
   qty_out?: number;
   balance?: number;
-  notes?: string;
+  unit?: string;
 }
 
 export interface InventoryItem {
@@ -33,36 +30,35 @@ export interface InventoryItem {
   code?: string;
   category?: string;
   uom?: string;
-  is_active?: boolean;
 }
 
 export async function fetchStockBalances(companyId?: number): Promise<StockBalance[]> {
-  const p = new URLSearchParams({ view: 'stock' });
-  if (companyId) p.set('company_id', String(companyId));
-  const data = await apiRequest<any>(`/api/mobile/inventory?${p}`);
-  return data.stock ?? data.balances ?? [];
+  const params = new URLSearchParams({ view: 'stock' });
+  if (companyId != null) params.set('company_id', String(companyId));
+  const data = await apiRequest<any>(`/api/mobile/inventory?${params}`);
+  return data.stock ?? data.balances ?? (Array.isArray(data) ? data : []);
 }
 
-export async function fetchStockLedger(params: {
+export async function fetchStockLedger(opts: {
   companyId?: number;
   itemId?: number;
   warehouseId?: number;
   from?: string;
   to?: string;
 } = {}): Promise<StockLedgerEntry[]> {
-  const p = new URLSearchParams({ view: 'ledger' });
-  if (params.companyId) p.set('company_id', String(params.companyId));
-  if (params.itemId) p.set('item_id', String(params.itemId));
-  if (params.warehouseId) p.set('warehouse_id', String(params.warehouseId));
-  if (params.from) p.set('from', params.from);
-  if (params.to) p.set('to', params.to);
-  const data = await apiRequest<any>(`/api/mobile/inventory?${p}`);
-  return data.ledger ?? data.entries ?? [];
+  const params = new URLSearchParams({ view: 'ledger' });
+  if (opts.companyId != null) params.set('company_id', String(opts.companyId));
+  if (opts.itemId != null) params.set('item_id', String(opts.itemId));
+  if (opts.warehouseId != null) params.set('warehouse_id', String(opts.warehouseId));
+  if (opts.from) params.set('from', opts.from);
+  if (opts.to) params.set('to', opts.to);
+  const data = await apiRequest<any>(`/api/mobile/inventory?${params}`);
+  return data.ledger ?? data.entries ?? (Array.isArray(data) ? data : []);
 }
 
 export async function fetchInventoryItems(companyId?: number): Promise<InventoryItem[]> {
-  const p = new URLSearchParams({ view: 'items' });
-  if (companyId) p.set('company_id', String(companyId));
-  const data = await apiRequest<any>(`/api/mobile/inventory?${p}`);
-  return data.items ?? [];
+  const params = new URLSearchParams({ view: 'items' });
+  if (companyId != null) params.set('company_id', String(companyId));
+  const data = await apiRequest<any>(`/api/mobile/inventory?${params}`);
+  return data.items ?? (Array.isArray(data) ? data : []);
 }

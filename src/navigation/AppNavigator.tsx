@@ -1,28 +1,23 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View } from 'react-native';
+import { NavigatorScreenParams } from '@react-navigation/native';
+import { Text } from 'react-native';
 import DashboardScreen from '@/screens/dashboard/DashboardScreen';
 import InventoryScreen from '@/screens/inventory/InventoryScreen';
+import MoreNavigator from '@/navigation/MoreNavigator';
+import FinanceNavigator from '@/navigation/FinanceNavigator';
 import { Colors } from '@/theme';
+import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
+import type { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 export type AppTabParamList = {
   Dashboard: undefined;
-  InventoryTab: undefined;
-  Finance: undefined;
-  More: undefined;
+  Inventory: undefined;
+  Finance: NavigatorScreenParams<FinanceStackParamList>;
+  More: NavigatorScreenParams<MoreStackParamList>;
 };
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
-
-function PlaceholderScreen({ route }: any) {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text style={{ color: Colors.textSecondary, fontSize: 14 }}>
-        {route.name} — Coming soon
-      </Text>
-    </View>
-  );
-}
 
 export default function AppNavigator() {
   return (
@@ -40,7 +35,7 @@ export default function AppNavigator() {
           shadowRadius: 8,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
-        tabBarIcon: ({ color, size }) => {
+        tabBarIcon: ({ size }) => {
           const icons: Record<string, string> = {
             Dashboard: '📊',
             InventoryTab: '🏭',
@@ -54,13 +49,9 @@ export default function AppNavigator() {
       })}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen
-        name="InventoryTab"
-        component={InventoryScreen}
-        options={{ tabBarLabel: 'Inventory' }}
-      />
-      <Tab.Screen name="Finance" component={PlaceholderScreen} />
-      <Tab.Screen name="More" component={PlaceholderScreen} />
+      <Tab.Screen name="Inventory" component={InventoryScreen} />
+      <Tab.Screen name="Finance" component={FinanceNavigator} />
+      <Tab.Screen name="More" component={MoreNavigator} />
     </Tab.Navigator>
   );
 }

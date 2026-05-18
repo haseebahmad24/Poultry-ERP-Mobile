@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { useNavigation } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useAuth } from '@/context/AuthContext';
 import { fetchDashboardData, KPIs, RecentVoucher } from '@/api/dashboard';
 import KPICard from '@/components/KPICard';
@@ -17,6 +19,7 @@ import ErrorView from '@/components/ErrorView';
 import LoadingView from '@/components/LoadingView';
 import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
+import type { AppTabParamList } from '@/navigation/AppNavigator';
 
 const VOUCHER_COLORS: Record<string, { bg: string; fg: string }> = {
   JV:  { bg: '#e8eaf6', fg: '#283593' },
@@ -29,17 +32,49 @@ const VOUCHER_COLORS: Record<string, { bg: string; fg: string }> = {
   PO:  { bg: '#f1f8e9', fg: '#558b2f' },
 };
 
-const QUICK_ACTIONS = [
-  { label: 'Journal Entry', icon: '📒', screen: 'JournalEntries', enabled: false },
-  { label: 'Purchase Order', icon: '🛒', screen: 'PurchaseOrders', enabled: true },
-  { label: 'Sales Order', icon: '📦', screen: 'SalesOrders', enabled: false },
-  { label: 'Goods Receipt', icon: '🚚', screen: 'GRN', enabled: false },
-  { label: 'Trial Balance', icon: '⚖️', screen: 'TrialBalance', enabled: false },
-  { label: 'Inventory', icon: '🏭', screen: 'Inventory', enabled: true },
-  { label: 'Materials', icon: '🧪', screen: 'Materials', enabled: true },
+type Nav = BottomTabNavigationProp<AppTabParamList>;
+
+type QuickAction = {
+  label: string;
+  icon: string;
+  navigate: (nav: Nav) => void;
+};
+
+const QUICK_ACTIONS: QuickAction[] = [
+  {
+    label: 'Journal Entry',
+    icon: '📒',
+    navigate: (nav) => nav.navigate('Finance', { screen: 'JournalEntries' }),
+  },
+  {
+    label: 'Purchase Order',
+    icon: '🛒',
+    navigate: (nav) => nav.navigate('More', { screen: 'PurchaseOrders' }),
+  },
+  {
+    label: 'Sales Order',
+    icon: '📦',
+    navigate: (nav) => nav.navigate('More', { screen: 'SalesOrders' }),
+  },
+  {
+    label: 'Goods Receipt',
+    icon: '🚚',
+    navigate: (nav) => nav.navigate('More', { screen: 'GRN' }),
+  },
+  {
+    label: 'Trial Balance',
+    icon: '⚖️',
+    navigate: (nav) => nav.navigate('Finance', { screen: 'TrialBalance' }),
+  },
+  {
+    label: 'Inventory',
+    icon: '🏭',
+    navigate: (nav) => nav.navigate('Inventory'),
+  },
 ];
 
-export default function DashboardScreen({ navigation }: any) {
+export default function DashboardScreen() {
+  const navigation = useNavigation<Nav>();
   const { authState, logout } = useAuth();
   const user = authState.status === 'authenticated' ? authState.user : null;
 
@@ -183,15 +218,13 @@ export default function DashboardScreen({ navigation }: any) {
         <View style={styles.quickGrid}>
           {QUICK_ACTIONS.map((qa) => (
             <TouchableOpacity
-              key={qa.screen}
-              style={[styles.quickCard, !qa.enabled && styles.quickCardDisabled]}
-              activeOpacity={qa.enabled ? 0.7 : 1}
-              onPress={() => qa.enabled && navigation.navigate(qa.screen)}
+              key={qa.label}
+              style={styles.quickCard}
+              activeOpacity={0.7}
+              onPress={() => qa.navigate(navigation)}
             >
-              <Text style={[styles.quickIcon, !qa.enabled && { opacity: 0.4 }]}>{qa.icon}</Text>
-              <Text style={[styles.quickLabel, !qa.enabled && styles.quickLabelDisabled]}>
-                {qa.label}
-              </Text>
+              <Text style={styles.quickIcon}>{qa.icon}</Text>
+              <Text style={styles.quickLabel}>{qa.label}</Text>
             </TouchableOpacity>
           ))}
         </View>

@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -10,82 +10,122 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
 import { fetchMaterials, fetchMaterialTypes, Material, MaterialType } from '@/api/materials';
-import ErrorView from '@/components/ErrorView';
 import LoadingView from '@/components/LoadingView';
-import { Colors, Radius, Shadow, Spacing } from '@/theme';
+import ErrorView from '@/components/ErrorView';
+import SectionHeader from '@/components/SectionHeader';
 
-const STATUS_FILTERS = ['All', 'Active', 'Inactive'];
+const STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
+  Active:   { bg: Colors.successBg,  fg: Colors.success },
+  active:   { bg: Colors.successBg,  fg: Colors.success },
+  ACTIVE:   { bg: Colors.successBg,  fg: Colors.success },
+  Inactive: { bg: Colors.dangerBg,   fg: Colors.danger },
+  inactive: { bg: Colors.dangerBg,   fg: Colors.danger },
+  INACTIVE: { bg: Colors.dangerBg,   fg: Colors.danger },
+  Pending:  { bg: Colors.warningBg,  fg: Colors.warning },
+  Draft:    { bg: Colors.warningBg,  fg: Colors.warning },
+};
 
-export default function MaterialsScreen({ navigation }: any) {
+export default function MaterialsScreen() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [types, setTypes] = useState<MaterialType[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [search, setSearch] = useState('');
-  const [selectedTypeId, setSelectedTypeId] = useState<number | null>(null);
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [selectedType, setSelectedType] = useState<number | null>(null);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
     try {
-      const [mats, tps] = await Promise.all([fetchMaterials(), fetchMaterialTypes()]);
+      const [mats, typs] = await Promise.all([
+        fetchMaterials({ typeId: selectedType ?? undefined }),
+        fetchMaterialTypes(),
+      ]);
       setMaterials(mats);
-      setTypes(tps);
+      setTypes(typs);
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [selectedType]);
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = useMemo(() => {
-    return materials.filter((m) => {
-      const q = search.toLowerCase();
-      const matchesSearch =
-        !search ||
-        m.name?.toLowerCase().includes(q) ||
-        m.code?.toLowerCase().includes(q) ||
-        m.type_name?.toLowerCase().includes(q) ||
-        m.description?.toLowerCase().includes(q);
-
-      const matchesType = selectedTypeId == null || m.type_id === selectedTypeId;
-
-      const matchesStatus =
-        statusFilter === 'All' ||
-        (statusFilter === 'Active' && (m.status === 'active' || m.status === 'Active' || m.status === '1' || m.status == null)) ||
-        (statusFilter === 'Inactive' && (m.status === 'inactive' || m.status === 'Inactive' || m.status === '0'));
-
-      return matchesSearch && matchesType && matchesStatus;
-    });
-  }, [materials, search, selectedTypeId, statusFilter]);
+  const filtered = materials.filter((m) => {
+    const q = search.toLowerCase();
+    return (
+      !q ||
+      m.name?.toLowerCase().includes(q) ||
+      m.code?.toLowerCase().includes(q) ||
+      m.type?.toLowerCase().includes(q) ||
+      m.category?.toLowerCase().includes(q)
+    );
+  });
 
   if (loading) return <LoadingView message="Loading materials…" />;
-  if (error) return <ErrorView message={error} onRetry={() => load()} />;
+  if (error && materials.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹</Text>
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>Materials</Text>
-        <View style={{ width: 40 }} />
+        <Text style={styles.headerSub}>{filtered.length} items</Text>
       </View>
 
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => String(item.id)}
+      {/* Search */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by name, code, type…"
+          placeholderTextColor={Colors.textMuted}
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
+
+      {/* Type Filter Chips */}
+      {types.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipScroll}
+          contentContainerStyle={styles.chipContainer}
+        >
+          <TouchableOpacity
+            style={[styles.chip, selectedType === null && styles.chipActive]}
+            onPress={() => setSelectedType(null)}
+          >
+            <Text style={[styles.chipText, selectedType === null && styles.chipTextActive]}>
+              All Types
+            </Text>
+          </TouchableOpacity>
+          {types.map((t) => (
+            <TouchableOpacity
+              key={t.id}
+              style={[styles.chip, selectedType === t.id && styles.chipActive]}
+              onPress={() => setSelectedType(selectedType === t.id ? null : t.id)}
+            >
+              <Text style={[styles.chipText, selectedType === t.id && styles.chipTextActive]}>
+                {t.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -93,127 +133,73 @@ export default function MaterialsScreen({ navigation }: any) {
             tintColor={Colors.primary}
           />
         }
-        ListHeaderComponent={
-          <View>
-            {/* Search */}
-            <View style={styles.searchRow}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search by name, code, type…"
-                placeholderTextColor={Colors.textMuted}
-                value={search}
-                onChangeText={setSearch}
-                clearButtonMode="while-editing"
-              />
-            </View>
+      >
+        <SectionHeader title="Material Master" meta={`${filtered.length} records`} />
 
-            {/* Status filter */}
-            <View style={styles.filterRow}>
-              {STATUS_FILTERS.map((s) => (
-                <TouchableOpacity
-                  key={s}
-                  style={[styles.filterChip, statusFilter === s && styles.filterChipActive]}
-                  onPress={() => setStatusFilter(s)}
-                >
-                  <Text style={[styles.filterChipText, statusFilter === s && styles.filterChipTextActive]}>
-                    {s}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Type filter horizontal scroll */}
-            {types.length > 0 && (
-              <View>
-                <FlatList
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.typeFilterRow}
-                  data={[{ id: null as any, name: 'All Types' }, ...types]}
-                  keyExtractor={(item) => String(item.id ?? 'all')}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      style={[
-                        styles.typeChip,
-                        (item.id == null ? selectedTypeId == null : selectedTypeId === item.id) &&
-                          styles.typeChipActive,
-                      ]}
-                      onPress={() => setSelectedTypeId(item.id ?? null)}
-                    >
-                      <Text
-                        style={[
-                          styles.typeChipText,
-                          (item.id == null ? selectedTypeId == null : selectedTypeId === item.id) &&
-                            styles.typeChipTextActive,
-                        ]}
-                      >
-                        {item.name}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                />
-              </View>
-            )}
-
-            {/* Count */}
-            <View style={styles.countRow}>
-              <Text style={styles.countText}>
-                {filtered.length} material{filtered.length !== 1 ? 's' : ''}
-              </Text>
-            </View>
-
-            {filtered.length === 0 && (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>🧪</Text>
-                <Text style={styles.emptyText}>No materials match your filters</Text>
-              </View>
-            )}
+        {filtered.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>🔬</Text>
+            <Text style={styles.emptyText}>
+              {search ? 'No materials match your search' : 'No materials found'}
+            </Text>
           </View>
-        }
-        renderItem={({ item }) => <MaterialRow material={item} />}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+        ) : (
+          <View style={styles.cardList}>
+            {filtered.map((m) => (
+              <MaterialCard key={m.id} material={m} />
+            ))}
+          </View>
+        )}
+
+        <View style={{ height: Spacing.xxl }} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-function MaterialRow({ material }: { material: Material }) {
-  const isActive =
-    material.status == null ||
-    material.status === 'active' ||
-    material.status === 'Active' ||
-    material.status === '1';
+function MaterialCard({ material: m }: { material: Material }) {
+  const statusColors = STATUS_COLORS[m.status ?? ''] ?? {
+    bg: Colors.borderLight,
+    fg: Colors.textMuted,
+  };
 
   return (
     <View style={styles.card}>
-      <View style={styles.cardLeft}>
-        <View style={styles.iconCircle}>
-          <Text style={styles.iconText}>🧪</Text>
+      <View style={styles.cardTop}>
+        <View style={styles.cardInfo}>
+          <Text style={styles.cardName} numberOfLines={2}>{m.name}</Text>
+          {m.code && <Text style={styles.cardCode}>{m.code}</Text>}
         </View>
-        <View style={styles.matInfo}>
-          <Text style={styles.matName} numberOfLines={1}>{material.name}</Text>
-          <View style={styles.matMeta}>
-            {material.code ? (
-              <Text style={styles.matCode}>{material.code}</Text>
-            ) : null}
-            {material.unit ? (
-              <Text style={styles.matUnit}> · {material.unit}</Text>
-            ) : null}
+        {m.status && (
+          <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
+            <Text style={[styles.statusText, { color: statusColors.fg }]}>
+              {m.status}
+            </Text>
           </View>
-          {material.type_name ? (
-            <View style={styles.typeBadge}>
-              <Text style={styles.typeBadgeText}>{material.type_name}</Text>
-            </View>
-          ) : null}
-        </View>
+        )}
       </View>
-      <View style={styles.cardRight}>
-        <View style={[styles.statusDot, { backgroundColor: isActive ? Colors.success : Colors.textMuted }]} />
-        <Text style={[styles.statusText, { color: isActive ? Colors.success : Colors.textMuted }]}>
-          {isActive ? 'Active' : 'Inactive'}
-        </Text>
+
+      <View style={styles.cardMeta}>
+        {m.type && (
+          <View style={styles.metaChip}>
+            <Text style={styles.metaChipText}>{m.type}</Text>
+          </View>
+        )}
+        {m.category && (
+          <View style={styles.metaChip}>
+            <Text style={styles.metaChipText}>{m.category}</Text>
+          </View>
+        )}
+        {m.unit && (
+          <View style={[styles.metaChip, styles.unitChip]}>
+            <Text style={[styles.metaChipText, styles.unitChipText]}>{m.unit}</Text>
+          </View>
+        )}
       </View>
+
+      {m.description && (
+        <Text style={styles.cardDesc} numberOfLines={2}>{m.description}</Text>
+      )}
     </View>
   );
 }
@@ -222,123 +208,124 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
 
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.xs,
-    paddingBottom: Spacing.md,
-  },
-  backBtn: { width: 40, height: 40, justifyContent: 'center' },
-  backText: { fontSize: 32, color: '#fff', lineHeight: 36, fontWeight: '300' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#fff' },
-
-  searchRow: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
-  searchInput: {
     backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
     paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
+    paddingVertical: Spacing.sm + 4,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: Spacing.sm,
+  },
+  headerTitle: { ...Typography.h2 },
+  headerSub: { ...Typography.bodySmall, color: Colors.textMuted },
+
+  searchContainer: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  searchInput: {
+    backgroundColor: Colors.background,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
     fontSize: 14,
     color: Colors.text,
   },
 
-  filterRow: {
+  chipScroll: { backgroundColor: Colors.surface, maxHeight: 50 },
+  chipContainer: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
     flexDirection: 'row',
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    gap: 8,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
   },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  filterChipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  filterChipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
-  filterChipTextActive: { color: '#fff' },
-
-  typeFilterRow: {
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    gap: 8,
-  },
-  typeChip: {
+  chip: {
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.background,
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  typeChipActive: {
+  chipActive: {
     backgroundColor: Colors.primaryBg,
     borderColor: Colors.primary,
   },
-  typeChipText: { fontSize: 12, color: Colors.textSecondary },
-  typeChipTextActive: { color: Colors.primary, fontWeight: '600' },
+  chipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
+  chipTextActive: { color: Colors.primary, fontWeight: '700' },
 
-  countRow: {
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    paddingBottom: 4,
-  },
-  countText: { fontSize: 11, color: Colors.textMuted, fontWeight: '500' },
+  scroll: { flex: 1 },
+  scrollContent: { paddingTop: Spacing.sm },
 
-  listContent: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xl },
-
-  card: {
-    flexDirection: 'row',
+  cardList: {
+    marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginBottom: 8,
-    alignItems: 'center',
-    ...Shadow.subtle,
+    overflow: 'hidden',
+    ...Shadow.card,
   },
-  cardLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  iconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.primaryBg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  iconText: { fontSize: 18 },
-  matInfo: { flex: 1 },
-  matName: { fontSize: 14, fontWeight: '600', color: Colors.text },
-  matMeta: { flexDirection: 'row', marginTop: 2 },
-  matCode: { fontSize: 11, color: Colors.textMuted },
-  matUnit: { fontSize: 11, color: Colors.textMuted },
-  typeBadge: {
-    backgroundColor: Colors.primaryBg,
-    borderRadius: Radius.sm,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    marginTop: 4,
-    alignSelf: 'flex-start',
-  },
-  typeBadgeText: { fontSize: 10, fontWeight: '600', color: Colors.primary },
 
-  cardRight: { alignItems: 'center', gap: 3 },
-  statusDot: { width: 7, height: 7, borderRadius: Radius.full },
-  statusText: { fontSize: 10, fontWeight: '500' },
+  card: {
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+    gap: Spacing.xs + 2,
+  },
+
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+  },
+  cardInfo: { flex: 1 },
+  cardName: { ...Typography.h4 },
+  cardCode: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 1 },
+
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+  },
+  statusText: { fontSize: 11, fontWeight: '700' },
+
+  cardMeta: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  },
+  metaChip: {
+    backgroundColor: Colors.background,
+    borderRadius: Radius.sm,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  metaChipText: { fontSize: 11, color: Colors.textSecondary, fontWeight: '500' },
+  unitChip: {
+    backgroundColor: Colors.primaryBg,
+    borderColor: Colors.primaryLight,
+  },
+  unitChipText: { color: Colors.primaryDark },
+
+  cardDesc: { ...Typography.bodySmall, color: Colors.textSecondary },
 
   emptyState: {
+    marginHorizontal: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    padding: Spacing.xl,
     alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: Spacing.lg,
+    gap: Spacing.sm,
+    ...Shadow.subtle,
   },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyText: { fontSize: 14, color: Colors.textMuted, textAlign: 'center' },
+  emptyIcon: { fontSize: 36 },
+  emptyText: { ...Typography.body, color: Colors.textMuted },
 });
