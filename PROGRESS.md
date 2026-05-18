@@ -1,5 +1,29 @@
 # Mobile App Progress
 
+## Session 3 — 2026-05-18
+
+### Completed This Session
+
+**Global Company Filter (extended)**
+- Wired `CompanyPicker` + `useCompany()` into **Dashboard**, **Materials**, **Journal Entries**, **Partners**, and **Sales Orders** screens — all list data now filters by the globally selected company
+- `TrialBalance` and `FinancialReports` now pull companies from `CompanyContext` instead of fetching independently (eliminates redundant `/api/options/companies` calls)
+- Fixed `CompanyContext` to reload companies **after login** instead of failing silently on app start (root cause: provider was mounting before auth token was available)
+
+**API Reliability**
+- `src/api/client.ts` — added exponential-backoff retry (2 attempts, 500ms/1000ms delays) for network errors and HTTP 5xx/429 responses
+
+**Navigation & UX Polish**
+- `MoreMenuScreen`: removed disabled Finance items (were showing "Available in Finance tab" lock icons); replaced with tappable items that navigate directly into Finance tab's screens via `getParent()`
+- `AppStack`: removed dead duplicate routes (Inventory, Materials, PurchaseOrders, PODetail) that were shadowing the real screens in the tab navigators
+- Fixed Inventory tab icon bug: icon key was `InventoryTab` but route name is `Inventory` — tab was showing `•` instead of `🏭`
+- `PurchaseOrder` type: added `received` and `receipt_pct` optional fields for the `progress` view response
+
+**Documentation**
+- Updated `scripts/generate-docs.js` with Session 3 changelog and updated Section 3/Section 4
+- Regenerated `FEATURES.docx`
+
+---
+
 ## Session 2 — 2026-05-15
 
 ### Completed This Session
@@ -80,11 +104,14 @@
 
 ---
 
-## What's Next (Session 3)
+## What's Next (Session 4)
 
-1. Apply **CompanyPicker** to more screens (Dashboard, Materials, JE, Partners)
-2. **Better error recovery** — retry on network failures
-3. Any remaining polish or bug fixes based on testing
+All primary roadmap items are complete. Remaining polish options:
+
+1. **Date range filters** on Journal Entries (from/to date inputs)
+2. **Search within AP/AR** (bills and invoice search)
+3. **PO detail navigation** from GRN screen line items
+4. **Deep-link back navigation** — ensure back button behavior is correct in all nested stacks
 
 ---
 
@@ -144,6 +171,8 @@
 | Business Partners | ✅ Done |
 | Companies | ✅ Done |
 | Dashboard Quick Actions wired | ✅ Done |
-| Global Company Filter | ✅ Done (partial — Inventory, AP, AR) |
+| Global Company Filter (all screens) | ✅ Done |
 | Pull-to-refresh (all screens) | ✅ Done |
 | Empty States | ✅ Done |
+| API retry logic | ✅ Done |
+| MoreMenu Finance deep links | ✅ Done |
