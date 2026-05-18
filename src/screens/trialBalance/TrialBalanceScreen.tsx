@@ -12,22 +12,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
 import { fetchTrialBalance, TrialBalanceRow, TrialBalanceResult } from '@/api/trialBalance';
-import { fetchCompanies } from '@/api/dashboard';
+import { useCompany } from '@/context/CompanyContext';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import { formatCurrency } from '@/utils/currency';
-
-type Company = { id: string; name: string; code: string | null };
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
 export default function TrialBalanceScreen() {
+  const { companies, selectedCompany: globalCompany } = useCompany();
   const [result, setResult] = useState<TrialBalanceResult>({ rows: [] });
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<typeof globalCompany>(null);
   const [asOf, setAsOf] = useState(todayISO());
   const [asOfInput, setAsOfInput] = useState(todayISO());
   const [loading, setLoading] = useState(true);
@@ -36,13 +34,10 @@ export default function TrialBalanceScreen() {
   const [search, setSearch] = useState('');
   const [showCompanyPicker, setShowCompanyPicker] = useState(false);
 
-  const loadCompanies = useCallback(async () => {
-    try {
-      const data = await fetchCompanies();
-      setCompanies(data);
-      if (data.length > 0 && !selectedCompany) setSelectedCompany(data[0]);
-    } catch {}
-  }, [selectedCompany]);
+  // Seed local selection from global context when companies load
+  useEffect(() => {
+    if (!selectedCompany && globalCompany) setSelectedCompany(globalCompany);
+  }, [globalCompany, selectedCompany]);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -60,7 +55,6 @@ export default function TrialBalanceScreen() {
     }
   }, [selectedCompany, asOf]);
 
-  useEffect(() => { loadCompanies(); }, []);
   useEffect(() => { load(); }, [load]);
 
   const filteredRows = result.rows.filter((r) =>
