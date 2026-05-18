@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { fetchCompanies } from '@/api/dashboard';
+import { useAuth } from '@/context/AuthContext';
 
 type Company = { id: string; name: string; code: string | null };
 
@@ -20,17 +21,19 @@ const CompanyContext = createContext<CompanyContextValue>({
 });
 
 export function CompanyProvider({ children }: { children: React.ReactNode }) {
+  const { authState } = useAuth();
+  const isAuthenticated = authState.status === 'authenticated';
+
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const data = await fetchCompanies();
       setCompanies(data);
-      // Auto-select first company if none selected
-      if (data.length > 0) setSelectedCompany(data[0]);
+      setSelectedCompany((prev) => prev ?? (data.length > 0 ? data[0] : null));
     } catch {
       // Non-fatal — screens fall back to no company filter
     } finally {
@@ -38,7 +41,14 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (isAuthenticated) {
+      load();
+    } else {
+      setCompanies([]);
+      setSelectedCompany(null);
+    }
+  }, [isAuthenticated, load]);
 
   const companyId = selectedCompany ? Number(selectedCompany.id) : undefined;
 
