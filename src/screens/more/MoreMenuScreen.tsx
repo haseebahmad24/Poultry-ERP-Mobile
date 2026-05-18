@@ -8,111 +8,110 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
+import type { AppTabParamList } from '@/navigation/AppNavigator';
+import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
 
-type Nav = NativeStackNavigationProp<MoreStackParamList, 'MoreMenu'>;
+type MoreNav = NativeStackNavigationProp<MoreStackParamList, 'MoreMenu'>;
+type TabNav = BottomTabNavigationProp<AppTabParamList>;
 
-interface MenuItem {
+const OPERATIONS_ITEMS: {
   icon: string;
   label: string;
   subtitle: string;
-  screen: keyof MoreStackParamList | null;
-  available: boolean;
-}
+  screen: keyof MoreStackParamList;
+}[] = [
+  {
+    icon: '🔬',
+    label: 'Materials',
+    subtitle: 'Material master list with types and status',
+    screen: 'Materials',
+  },
+  {
+    icon: '🛒',
+    label: 'Purchase Orders',
+    subtitle: 'PO list with status and receipt progress',
+    screen: 'PurchaseOrders',
+  },
+  {
+    icon: '📦',
+    label: 'Sales Orders',
+    subtitle: 'Sales order list and details',
+    screen: 'SalesOrders',
+  },
+  {
+    icon: '🚚',
+    label: 'Goods Receipt',
+    subtitle: 'PO receipt progress and GRN details',
+    screen: 'GRN',
+  },
+];
 
-const MENU_SECTIONS: { title: string; items: MenuItem[] }[] = [
+const FINANCE_ITEMS: {
+  icon: string;
+  label: string;
+  subtitle: string;
+  screen: keyof FinanceStackParamList;
+}[] = [
   {
-    title: 'Operations',
-    items: [
-      {
-        icon: '🔬',
-        label: 'Materials',
-        subtitle: 'Material master list with types and status',
-        screen: 'Materials',
-        available: true,
-      },
-      {
-        icon: '🛒',
-        label: 'Purchase Orders',
-        subtitle: 'PO list with status and receipt progress',
-        screen: 'PurchaseOrders',
-        available: true,
-      },
-      {
-        icon: '📦',
-        label: 'Sales Orders',
-        subtitle: 'Sales order list and details',
-        screen: 'SalesOrders',
-        available: true,
-      },
-      {
-        icon: '🚚',
-        label: 'Goods Receipt',
-        subtitle: 'PO receipt progress and GRN details',
-        screen: 'GRN',
-        available: true,
-      },
-    ],
+    icon: '💸',
+    label: 'Accounts Payable',
+    subtitle: 'Vendor bills, aging analysis, and balances',
+    screen: 'AccountsPayable',
   },
   {
-    title: 'Finance',
-    items: [
-      {
-        icon: '💸',
-        label: 'Accounts Payable',
-        subtitle: 'Available in the Finance tab',
-        screen: null,
-        available: false,
-      },
-      {
-        icon: '💰',
-        label: 'Accounts Receivable',
-        subtitle: 'Available in the Finance tab',
-        screen: null,
-        available: false,
-      },
-      {
-        icon: '📒',
-        label: 'Journal Entries',
-        subtitle: 'Available in the Finance tab',
-        screen: null,
-        available: false,
-      },
-      {
-        icon: '⚖️',
-        label: 'Trial Balance',
-        subtitle: 'Account balances as of date — coming soon',
-        screen: null,
-        available: false,
-      },
-    ],
+    icon: '💰',
+    label: 'Accounts Receivable',
+    subtitle: 'Customer invoices, aging analysis, and balances',
+    screen: 'AccountsReceivable',
   },
   {
-    title: 'Admin',
-    items: [
-      {
-        icon: '🤝',
-        label: 'Business Partners',
-        subtitle: 'Customers and vendors with role badges',
-        screen: 'Partners',
-        available: true,
-      },
-      {
-        icon: '🏢',
-        label: 'Companies',
-        subtitle: 'Company profiles and fiscal settings',
-        screen: 'Companies',
-        available: true,
-      },
-    ],
+    icon: '📒',
+    label: 'Journal Entries',
+    subtitle: 'Voucher list filtered by type or account',
+    screen: 'JournalEntries',
+  },
+  {
+    icon: '⚖️',
+    label: 'Trial Balance',
+    subtitle: 'Account balances as of selected date',
+    screen: 'TrialBalance',
+  },
+  {
+    icon: '📊',
+    label: 'Financial Reports',
+    subtitle: 'P&L and Balance Sheet',
+    screen: 'FinancialReports',
+  },
+];
+
+const ADMIN_ITEMS: {
+  icon: string;
+  label: string;
+  subtitle: string;
+  screen: keyof MoreStackParamList;
+}[] = [
+  {
+    icon: '🤝',
+    label: 'Business Partners',
+    subtitle: 'Customers and vendors with role badges',
+    screen: 'Partners',
+  },
+  {
+    icon: '🏢',
+    label: 'Companies',
+    subtitle: 'Company profiles and fiscal settings',
+    screen: 'Companies',
   },
 ];
 
 export default function MoreMenuScreen() {
-  const navigation = useNavigation<Nav>();
+  const moreNav = useNavigation<MoreNav>();
+  const tabNav = moreNav.getParent<TabNav>();
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -128,40 +127,67 @@ export default function MoreMenuScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {MENU_SECTIONS.map((section) => (
-          <View key={section.title}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            <View style={styles.sectionCard}>
-              {section.items.map((item, idx) => (
-                <TouchableOpacity
-                  key={item.label}
-                  style={[
-                    styles.menuItem,
-                    idx < section.items.length - 1 && styles.menuItemBorder,
-                    !item.available && styles.menuItemDisabled,
-                  ]}
-                  onPress={() => {
-                    if (item.available && item.screen) {
-                      navigation.navigate(item.screen as any);
-                    }
-                  }}
-                  activeOpacity={item.available ? 0.7 : 1}
-                >
-                  <Text style={styles.menuIcon}>{item.icon}</Text>
-                  <View style={styles.menuInfo}>
-                    <Text style={[styles.menuLabel, !item.available && styles.menuLabelDisabled]}>
-                      {item.label}
-                    </Text>
-                    <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
-                  </View>
-                  <Text style={styles.menuChevron}>
-                    {item.available ? '›' : '🔒'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        ))}
+        {/* Operations */}
+        <Text style={styles.sectionTitle}>OPERATIONS</Text>
+        <View style={styles.sectionCard}>
+          {OPERATIONS_ITEMS.map((item, idx) => (
+            <TouchableOpacity
+              key={item.label}
+              style={[styles.menuItem, idx < OPERATIONS_ITEMS.length - 1 && styles.menuItemBorder]}
+              onPress={() => moreNav.navigate(item.screen as any)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.menuIcon}>{item.icon}</Text>
+              <View style={styles.menuInfo}>
+                <Text style={styles.menuLabel}>{item.label}</Text>
+                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+              </View>
+              <Text style={styles.menuChevron}>›</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Finance — navigates into Finance tab stack */}
+        <Text style={styles.sectionTitle}>FINANCE</Text>
+        <View style={styles.sectionCard}>
+          {FINANCE_ITEMS.map((item, idx) => (
+            <TouchableOpacity
+              key={item.label}
+              style={[styles.menuItem, idx < FINANCE_ITEMS.length - 1 && styles.menuItemBorder]}
+              onPress={() =>
+                tabNav?.navigate('Finance', { screen: item.screen })
+              }
+              activeOpacity={0.7}
+            >
+              <Text style={styles.menuIcon}>{item.icon}</Text>
+              <View style={styles.menuInfo}>
+                <Text style={styles.menuLabel}>{item.label}</Text>
+                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+              </View>
+              <Text style={styles.menuChevron}>›</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Admin */}
+        <Text style={styles.sectionTitle}>ADMIN</Text>
+        <View style={styles.sectionCard}>
+          {ADMIN_ITEMS.map((item, idx) => (
+            <TouchableOpacity
+              key={item.label}
+              style={[styles.menuItem, idx < ADMIN_ITEMS.length - 1 && styles.menuItemBorder]}
+              onPress={() => moreNav.navigate(item.screen as any)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.menuIcon}>{item.icon}</Text>
+              <View style={styles.menuInfo}>
+                <Text style={styles.menuLabel}>{item.label}</Text>
+                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+              </View>
+              <Text style={styles.menuChevron}>›</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
@@ -186,13 +212,12 @@ const styles = StyleSheet.create({
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted },
 
   scroll: { flex: 1 },
-  scrollContent: { paddingTop: Spacing.md, paddingHorizontal: Spacing.md, gap: Spacing.xs },
+  scrollContent: { paddingTop: Spacing.md, paddingHorizontal: Spacing.md },
 
   sectionTitle: {
     ...Typography.label,
     marginBottom: Spacing.xs,
-    marginTop: Spacing.sm,
-    paddingHorizontal: 2,
+    marginTop: Spacing.md,
   },
 
   sectionCard: {
@@ -200,7 +225,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     overflow: 'hidden',
     ...Shadow.card,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs,
   },
 
   menuItem: {
@@ -213,12 +238,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderLight,
   },
-  menuItemDisabled: { opacity: 0.5 },
 
   menuIcon: { fontSize: 24 },
   menuInfo: { flex: 1 },
   menuLabel: { ...Typography.h4 },
-  menuLabelDisabled: { color: Colors.textSecondary },
   menuSubtitle: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
   menuChevron: { fontSize: 20, color: Colors.textMuted },
 });

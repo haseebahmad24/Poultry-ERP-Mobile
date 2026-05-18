@@ -23,6 +23,9 @@ export interface PurchaseOrder {
   currency?: string;
   notes?: string;
   items?: POItem[];
+  // Progress-view fields
+  received?: number;
+  receipt_pct?: number;
 }
 
 export async function fetchPurchaseOrders(
