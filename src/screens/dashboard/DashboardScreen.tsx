@@ -12,11 +12,13 @@ import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useAuth } from '@/context/AuthContext';
+import { useCompany } from '@/context/CompanyContext';
 import { fetchDashboardData, KPIs, RecentVoucher } from '@/api/dashboard';
 import KPICard from '@/components/KPICard';
 import SectionHeader from '@/components/SectionHeader';
 import ErrorView from '@/components/ErrorView';
 import LoadingView from '@/components/LoadingView';
+import CompanyPicker from '@/components/CompanyPicker';
 import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
@@ -76,6 +78,7 @@ const QUICK_ACTIONS: QuickAction[] = [
 export default function DashboardScreen() {
   const navigation = useNavigation<Nav>();
   const { authState, logout } = useAuth();
+  const { selectedCompany } = useCompany();
   const user = authState.status === 'authenticated' ? authState.user : null;
 
   const [kpis, setKpis] = useState<KPIs | null>(null);
@@ -89,7 +92,7 @@ export default function DashboardScreen() {
     else setLoading(true);
     setError(null);
     try {
-      const data = await fetchDashboardData();
+      const data = await fetchDashboardData(selectedCompany?.id ?? undefined);
       setKpis(data.kpis);
       setVouchers(data.recentVouchers);
     } catch (e: any) {
@@ -98,7 +101,7 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [selectedCompany]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -132,6 +135,8 @@ export default function DashboardScreen() {
           <Text style={styles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
       </View>
+
+      <CompanyPicker showAll />
 
       <ScrollView
         style={styles.scroll}

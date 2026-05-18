@@ -16,6 +16,8 @@ import { fetchSalesOrders, SalesOrder } from '@/api/salesOrders';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
+import CompanyPicker from '@/components/CompanyPicker';
+import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
@@ -42,6 +44,7 @@ const SO_STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
 
 export default function SalesOrdersScreen() {
   const navigation = useNavigation<Nav>();
+  const { companyId } = useCompany();
   const [activeTab, setActiveTab] = useState<StatusTab>('register');
   const [orders, setOrders] = useState<SalesOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,7 +56,7 @@ export default function SalesOrdersScreen() {
     else setLoading(true);
     setError(null);
     try {
-      const data = await fetchSalesOrders(activeTab);
+      const data = await fetchSalesOrders(activeTab, { companyId });
       setOrders(data);
     } catch (e: any) {
       setError(String(e?.message ?? e));
@@ -61,7 +64,7 @@ export default function SalesOrdersScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeTab]);
+  }, [activeTab, companyId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -76,6 +79,8 @@ export default function SalesOrdersScreen() {
         <Text style={styles.headerTitle}>Sales Orders</Text>
         <Text style={styles.headerSub}>{orders.length} records</Text>
       </View>
+
+      <CompanyPicker showAll />
 
       <View style={styles.tabBar}>
         {STATUS_TABS.map((t) => (

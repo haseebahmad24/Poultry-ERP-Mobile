@@ -15,6 +15,8 @@ import { fetchJournalEntries, JournalEntry } from '@/api/journalEntries';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
+import CompanyPicker from '@/components/CompanyPicker';
+import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 
 const VOUCHER_TYPES = ['All', 'JV', 'GRN', 'PAY', 'REC', 'INV', 'SO', 'PO', 'DN'];
@@ -37,6 +39,7 @@ const STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
 };
 
 export default function JournalEntriesScreen() {
+  const { companyId } = useCompany();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -51,6 +54,7 @@ export default function JournalEntriesScreen() {
     setError(null);
     try {
       const data = await fetchJournalEntries({
+        companyId,
         type: selectedType !== 'All' ? selectedType : undefined,
       });
       setEntries(data);
@@ -60,7 +64,7 @@ export default function JournalEntriesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedType]);
+  }, [selectedType, companyId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -85,6 +89,8 @@ export default function JournalEntriesScreen() {
         <Text style={styles.headerTitle}>Journal Entries</Text>
         <Text style={styles.headerSub}>{filtered.length} entries</Text>
       </View>
+
+      <CompanyPicker showAll />
 
       {/* Search */}
       <View style={styles.searchContainer}>

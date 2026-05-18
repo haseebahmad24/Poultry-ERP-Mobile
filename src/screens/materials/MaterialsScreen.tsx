@@ -15,6 +15,8 @@ import { fetchMaterials, fetchMaterialTypes, Material, MaterialType } from '@/ap
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
+import CompanyPicker from '@/components/CompanyPicker';
+import { useCompany } from '@/context/CompanyContext';
 
 const STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
   Active:   { bg: Colors.successBg,  fg: Colors.success },
@@ -28,6 +30,7 @@ const STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
 };
 
 export default function MaterialsScreen() {
+  const { companyId } = useCompany();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [types, setTypes] = useState<MaterialType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +45,7 @@ export default function MaterialsScreen() {
     setError(null);
     try {
       const [mats, typs] = await Promise.all([
-        fetchMaterials({ typeId: selectedType ?? undefined }),
+        fetchMaterials({ companyId, typeId: selectedType ?? undefined }),
         fetchMaterialTypes(),
       ]);
       setMaterials(mats);
@@ -53,7 +56,7 @@ export default function MaterialsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedType]);
+  }, [selectedType, companyId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -80,6 +83,8 @@ export default function MaterialsScreen() {
         <Text style={styles.headerTitle}>Materials</Text>
         <Text style={styles.headerSub}>{filtered.length} items</Text>
       </View>
+
+      <CompanyPicker showAll />
 
       {/* Search */}
       <View style={styles.searchContainer}>

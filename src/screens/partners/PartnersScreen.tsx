@@ -15,10 +15,13 @@ import { fetchPartners, Partner } from '@/api/partners';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
+import CompanyPicker from '@/components/CompanyPicker';
+import { useCompany } from '@/context/CompanyContext';
 
 type RoleFilter = 'all' | 'customer' | 'vendor';
 
 export default function PartnersScreen() {
+  const { companyId } = useCompany();
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -31,7 +34,7 @@ export default function PartnersScreen() {
     else setLoading(true);
     setError(null);
     try {
-      const data = await fetchPartners();
+      const data = await fetchPartners(companyId);
       setPartners(data);
     } catch (e: any) {
       setError(String(e?.message ?? e));
@@ -39,7 +42,7 @@ export default function PartnersScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -69,6 +72,8 @@ export default function PartnersScreen() {
         <Text style={styles.headerTitle}>Business Partners</Text>
         <Text style={styles.headerSub}>{filtered.length} records</Text>
       </View>
+
+      <CompanyPicker showAll />
 
       <View style={styles.searchContainer}>
         <TextInput
