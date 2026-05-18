@@ -261,7 +261,7 @@ function StockRow({ item, index }: { item: StockBalance; index: number }) {
       </View>
       <View style={styles.stockCardRight}>
         <Text style={[styles.stockQty, { color: qtyColor }]}>
-          {item.quantity.toLocaleString('en-PK', { maximumFractionDigits: 2 })}
+          {(item.quantity ?? 0).toLocaleString('en-PK', { maximumFractionDigits: 2 })}
         </Text>
         <Text style={styles.stockUom}>{item.uom ?? 'units'}</Text>
         {item.total_value != null && item.total_value > 0 ? (
