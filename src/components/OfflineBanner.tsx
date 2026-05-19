@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { Colors, Spacing, Typography } from '@/theme';
 
 interface Props {
@@ -11,7 +12,7 @@ export default function OfflineBanner({ visible, message }: Props) {
   if (!visible) return null;
   return (
     <View style={styles.banner}>
-      <Text style={styles.icon}>📵</Text>
+      <Feather name="wifi-off" size={13} color={Colors.textSecondary} />
       <Text style={styles.text}>{message ?? 'Showing cached data — pull to refresh'}</Text>
     </View>
   );
@@ -22,12 +23,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.warningBg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.warning + '40',
+    backgroundColor: Colors.surfaceHover,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
     paddingHorizontal: Spacing.md,
     paddingVertical: 6,
   },
-  icon: { fontSize: 13 },
-  text: { ...Typography.bodySmall, color: Colors.warning, fontWeight: '600', flex: 1 },
+  text: { ...Typography.bodySmall, color: Colors.textSecondary, fontWeight: '500', flex: 1 },
 });
