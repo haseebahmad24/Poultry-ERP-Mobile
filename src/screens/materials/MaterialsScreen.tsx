@@ -10,25 +10,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Feather } from '@expo/vector-icons';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchMaterials, fetchMaterialTypes, Material, MaterialType } from '@/api/materials';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
-import CompanyPicker from '@/components/CompanyPicker';
-import { useCompany } from '@/context/CompanyContext';
+import CompanySelector from '@/components/CompanySelector';
 import BackButton from '@/components/BackButton';
-
-const STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
-  Active:   { bg: Colors.successBg,  fg: Colors.success },
-  active:   { bg: Colors.successBg,  fg: Colors.success },
-  ACTIVE:   { bg: Colors.successBg,  fg: Colors.success },
-  Inactive: { bg: Colors.dangerBg,   fg: Colors.danger },
-  inactive: { bg: Colors.dangerBg,   fg: Colors.danger },
-  INACTIVE: { bg: Colors.dangerBg,   fg: Colors.danger },
-  Pending:  { bg: Colors.warningBg,  fg: Colors.warning },
-  Draft:    { bg: Colors.warningBg,  fg: Colors.warning },
-};
+import { useCompany } from '@/context/CompanyContext';
 
 export default function MaterialsScreen() {
   const { companyId } = useCompany();
@@ -79,27 +69,32 @@ export default function MaterialsScreen() {
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
 
-      {/* Header */}
       <View style={styles.header}>
-        <BackButton color={Colors.primary} />
+        <BackButton />
         <Text style={styles.headerTitle}>Materials</Text>
         <Text style={styles.headerSub}>{filtered.length} items</Text>
       </View>
 
-      <CompanyPicker showAll />
+      <CompanySelector showAll />
 
-      {/* Search */}
       <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search by name, code, type…"
-          placeholderTextColor={Colors.textMuted}
-          value={search}
-          onChangeText={setSearch}
-        />
+        <View style={styles.searchRow}>
+          <Feather name="search" size={15} color={Colors.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by name, code, type…"
+            placeholderTextColor={Colors.textMuted}
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Feather name="x" size={15} color={Colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      {/* Type Filter Chips */}
       {types.length > 0 && (
         <ScrollView
           horizontal
@@ -137,7 +132,7 @@ export default function MaterialsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => load(true)}
-            tintColor={Colors.primary}
+            tintColor={Colors.textMuted}
           />
         }
       >
@@ -145,7 +140,7 @@ export default function MaterialsScreen() {
 
         {filtered.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🔬</Text>
+            <Feather name="grid" size={36} color={Colors.textMuted} />
             <Text style={styles.emptyText}>
               {search ? 'No materials match your search' : 'No materials found'}
             </Text>
@@ -165,10 +160,8 @@ export default function MaterialsScreen() {
 }
 
 function MaterialCard({ material: m }: { material: Material }) {
-  const statusColors = STATUS_COLORS[m.status ?? ''] ?? {
-    bg: Colors.borderLight,
-    fg: Colors.textMuted,
-  };
+  const statusKey = (m.status ?? '').toLowerCase();
+  const isMuted = statusKey === 'inactive';
 
   return (
     <View style={styles.card}>
@@ -178,10 +171,8 @@ function MaterialCard({ material: m }: { material: Material }) {
           {m.code && <Text style={styles.cardCode}>{m.code}</Text>}
         </View>
         {m.status && (
-          <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
-            <Text style={[styles.statusText, { color: statusColors.fg }]}>
-              {m.status}
-            </Text>
+          <View style={[styles.statusBadge, isMuted && styles.statusBadgeMuted]}>
+            <Text style={styles.statusText}>{m.status}</Text>
           </View>
         )}
       </View>
@@ -199,7 +190,7 @@ function MaterialCard({ material: m }: { material: Material }) {
         )}
         {m.unit && (
           <View style={[styles.metaChip, styles.unitChip]}>
-            <Text style={[styles.metaChipText, styles.unitChipText]}>{m.unit}</Text>
+            <Text style={styles.metaChipText}>{m.unit}</Text>
           </View>
         )}
       </View>
@@ -218,7 +209,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 4,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -231,17 +222,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
-  searchInput: {
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
     backgroundColor: Colors.background,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    fontSize: 14,
-    color: Colors.text,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
+  searchInput: { flex: 1, fontSize: 14, color: Colors.text, padding: 0 },
 
   chipScroll: { backgroundColor: Colors.surface, maxHeight: 50 },
   chipContainer: {
@@ -250,23 +245,20 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: Radius.full,
-    backgroundColor: Colors.background,
-    borderWidth: 1,
+    backgroundColor: Colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
   },
-  chipActive: {
-    backgroundColor: Colors.primaryBg,
-    borderColor: Colors.primary,
-  },
+  chipActive: { backgroundColor: Colors.text, borderColor: Colors.text },
   chipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
-  chipTextActive: { color: Colors.primary, fontWeight: '700' },
+  chipTextActive: { color: '#fff', fontWeight: '600' },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },
@@ -276,21 +268,18 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     overflow: 'hidden',
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
 
   card: {
     padding: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
     gap: Spacing.xs + 2,
   },
 
-  cardTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.sm,
-  },
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   cardInfo: { flex: 1 },
   cardName: { ...Typography.h4 },
   cardCode: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 1 },
@@ -299,28 +288,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  statusText: { fontSize: 11, fontWeight: '700' },
+  statusBadgeMuted: { opacity: 0.5 },
+  statusText: { fontSize: 11, fontWeight: '600', color: Colors.text },
 
-  cardMeta: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.xs,
-  },
+  cardMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
   metaChip: {
     backgroundColor: Colors.background,
     borderRadius: Radius.sm,
     paddingHorizontal: 7,
     paddingVertical: 2,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
   },
   metaChipText: { fontSize: 11, color: Colors.textSecondary, fontWeight: '500' },
-  unitChip: {
-    backgroundColor: Colors.primaryBg,
-    borderColor: Colors.primaryLight,
-  },
-  unitChipText: { color: Colors.primaryDark },
+  unitChip: { backgroundColor: Colors.surfaceHover },
 
   cardDesc: { ...Typography.bodySmall, color: Colors.textSecondary },
 
@@ -328,11 +312,11 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     padding: Spacing.xl,
     alignItems: 'center',
     gap: Spacing.sm,
-    ...Shadow.subtle,
   },
-  emptyIcon: { fontSize: 36 },
   emptyText: { ...Typography.body, color: Colors.textMuted },
 });

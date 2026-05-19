@@ -10,14 +10,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Feather } from '@expo/vector-icons';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchPartners, Partner } from '@/api/partners';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
-import CompanyPicker from '@/components/CompanyPicker';
-import { useCompany } from '@/context/CompanyContext';
+import CompanySelector from '@/components/CompanySelector';
 import BackButton from '@/components/BackButton';
+import { useCompany } from '@/context/CompanyContext';
 
 type RoleFilter = 'all' | 'customer' | 'vendor';
 
@@ -70,24 +71,31 @@ export default function PartnersScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.header}>
-        <BackButton color={Colors.primary} />
+        <BackButton />
         <Text style={styles.headerTitle}>Business Partners</Text>
         <Text style={styles.headerSub}>{filtered.length} records</Text>
       </View>
 
-      <CompanyPicker showAll />
+      <CompanySelector showAll />
 
       <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search by name, code, email…"
-          placeholderTextColor={Colors.textMuted}
-          value={search}
-          onChangeText={setSearch}
-        />
+        <View style={styles.searchRow}>
+          <Feather name="search" size={15} color={Colors.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by name, code, email…"
+            placeholderTextColor={Colors.textMuted}
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Feather name="x" size={15} color={Colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      {/* Role filter */}
       <View style={styles.filterBar}>
         {(['all', 'customer', 'vendor'] as RoleFilter[]).map((role) => (
           <TouchableOpacity
@@ -107,14 +115,14 @@ export default function PartnersScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.textMuted} />
         }
       >
         <SectionHeader title="Partners" meta={`${filtered.length} records`} />
 
         {filtered.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🤝</Text>
+            <Feather name="users" size={36} color={Colors.textMuted} />
             <Text style={styles.emptyText}>
               {search || roleFilter !== 'all' ? 'No partners match your filter' : 'No partners found'}
             </Text>
@@ -153,21 +161,8 @@ function PartnerCard({ partner: p }: { partner: Partner }) {
         </View>
         <View style={styles.rolesColumn}>
           {roles.map((role) => (
-            <View
-              key={role}
-              style={[
-                styles.roleBadge,
-                role === 'Customer' && styles.roleBadgeCustomer,
-                role === 'Vendor' && styles.roleBadgeVendor,
-              ]}
-            >
-              <Text style={[
-                styles.roleText,
-                role === 'Customer' && styles.roleTextCustomer,
-                role === 'Vendor' && styles.roleTextVendor,
-              ]}>
-                {role}
-              </Text>
+            <View key={role} style={styles.roleBadge}>
+              <Text style={styles.roleText}>{role}</Text>
             </View>
           ))}
         </View>
@@ -175,13 +170,26 @@ function PartnerCard({ partner: p }: { partner: Partner }) {
 
       {(p.email || p.phone) && (
         <View style={styles.contactRow}>
-          {p.email && <Text style={styles.contactText}>✉️ {p.email}</Text>}
-          {p.phone && <Text style={styles.contactText}>📞 {p.phone}</Text>}
+          {p.email && (
+            <View style={styles.contactItem}>
+              <Feather name="mail" size={11} color={Colors.textMuted} />
+              <Text style={styles.contactText}>{p.email}</Text>
+            </View>
+          )}
+          {p.phone && (
+            <View style={styles.contactItem}>
+              <Feather name="phone" size={11} color={Colors.textMuted} />
+              <Text style={styles.contactText}>{p.phone}</Text>
+            </View>
+          )}
         </View>
       )}
 
       {p.company && (
-        <Text style={styles.companyText}>🏢 {p.company}</Text>
+        <View style={styles.contactItem}>
+          <Feather name="briefcase" size={11} color={Colors.textMuted} />
+          <Text style={styles.contactText}>{p.company}</Text>
+        </View>
       )}
     </View>
   );
@@ -194,7 +202,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 4,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -207,17 +215,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
-  searchInput: {
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
     backgroundColor: Colors.background,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    fontSize: 14,
-    color: Colors.text,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
+  searchInput: { flex: 1, fontSize: 14, color: Colors.text, padding: 0 },
 
   filterBar: {
     flexDirection: 'row',
@@ -225,32 +237,38 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     gap: Spacing.sm,
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
   filterChip: {
     paddingHorizontal: 14,
     paddingVertical: 5,
     borderRadius: Radius.full,
-    backgroundColor: Colors.background,
-    borderWidth: 1,
+    backgroundColor: Colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
   },
-  filterChipActive: { backgroundColor: Colors.primaryBg, borderColor: Colors.primary },
+  filterChipActive: { backgroundColor: Colors.text, borderColor: Colors.text },
   filterChipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
-  filterChipTextActive: { color: Colors.primary, fontWeight: '700' },
+  filterChipTextActive: { color: '#fff', fontWeight: '600' },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },
 
-  cardList: { marginHorizontal: Spacing.md, gap: Spacing.sm },
-
-  card: {
+  cardList: {
+    marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+
+  card: {
     padding: Spacing.md,
     gap: Spacing.sm,
-    ...Shadow.card,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
 
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
@@ -259,11 +277,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.primaryBg,
+    backgroundColor: Colors.surfaceHover,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 18, fontWeight: '700', color: Colors.primary },
+  avatarText: { fontSize: 18, fontWeight: '700', color: Colors.text },
 
   cardInfo: { flex: 1 },
   cardName: { ...Typography.h4 },
@@ -274,27 +294,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: Radius.full,
-    backgroundColor: Colors.borderLight,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  roleBadgeCustomer: { backgroundColor: Colors.successBg },
-  roleBadgeVendor: { backgroundColor: Colors.primaryBg },
   roleText: { fontSize: 10, fontWeight: '700', color: Colors.textSecondary },
-  roleTextCustomer: { color: Colors.success },
-  roleTextVendor: { color: Colors.primary },
 
   contactRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  contactItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   contactText: { fontSize: 12, color: Colors.textSecondary },
-  companyText: { fontSize: 12, color: Colors.textMuted },
 
   emptyState: {
     marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     padding: Spacing.xl,
     alignItems: 'center',
     gap: Spacing.sm,
-    ...Shadow.subtle,
   },
-  emptyIcon: { fontSize: 36 },
   emptyText: { ...Typography.body, color: Colors.textMuted },
 });

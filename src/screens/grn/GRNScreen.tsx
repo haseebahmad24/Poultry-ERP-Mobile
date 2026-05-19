@@ -9,13 +9,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchPurchaseOrders, PurchaseOrder } from '@/api/purchaseOrders';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
+import BackButton from '@/components/BackButton';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import type { MoreStackParamList } from '@/navigation/MoreNavigator';
 
@@ -59,7 +61,7 @@ export default function GRNScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.header}>
-        <BackButton color={Colors.primary} />
+        <BackButton />
         <Text style={styles.headerTitle}>Goods Receipt</Text>
         <Text style={styles.headerSub}>{orders.length} POs</Text>
       </View>
@@ -72,11 +74,10 @@ export default function GRNScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => load(true)}
-            tintColor={Colors.primary}
+            tintColor={Colors.textMuted}
           />
         }
       >
-        {/* Overall Summary */}
         {orders.length > 0 && (
           <View style={styles.summaryCard}>
             <Text style={styles.summaryTitle}>Overall Receipt Progress</Text>
@@ -86,16 +87,12 @@ export default function GRNScreen() {
                 <Text style={styles.summaryLabel}>Purchase Orders</Text>
               </View>
               <View style={styles.summaryBlock}>
-                <Text style={[styles.summaryValue, { color: Colors.success }]}>
-                  {Math.round(overallPct)}%
-                </Text>
+                <Text style={styles.summaryValue}>{Math.round(overallPct)}%</Text>
                 <Text style={styles.summaryLabel}>Received</Text>
               </View>
             </View>
             <View style={styles.overallProgressBar}>
-              <View
-                style={[styles.overallProgressFill, { width: `${overallPct}%` as any }]}
-              />
+              <View style={[styles.overallProgressFill, { width: `${overallPct}%` as any }]} />
             </View>
           </View>
         )}
@@ -104,7 +101,7 @@ export default function GRNScreen() {
 
         {orders.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🚚</Text>
+            <Feather name="truck" size={36} color={Colors.textMuted} />
             <Text style={styles.emptyText}>No goods receipt data found</Text>
           </View>
         ) : (
@@ -130,14 +127,9 @@ function GRNCard({ po, onPress }: { po: PurchaseOrder; onPress: () => void }) {
   const total = po.total ?? 0;
   const pct = total > 0 ? Math.min((received / total) * 100, 100) : 0;
   const isComplete = pct >= 100;
-  const statusKey = (po.status ?? '').toUpperCase();
+  const isPartial = pct > 0 && !isComplete;
 
-  const statusColors =
-    isComplete
-      ? { bg: Colors.successBg, fg: Colors.success }
-      : pct > 0
-      ? { bg: Colors.orangeBg, fg: Colors.orange }
-      : { bg: Colors.primaryBg, fg: Colors.primary };
+  const statusLabel = isComplete ? 'COMPLETE' : isPartial ? 'PARTIAL' : ((po.status ?? '').toUpperCase() || 'OPEN');
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
@@ -148,37 +140,33 @@ function GRNCard({ po, onPress }: { po: PurchaseOrder; onPress: () => void }) {
             {po.vendor ?? 'Unknown Vendor'}
           </Text>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
-          <Text style={[styles.statusText, { color: statusColors.fg }]}>
-            {isComplete ? 'COMPLETE' : pct > 0 ? 'PARTIAL' : statusKey || 'OPEN'}
-          </Text>
+        <View style={[styles.statusBadge, isComplete && styles.statusBadgeComplete]}>
+          <Text style={[styles.statusText, isComplete && styles.statusTextComplete]}>{statusLabel}</Text>
         </View>
       </View>
 
       {po.dt && (
-        <Text style={styles.cardDate}>PO Date: {formatShortDate(po.dt)}</Text>
+        <View style={styles.metaRow}>
+          <Feather name="calendar" size={12} color={Colors.textMuted} />
+          <Text style={styles.cardDate}>PO Date: {formatShortDate(po.dt)}</Text>
+        </View>
       )}
 
-      {/* Progress Bar */}
       <View style={styles.progressSection}>
         <View style={styles.progressLabelRow}>
           <Text style={styles.progressLabel}>Receipt Progress</Text>
-          <Text style={[styles.progressPct, { color: isComplete ? Colors.success : Colors.primary }]}>
+          <Text style={[styles.progressPct, isComplete && styles.progressPctComplete]}>
             {Math.round(pct)}%
           </Text>
         </View>
         <View style={styles.progressBar}>
-          <View style={[
-            styles.progressFill,
-            { width: `${pct}%` as any, backgroundColor: isComplete ? Colors.success : Colors.primaryLight }
-          ]} />
+          <View style={[styles.progressFill, { width: `${pct}%` as any }]} />
         </View>
         <Text style={styles.progressDetail}>
           {formatCurrency(received)} of {formatCurrency(total)} received
         </Text>
       </View>
 
-      {/* Items summary if available */}
       {po.items && po.items.length > 0 && (
         <View style={styles.itemsPreview}>
           <Text style={styles.itemsLabel}>{po.items.length} line items</Text>
@@ -194,10 +182,7 @@ function GRNCard({ po, onPress }: { po: PurchaseOrder; onPress: () => void }) {
                 <Text style={styles.itemQty}>
                   {itemReceived}/{itemOrdered} {item.unit ?? ''}
                 </Text>
-                <Text style={[
-                  styles.itemPct,
-                  { color: itemPct >= 100 ? Colors.success : Colors.textMuted }
-                ]}>
+                <Text style={[styles.itemPct, itemPct >= 100 && styles.itemPctComplete]}>
                   {Math.round(itemPct)}%
                 </Text>
               </View>
@@ -208,8 +193,10 @@ function GRNCard({ po, onPress }: { po: PurchaseOrder; onPress: () => void }) {
           )}
         </View>
       )}
-      <View style={styles.tapHint}>
-        <Text style={styles.tapHintText}>Tap to view PO detail →</Text>
+
+      <View style={styles.cardFooter}>
+        <Text style={styles.cardFooterText}>View PO detail</Text>
+        <Feather name="chevron-right" size={14} color={Colors.textMuted} />
       </View>
     </TouchableOpacity>
   );
@@ -222,7 +209,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 4,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -237,25 +224,25 @@ const styles = StyleSheet.create({
   summaryCard: {
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.text,
     borderRadius: Radius.lg,
     padding: Spacing.md,
     gap: Spacing.md,
   },
-  summaryTitle: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
+  summaryTitle: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.75)' },
   summaryRow: { flexDirection: 'row', gap: Spacing.xl },
   summaryBlock: { gap: 2 },
   summaryValue: { fontSize: 28, fontWeight: '700', color: '#fff' },
-  summaryLabel: { fontSize: 11, color: 'rgba(255,255,255,0.7)' },
+  summaryLabel: { fontSize: 11, color: 'rgba(255,255,255,0.6)' },
   overallProgressBar: {
-    height: 8,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: Radius.full,
     overflow: 'hidden',
   },
   overallProgressFill: {
     height: '100%',
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.8)',
     borderRadius: Radius.full,
   },
 
@@ -266,7 +253,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.md,
     gap: Spacing.sm,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
 
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
@@ -274,59 +262,74 @@ const styles = StyleSheet.create({
   poNumber: { ...Typography.h4 },
   poVendor: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 2 },
 
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: Radius.full },
-  statusText: { fontSize: 11, fontWeight: '700' },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  statusBadgeComplete: { backgroundColor: Colors.text, borderColor: Colors.text },
+  statusText: { fontSize: 11, fontWeight: '700', color: Colors.text },
+  statusTextComplete: { color: '#fff' },
 
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   cardDate: { ...Typography.bodySmall, color: Colors.textSecondary },
 
   progressSection: { gap: 4 },
   progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   progressLabel: { ...Typography.bodySmall, fontWeight: '600', color: Colors.text },
-  progressPct: { ...Typography.bodySmall, fontWeight: '700' },
+  progressPct: { ...Typography.bodySmall, fontWeight: '700', color: Colors.textSecondary },
+  progressPctComplete: { color: Colors.text },
   progressBar: {
-    height: 6,
-    backgroundColor: Colors.borderLight,
+    height: 5,
+    backgroundColor: Colors.border,
     borderRadius: Radius.full,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     borderRadius: Radius.full,
+    backgroundColor: Colors.text,
   },
   progressDetail: { ...Typography.bodySmall, color: Colors.textMuted },
 
   itemsPreview: {
     backgroundColor: Colors.background,
     borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     padding: Spacing.sm,
     gap: Spacing.xs,
   },
   itemsLabel: { ...Typography.label, marginBottom: 2 },
-  itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   itemName: { flex: 1, fontSize: 12, color: Colors.text },
   itemQty: { fontSize: 12, color: Colors.textSecondary },
-  itemPct: { fontSize: 11, fontWeight: '700', minWidth: 32, textAlign: 'right' },
+  itemPct: { fontSize: 11, fontWeight: '600', minWidth: 32, textAlign: 'right', color: Colors.textMuted },
+  itemPctComplete: { color: Colors.text, fontWeight: '700' },
   moreItems: { ...Typography.bodySmall, color: Colors.textMuted, textAlign: 'center', marginTop: 2 },
 
-  tapHint: {
-    alignItems: 'flex-end',
-    marginTop: 2,
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 4,
+    paddingTop: 2,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
   },
-  tapHintText: { fontSize: 11, color: Colors.primary, fontWeight: '500' },
+  cardFooterText: { fontSize: 12, color: Colors.textMuted, fontWeight: '500' },
 
   emptyState: {
     marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     padding: Spacing.xl,
     alignItems: 'center',
     gap: Spacing.sm,
-    ...Shadow.subtle,
   },
-  emptyIcon: { fontSize: 36 },
   emptyText: { ...Typography.body, color: Colors.textMuted },
 });

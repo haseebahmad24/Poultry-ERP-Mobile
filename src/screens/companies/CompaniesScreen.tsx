@@ -8,11 +8,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Feather } from '@expo/vector-icons';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchCompanies, CompanyDetail } from '@/api/companies';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
+import BackButton from '@/components/BackButton';
 
 export default function CompaniesScreen() {
   const [companies, setCompanies] = useState<CompanyDetail[]>([]);
@@ -45,7 +47,7 @@ export default function CompaniesScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.header}>
-        <BackButton color={Colors.primary} />
+        <BackButton />
         <Text style={styles.headerTitle}>Companies</Text>
         <Text style={styles.headerSub}>{companies.length} companies</Text>
       </View>
@@ -55,14 +57,14 @@ export default function CompaniesScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.textMuted} />
         }
       >
         <SectionHeader title="Company List" meta={`${companies.length} records`} />
 
         {companies.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🏢</Text>
+            <Feather name="briefcase" size={36} color={Colors.textMuted} />
             <Text style={styles.emptyText}>No companies found</Text>
           </View>
         ) : (
@@ -93,28 +95,15 @@ function CompanyCard({ company: c }: { company: CompanyDetail }) {
           <Text style={styles.companyName}>{c.name}</Text>
           {c.code && <Text style={styles.companyCode}>{c.code}</Text>}
         </View>
-        <View style={[
-          styles.statusBadge,
-          isActive ? styles.statusActive : styles.statusInactive,
-        ]}>
-          <Text style={[
-            styles.statusText,
-            isActive ? styles.statusTextActive : styles.statusTextInactive,
-          ]}>
-            {isActive ? 'Active' : 'Inactive'}
-          </Text>
+        <View style={[styles.statusBadge, !isActive && styles.statusBadgeInactive]}>
+          <Text style={styles.statusText}>{isActive ? 'Active' : 'Inactive'}</Text>
         </View>
       </View>
 
       <View style={styles.detailsGrid}>
-        {c.currency && (
-          <DetailItem label="Currency" value={c.currency} />
-        )}
+        {c.currency && <DetailItem label="Currency" value={c.currency} />}
         {c.fiscal_year_start && c.fiscal_year_end && (
-          <DetailItem
-            label="Fiscal Year"
-            value={`${c.fiscal_year_start} – ${c.fiscal_year_end}`}
-          />
+          <DetailItem label="Fiscal Year" value={`${c.fiscal_year_start} – ${c.fiscal_year_end}`} />
         )}
         {c.phone && <DetailItem label="Phone" value={c.phone} />}
         {c.email && <DetailItem label="Email" value={c.email} />}
@@ -140,7 +129,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 4,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -152,14 +141,21 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },
 
-  cardList: { marginHorizontal: Spacing.md, gap: Spacing.sm },
-
-  card: {
+  cardList: {
+    marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    gap: 0,
+  },
+
+  card: {
     padding: Spacing.md,
     gap: Spacing.md,
-    ...Shadow.card,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
 
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
@@ -168,29 +164,36 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.primaryBg,
+    backgroundColor: Colors.surfaceHover,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoCircleInactive: { backgroundColor: Colors.borderLight },
-  logoText: { fontSize: 20, fontWeight: '700', color: Colors.primary },
+  logoCircleInactive: { opacity: 0.5 },
+  logoText: { fontSize: 20, fontWeight: '700', color: Colors.text },
   logoTextInactive: { color: Colors.textMuted },
 
   cardInfo: { flex: 1 },
   companyName: { ...Typography.h3 },
   companyCode: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
 
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: Radius.full },
-  statusActive: { backgroundColor: Colors.successBg },
-  statusInactive: { backgroundColor: Colors.dangerBg },
-  statusText: { fontSize: 11, fontWeight: '700' },
-  statusTextActive: { color: Colors.success },
-  statusTextInactive: { color: Colors.danger },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  statusBadgeInactive: { opacity: 0.5 },
+  statusText: { fontSize: 11, fontWeight: '700', color: Colors.text },
 
   detailsGrid: {
     gap: Spacing.xs + 2,
     backgroundColor: Colors.background,
     borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     padding: Spacing.sm,
   },
   detailItem: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start' },
@@ -201,11 +204,11 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     padding: Spacing.xl,
     alignItems: 'center',
     gap: Spacing.sm,
-    ...Shadow.subtle,
   },
-  emptyIcon: { fontSize: 36 },
   emptyText: { ...Typography.body, color: Colors.textMuted },
 });
