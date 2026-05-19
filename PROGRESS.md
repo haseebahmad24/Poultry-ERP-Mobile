@@ -1,5 +1,45 @@
 # Mobile App Progress
 
+## Session 5 — 2026-05-19
+
+### Completed This Session
+
+**Inventory Screen — Warehouses Tab**
+- Added 3rd "Warehouses" tab using `?view=warehouses` API endpoint
+- Warehouse cards: name, code, type, address, active/inactive status pill
+- Optional item count and total qty stats on each card
+- New `Warehouse` interface and `fetchWarehouses()` in `src/api/inventory.ts`
+
+**Inventory Screen — Stock Ledger Date Filter**
+- Collapsible date filter panel on the Ledger tab (📅 toggle button in header)
+- `From` and `To` text inputs with green/red validation feedback
+- Quick presets: Today, This Week, This Month, Last Month
+- Active filter indicator (●) on the toggle button when dates are applied
+- Clear button to reset; dates passed to API as `?from=&to=` params
+
+**Inventory Screen — Low Stock Filter**
+- Filter chips on Stock Balances tab: All | Low Stock | Out of Stock
+- Live counts in chip labels (e.g. "Low Stock (12)")
+- Low stock threshold: qty < 100; Out of stock: qty ≤ 0
+- Color coding: warning amber for low, danger red for out-of-stock chips
+
+**Trial Balance — Export/Share**
+- Export button in header (visible when data is loaded)
+- Uses React Native `Share` API to share formatted columnar text
+- Format: fixed-width Account | Debit | Credit with totals row + balanced status
+
+**Financial Reports — Export/Share**
+- Export button shares P&L or Balance Sheet depending on active tab
+- P&L: revenue/expense lines with totals + net income
+- Balance Sheet: asset/liability/equity lines with totals
+
+**Journal Entries — Export/Share**
+- Export button shares currently filtered JE list as formatted text
+- Includes voucher type/number/date/status, narration, and line items
+- Only visible when there are filtered entries
+
+---
+
 ## Session 4 — 2026-05-19
 
 ### Completed This Session
@@ -183,15 +223,15 @@
 
 ---
 
-## What's Next (Session 5)
+## What's Next (Session 6)
 
 All primary roadmap items are complete. Remaining polish options:
 
-1. **Dashboard date filter** — Add a date range filter to the Journal Entries quick action on Dashboard
-2. **Inventory warehouses tab** — Add a third tab showing warehouse list with capacity
-3. **Partners search** — Verify Partners search is working with company filter
-4. **Report exports** — Share/export Trial Balance as text summary
-5. **Offline caching** — Cache last-fetched data for offline viewing (requires AsyncStorage)
+1. **Offline caching** — Cache last-fetched data for offline viewing using AsyncStorage
+2. **Low-stock threshold setting** — Let user configure the low-stock qty threshold
+3. **AP/AR due date alerts** — Highlight overdue bills/invoices prominently
+4. **Inventory item detail** — Tap a stock balance row to see full ledger for that item
+5. **Notifications** — Local push notifications for overdue AP/AR items
 
 ---
 
@@ -201,16 +241,18 @@ All primary roadmap items are complete. Remaining polish options:
 |---|---|
 | Login (user selector) | ✅ Done |
 | Dashboard / Home | ✅ Done |
-| Inventory | ✅ Done |
+| Inventory (Stock + Ledger + Warehouses tabs) | ✅ Done |
+| Inventory Low-Stock Filter | ✅ Done |
+| Inventory Ledger Date Filter | ✅ Done |
 | Materials | ✅ Done |
 | Purchase Orders + Detail | ✅ Done |
 | Sales Orders + Detail | ✅ Done |
 | GRN (with PO detail nav) | ✅ Done |
 | Accounts Payable (with search) | ✅ Done |
 | Accounts Receivable (with search) | ✅ Done |
-| Journal Entries (with date filter + presets) | ✅ Done |
-| Trial Balance | ✅ Done |
-| Financial Reports (P&L, BS) | ✅ Done |
+| Journal Entries (with date filter + presets + Export) | ✅ Done |
+| Trial Balance (with Export) | ✅ Done |
+| Financial Reports (P&L, BS, with Export) | ✅ Done |
 | Business Partners | ✅ Done |
 | Companies | ✅ Done |
 | Dashboard Quick Actions wired | ✅ Done |
