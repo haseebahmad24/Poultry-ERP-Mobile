@@ -20,6 +20,50 @@ import { useCompany } from '@/context/CompanyContext';
 import BackButton from '@/components/BackButton';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 
+function toISO(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
+const DATE_PRESETS = [
+  {
+    label: 'Today',
+    from: () => toISO(new Date()),
+    to: () => toISO(new Date()),
+  },
+  {
+    label: 'This Week',
+    from: () => {
+      const d = new Date();
+      d.setDate(d.getDate() - d.getDay());
+      return toISO(d);
+    },
+    to: () => toISO(new Date()),
+  },
+  {
+    label: 'This Month',
+    from: () => {
+      const d = new Date();
+      d.setDate(1);
+      return toISO(d);
+    },
+    to: () => toISO(new Date()),
+  },
+  {
+    label: 'Last Month',
+    from: () => {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - 1);
+      return toISO(d);
+    },
+    to: () => {
+      const d = new Date();
+      d.setDate(0);
+      return toISO(d);
+    },
+  },
+];
+
 const VOUCHER_TYPES = ['All', 'JV', 'GRN', 'PAY', 'REC', 'INV', 'SO', 'PO', 'DN'];
 
 const VOUCHER_COLORS: Record<string, { bg: string; fg: string }> = {
@@ -114,40 +158,53 @@ export default function JournalEntriesScreen() {
 
       {/* Date Range Filter */}
       {showDateFilter && (
-        <View style={styles.dateFilterRow}>
-          <View style={styles.dateInputWrap}>
-            <Text style={styles.dateLabel}>From</Text>
-            <TextInput
-              style={[styles.dateInput, validFrom ? styles.dateInputValid : fromDate ? styles.dateInputError : null]}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={Colors.textMuted}
-              value={fromDate}
-              onChangeText={setFromDate}
-              keyboardType="numbers-and-punctuation"
-              maxLength={10}
-            />
+        <>
+          <View style={styles.datePresetRow}>
+            {DATE_PRESETS.map((p) => (
+              <TouchableOpacity
+                key={p.label}
+                style={styles.datePreset}
+                onPress={() => { setFromDate(p.from()); setToDate(p.to()); }}
+              >
+                <Text style={styles.datePresetText}>{p.label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
-          <View style={styles.dateInputWrap}>
-            <Text style={styles.dateLabel}>To</Text>
-            <TextInput
-              style={[styles.dateInput, validTo ? styles.dateInputValid : toDate ? styles.dateInputError : null]}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={Colors.textMuted}
-              value={toDate}
-              onChangeText={setToDate}
-              keyboardType="numbers-and-punctuation"
-              maxLength={10}
-            />
+          <View style={styles.dateFilterRow}>
+            <View style={styles.dateInputWrap}>
+              <Text style={styles.dateLabel}>From</Text>
+              <TextInput
+                style={[styles.dateInput, validFrom ? styles.dateInputValid : fromDate ? styles.dateInputError : null]}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={Colors.textMuted}
+                value={fromDate}
+                onChangeText={setFromDate}
+                keyboardType="numbers-and-punctuation"
+                maxLength={10}
+              />
+            </View>
+            <View style={styles.dateInputWrap}>
+              <Text style={styles.dateLabel}>To</Text>
+              <TextInput
+                style={[styles.dateInput, validTo ? styles.dateInputValid : toDate ? styles.dateInputError : null]}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={Colors.textMuted}
+                value={toDate}
+                onChangeText={setToDate}
+                keyboardType="numbers-and-punctuation"
+                maxLength={10}
+              />
+            </View>
+            {(fromDate || toDate) && (
+              <TouchableOpacity
+                style={styles.clearDateBtn}
+                onPress={() => { setFromDate(''); setToDate(''); }}
+              >
+                <Text style={styles.clearDateText}>Clear</Text>
+              </TouchableOpacity>
+            )}
           </View>
-          {(fromDate || toDate) && (
-            <TouchableOpacity
-              style={styles.clearDateBtn}
-              onPress={() => { setFromDate(''); setToDate(''); }}
-            >
-              <Text style={styles.clearDateText}>Clear</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        </>
       )}
 
       {/* Search */}
@@ -433,6 +490,24 @@ const styles = StyleSheet.create({
   dateFilterBtnActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryBg },
   dateFilterBtnText: { fontSize: 14 },
   dateFilterBtnTextActive: { color: Colors.primary },
+
+  datePresetRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    backgroundColor: Colors.surface,
+    flexWrap: 'wrap',
+  },
+  datePreset: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.primaryBg,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  datePresetText: { fontSize: 11, color: Colors.primary, fontWeight: '600' },
 
   dateFilterRow: {
     flexDirection: 'row',
