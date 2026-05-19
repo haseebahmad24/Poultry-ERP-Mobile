@@ -21,7 +21,7 @@ import ErrorView from '@/components/ErrorView';
 import LoadingView from '@/components/LoadingView';
 import CompanySelector from '@/components/CompanySelector';
 import OfflineBanner from '@/components/OfflineBanner';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
