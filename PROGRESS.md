@@ -1,5 +1,43 @@
 # Mobile App Progress
 
+## Session 4 — 2026-05-19
+
+### Completed This Session
+
+**Date Range Filtering — Journal Entries**
+- Added collapsible date filter panel (📅 button in header toggles it)
+- Text inputs for `from` and `to` dates (YYYY-MM-DD format) with green/red validation feedback
+- **Quick date presets**: Today, This Week, This Month, Last Month — one tap to set the range
+- Active filter indicator (●) shown on the toggle button when dates are set
+- Clear button to reset dates
+- Dates are passed to the API (`from`, `to` params) for server-side filtering
+
+**Search in Accounts Payable & Accounts Receivable**
+- **AP Bills tab**: search by bill number, vendor name, or status
+- **AP Vendors tab**: search by vendor name
+- **AR Invoices tab**: search by invoice number, customer name, or status
+- **AR Customers tab**: search by customer name
+- All searches update the record count in the section header
+
+**Search in Purchase Orders & Sales Orders**
+- **Purchase Orders**: search bar filters by PO number, vendor name, or status
+- **Sales Orders**: search bar filters by SO number, customer name, or status
+- Search clears to show all records, empty state shows appropriate message
+
+**GRN → PO Detail Navigation**
+- GRN cards are now tappable — tap opens the full PO detail screen
+- "Tap to view PO detail →" affordance shown on each card
+- More items line updated to "...tap to view all"
+
+**Back Button Polish — All Non-Root Screens**
+- Added `BackButton` component to all screens accessible from MoreMenu and FinanceMenu:
+  - Materials, Purchase Orders, Sales Orders, GRN, Partners, Companies
+  - Accounts Payable, Accounts Receivable, Journal Entries, Trial Balance, Financial Reports
+- All three screens missing `flexDirection: 'row'` in header (AP, AR, Financial Reports) were fixed
+- `BackButton` uses `canGoBack()` internally — won't appear on root screens
+
+---
+
 ## Session 3 — 2026-05-18
 
 ### Completed This Session
@@ -41,33 +79,37 @@
   - API: `src/api/materials.ts`
 
 - **Purchase Orders Screen** (`src/screens/purchaseOrders/`)
-  - All/Open/In Progress status tabs
+  - All/Open/In Progress status tabs + search by PO number/vendor
   - PO cards with progress bar
   - Detail screen with receipt progress + line items
   - API: `src/api/purchaseOrders.ts`
 
 **Phase 2 — Sales & Delivery**
 - **Sales Orders Screen** (`src/screens/salesOrders/`)
-  - All/Open/Approved/Closed tabs
+  - All/Open/Approved/Closed tabs + search by SO number/customer
   - Detail screen with line items and total row
   - API: `src/api/salesOrders.ts`
 
 - **GRN Screen** (`src/screens/grn/GRNScreen.tsx`)
   - Overall receipt summary card
   - Per-PO progress bars with line item preview
+  - Tappable cards navigate to PO detail
 
 **Phase 3 — Finance**
 - **Accounts Payable** (`src/screens/finance/AccountsPayableScreen.tsx`)
   - Summary/Bills/Vendors tabs, aging analysis bars
+  - Search in Bills and Vendors tabs
   - API: `src/api/accountsPayable.ts`
 
 - **Accounts Receivable** (`src/screens/finance/AccountsReceivableScreen.tsx`)
   - Summary/Invoices/Customers tabs, aging analysis
+  - Search in Invoices and Customers tabs
   - API: `src/api/accountsReceivable.ts`
 
 - **Journal Entries** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
   - Voucher type filter chips (JV, GRN, PAY, etc.)
   - Expandable cards showing journal lines
+  - Date range filter with quick presets (Today, This Week, This Month, Last Month)
   - API: `src/api/journalEntries.ts`
 
 **Phase 4 — Reports**
@@ -101,17 +143,6 @@
 - **Inventory, AP, AR** — use global company filter from context
 - **Empty states** — All screens have empty state UI with icons
 - **Pull-to-refresh** — All list screens support pull-to-refresh
-
----
-
-## What's Next (Session 4)
-
-All primary roadmap items are complete. Remaining polish options:
-
-1. **Date range filters** on Journal Entries (from/to date inputs)
-2. **Search within AP/AR** (bills and invoice search)
-3. **PO detail navigation** from GRN screen line items
-4. **Deep-link back navigation** — ensure back button behavior is correct in all nested stacks
 
 ---
 
@@ -152,6 +183,18 @@ All primary roadmap items are complete. Remaining polish options:
 
 ---
 
+## What's Next (Session 5)
+
+All primary roadmap items are complete. Remaining polish options:
+
+1. **Dashboard date filter** — Add a date range filter to the Journal Entries quick action on Dashboard
+2. **Inventory warehouses tab** — Add a third tab showing warehouse list with capacity
+3. **Partners search** — Verify Partners search is working with company filter
+4. **Report exports** — Share/export Trial Balance as text summary
+5. **Offline caching** — Cache last-fetched data for offline viewing (requires AsyncStorage)
+
+---
+
 ## Screen Inventory
 
 | Screen | Status |
@@ -162,10 +205,10 @@ All primary roadmap items are complete. Remaining polish options:
 | Materials | ✅ Done |
 | Purchase Orders + Detail | ✅ Done |
 | Sales Orders + Detail | ✅ Done |
-| GRN | ✅ Done |
-| Accounts Payable | ✅ Done |
-| Accounts Receivable | ✅ Done |
-| Journal Entries | ✅ Done |
+| GRN (with PO detail nav) | ✅ Done |
+| Accounts Payable (with search) | ✅ Done |
+| Accounts Receivable (with search) | ✅ Done |
+| Journal Entries (with date filter + presets) | ✅ Done |
 | Trial Balance | ✅ Done |
 | Financial Reports (P&L, BS) | ✅ Done |
 | Business Partners | ✅ Done |
@@ -176,3 +219,6 @@ All primary roadmap items are complete. Remaining polish options:
 | Empty States | ✅ Done |
 | API retry logic | ✅ Done |
 | MoreMenu Finance deep links | ✅ Done |
+| Back buttons (all non-root screens) | ✅ Done |
+| Search (PO, SO, AP, AR) | ✅ Done |
+| Date range filter + presets (JE) | ✅ Done |
