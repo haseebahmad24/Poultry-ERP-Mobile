@@ -42,11 +42,8 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     backgroundColor: Colors.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
   label: {
     fontSize: 13,

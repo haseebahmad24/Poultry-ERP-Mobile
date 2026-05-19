@@ -9,11 +9,10 @@ interface FilterChipProps {
   color?: string;
 }
 
-export default function FilterChip({ label, active, onPress, color }: FilterChipProps) {
-  const activeColor = color ?? Colors.primary;
+export default function FilterChip({ label, active, onPress }: FilterChipProps) {
   return (
     <TouchableOpacity
-      style={[styles.chip, active && { backgroundColor: activeColor, borderColor: activeColor }]}
+      style={[styles.chip, active && styles.chipActive]}
       onPress={onPress}
       activeOpacity={0.7}
     >
@@ -27,10 +26,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs + 2,
     borderRadius: Radius.full,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     backgroundColor: Colors.surface,
     marginRight: Spacing.sm,
+  },
+  chipActive: {
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
   },
   label: {
     fontSize: 13,

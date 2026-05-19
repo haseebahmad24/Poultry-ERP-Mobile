@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     paddingHorizontal: Spacing.md,
     gap: Spacing.sm,
@@ -74,6 +74,6 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
   countActive: {
-    color: Colors.primaryLight,
+    color: Colors.textSecondary,
   },
 });
