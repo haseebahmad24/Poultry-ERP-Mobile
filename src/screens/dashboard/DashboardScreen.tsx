@@ -19,8 +19,10 @@ import SectionHeader from '@/components/SectionHeader';
 import ErrorView from '@/components/ErrorView';
 import LoadingView from '@/components/LoadingView';
 import CompanyPicker from '@/components/CompanyPicker';
+import OfflineBanner from '@/components/OfflineBanner';
 import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
+import { getCached, setCached } from '@/utils/cache';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
 
 const VOUCHER_COLORS: Record<string, { bg: string; fg: string }> = {
@@ -86,22 +88,46 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isStale, setIsStale] = useState(false);
+
+  const cacheKey = `dashboard:${selectedCompany?.id ?? 'all'}`;
 
   const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+    let hadCachedData = false;
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      // Try cache first so the screen is never blank on initial load
+      const cached = await getCached<{ kpis: KPIs; recentVouchers: RecentVoucher[] }>(cacheKey);
+      if (cached) {
+        hadCachedData = true;
+        setKpis(cached.data.kpis);
+        setVouchers(cached.data.recentVouchers);
+        setIsStale(cached.stale);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+    }
     setError(null);
     try {
       const data = await fetchDashboardData(selectedCompany?.id ?? undefined);
       setKpis(data.kpis);
       setVouchers(data.recentVouchers);
+      setIsStale(false);
+      await setCached(cacheKey, { kpis: data.kpis, recentVouchers: data.recentVouchers });
     } catch (e: any) {
-      setError(String(e?.message ?? e));
+      // If we already populated UI from cache, just mark stale; otherwise show full error
+      if (hadCachedData) {
+        setIsStale(true);
+      } else {
+        setError(String(e?.message ?? e));
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedCompany]);
+  }, [selectedCompany, cacheKey]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -137,6 +163,7 @@ export default function DashboardScreen() {
       </View>
 
       <CompanyPicker showAll />
+      <OfflineBanner visible={isStale} />
 
       <ScrollView
         style={styles.scroll}

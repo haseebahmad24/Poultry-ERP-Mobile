@@ -27,6 +27,8 @@ import SectionHeader from '@/components/SectionHeader';
 import CompanyPicker from '@/components/CompanyPicker';
 import { useCompany } from '@/context/CompanyContext';
 import { formatShortDate } from '@/utils/currency';
+import { getCached, setCached } from '@/utils/cache';
+import OfflineBanner from '@/components/OfflineBanner';
 import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 
 type Tab = 'stock' | 'ledger' | 'warehouses';
@@ -75,6 +77,7 @@ export default function InventoryScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isStale, setIsStale] = useState(false);
   const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
 
@@ -88,6 +91,7 @@ export default function InventoryScreen() {
   const loadStock = useCallback(async () => {
     const data = await fetchStockBalances(companyId);
     setStockData(data);
+    await setCached(`inventory:stock:${companyId ?? 'all'}`, data);
   }, [companyId]);
 
   const loadLedger = useCallback(async () => {
@@ -100,19 +104,38 @@ export default function InventoryScreen() {
     setWarehouseData(data);
   }, [companyId]);
 
+  const stockCacheKey = `inventory:stock:${companyId ?? 'all'}`;
+
   const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+    let hadCachedData = false;
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      const cached = await getCached<StockBalance[]>(stockCacheKey);
+      if (cached) {
+        hadCachedData = true;
+        setStockData(cached.data);
+        setIsStale(cached.stale);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+    }
     setError(null);
     try {
       await Promise.all([loadStock(), loadLedger(), loadWarehouses()]);
+      setIsStale(false);
     } catch (e: any) {
-      setError(String(e?.message ?? e));
+      if (hadCachedData) {
+        setIsStale(true);
+      } else {
+        setError(String(e?.message ?? e));
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [loadStock, loadLedger, loadWarehouses]);
+  }, [loadStock, loadLedger, loadWarehouses, stockCacheKey]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -212,6 +235,7 @@ export default function InventoryScreen() {
 
       {/* Company picker */}
       <CompanyPicker />
+      <OfflineBanner visible={isStale} />
 
       {/* Tab Bar */}
       <View style={styles.tabBar}>
