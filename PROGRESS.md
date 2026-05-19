@@ -298,3 +298,11 @@ All primary roadmap items are complete. Remaining polish options:
 | Date range filter + presets (JE) | ✅ Done |
 | Offline caching (Dashboard + Inventory stock) | ✅ Done |
 | OfflineBanner component | ✅ Done |
+
+---
+
+### UI Polish Log (Monochrome)
+
+| Date (UTC) | Screen / Component | Summary |
+|---|---|---|
+| 2026-05-19 | `src/theme/index.ts` | Replaced full semantic color palette with monochrome tokens (black/gray/white). All export names kept stable; Colors.primary/success/danger/warning now resolve to #0a0a0a. Shadow toned down to near-zero opacity. Radius values tightened (md→8, lg→12). |

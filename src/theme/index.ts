@@ -1,37 +1,38 @@
 export const Colors = {
-  primary: '#1565c0',
-  primaryLight: '#1976d2',
-  primaryDark: '#0d47a1',
-  primaryBg: '#e3f2fd',
+  // Semantic keys preserved for backwards-compatibility — all resolve to monochrome
+  primary: '#0a0a0a',
+  primaryLight: '#525252',
+  primaryDark: '#000000',
+  primaryBg: '#f5f5f5',
 
-  success: '#16a34a',
-  successBg: '#e8f5e9',
-  danger: '#c62828',
-  dangerBg: '#fce4ec',
-  warning: '#d97706',
-  warningBg: '#fff3e0',
-  orange: '#e65100',
-  orangeBg: '#fff3e0',
+  success: '#0a0a0a',
+  successBg: '#f5f5f5',
+  danger: '#0a0a0a',
+  dangerBg: '#f5f5f5',
+  warning: '#0a0a0a',
+  warningBg: '#f5f5f5',
+  orange: '#0a0a0a',
+  orangeBg: '#f5f5f5',
 
-  text: '#1a1a2e',
-  textSecondary: '#546e7a',
-  textMuted: '#90a4ae',
+  text: '#0a0a0a',
+  textSecondary: '#525252',
+  textMuted: '#a3a3a3',
 
-  border: '#e0e6ed',
-  borderLight: '#f0f4f8',
-  background: '#f5f7fa',
+  border: '#e5e7eb',
+  borderLight: '#f3f4f6',
+  background: '#fafafa',
   surface: '#ffffff',
-  surfaceHover: '#f8fafc',
+  surfaceHover: '#f9fafb',
 
-  // Voucher type colors
-  voucherJV: { bg: '#e8eaf6', fg: '#283593' },
-  voucherGRN: { bg: '#e8f5e9', fg: '#2e7d32' },
-  voucherDN: { bg: '#fff3e0', fg: '#e65100' },
-  voucherPAY: { bg: '#e3f2fd', fg: '#1565c0' },
-  voucherREC: { bg: '#f3e5f5', fg: '#6a1b9a' },
-  voucherINV: { bg: '#fce4ec', fg: '#c62828' },
-  voucherSO: { bg: '#e0f7fa', fg: '#00695c' },
-  voucherPO: { bg: '#f1f8e9', fg: '#558b2f' },
+  // Voucher type chips — all monochrome; outline style expected when screens are polished
+  voucherJV:  { bg: '#f3f4f6', fg: '#0a0a0a' },
+  voucherGRN: { bg: '#f3f4f6', fg: '#0a0a0a' },
+  voucherDN:  { bg: '#f3f4f6', fg: '#0a0a0a' },
+  voucherPAY: { bg: '#f3f4f6', fg: '#0a0a0a' },
+  voucherREC: { bg: '#f3f4f6', fg: '#0a0a0a' },
+  voucherINV: { bg: '#f3f4f6', fg: '#0a0a0a' },
+  voucherSO:  { bg: '#f3f4f6', fg: '#0a0a0a' },
+  voucherPO:  { bg: '#f3f4f6', fg: '#0a0a0a' },
 };
 
 export const Spacing = {
@@ -45,37 +46,37 @@ export const Spacing = {
 
 export const Radius = {
   sm: 6,
-  md: 10,
-  lg: 14,
-  xl: 20,
+  md: 8,
+  lg: 12,
+  xl: 16,
   full: 999,
 };
 
 export const Shadow = {
   card: {
-    shadowColor: '#1565c0',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
   subtle: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
     elevation: 1,
   },
 };
 
 export const Typography = {
-  h1: { fontSize: 24, fontWeight: '700' as const, color: Colors.text },
+  h1: { fontSize: 22, fontWeight: '700' as const, color: Colors.text },
   h2: { fontSize: 20, fontWeight: '700' as const, color: Colors.text },
-  h3: { fontSize: 17, fontWeight: '600' as const, color: Colors.text },
+  h3: { fontSize: 18, fontWeight: '600' as const, color: Colors.text },
   h4: { fontSize: 15, fontWeight: '600' as const, color: Colors.text },
   body: { fontSize: 14, fontWeight: '400' as const, color: Colors.text },
   bodySmall: { fontSize: 12, fontWeight: '400' as const, color: Colors.textSecondary },
-  label: { fontSize: 11, fontWeight: '500' as const, color: Colors.textMuted, letterSpacing: 0.5 },
+  label: { fontSize: 11, fontWeight: '500' as const, color: Colors.textMuted, letterSpacing: 0.6 },
   number: { fontSize: 20, fontWeight: '700' as const, color: Colors.text },
   numberSmall: { fontSize: 15, fontWeight: '700' as const, color: Colors.text },
 };
