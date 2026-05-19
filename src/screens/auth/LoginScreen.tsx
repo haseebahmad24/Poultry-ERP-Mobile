@@ -9,9 +9,10 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { Feather } from '@expo/vector-icons';
 import { Employee, fetchEmployees } from '@/api/auth';
 import { useAuth } from '@/context/AuthContext';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 
 export default function LoginScreen() {
   const { loginAs } = useAuth();
@@ -46,15 +47,6 @@ export default function LoginScreen() {
     }
   };
 
-  const roleColor = (role: string | null) => {
-    if (!role) return Colors.textMuted;
-    const r = role.toLowerCase();
-    if (r.includes('admin')) return Colors.primary;
-    if (r.includes('manager')) return Colors.success;
-    if (r.includes('account')) return Colors.warning;
-    return Colors.textSecondary;
-  };
-
   const initials = (name: string) =>
     name
       .split(' ')
@@ -67,19 +59,18 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.root}>
       <StatusBar style="light" />
 
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.logoWrap}>
-          <Text style={styles.logoText}>🐔</Text>
+          <Feather name="layers" size={32} color="#fff" />
         </View>
         <Text style={styles.appName}>Poultry ERP</Text>
         <Text style={styles.tagline}>Select your account to continue</Text>
       </View>
 
-      {/* Body */}
       <View style={styles.body}>
         {error && (
           <View style={styles.errorBanner}>
+            <Feather name="alert-circle" size={14} color={Colors.textSecondary} />
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity onPress={load}>
               <Text style={styles.retryText}>Retry</Text>
@@ -89,7 +80,7 @@ export default function LoginScreen() {
 
         {loading ? (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color={Colors.primary} />
+            <ActivityIndicator size="large" color={Colors.text} />
             <Text style={styles.loadingText}>Loading accounts…</Text>
           </View>
         ) : employees.length === 0 ? (
@@ -121,34 +112,25 @@ export default function LoginScreen() {
                     disabled={loggingIn !== null}
                     activeOpacity={0.75}
                   >
-                    {/* Avatar */}
                     <View style={styles.avatar}>
                       <Text style={styles.avatarText}>{initials(emp.name)}</Text>
                     </View>
 
-                    {/* Info */}
                     <View style={styles.cardInfo}>
                       <Text style={styles.empName}>{emp.name}</Text>
-                      {emp.email && (
-                        <Text style={styles.empEmail}>{emp.email}</Text>
-                      )}
+                      {emp.email && <Text style={styles.empEmail}>{emp.email}</Text>}
                       {emp.role && (
-                        <View style={[styles.roleBadge, { borderColor: roleColor(emp.role) }]}>
-                          <Text style={[styles.roleText, { color: roleColor(emp.role) }]}>
-                            {emp.role}
-                          </Text>
+                        <View style={styles.roleBadge}>
+                          <Text style={styles.roleText}>{emp.role}</Text>
                         </View>
                       )}
                     </View>
 
-                    {/* Action */}
                     <View style={styles.cardAction}>
                       {busy ? (
-                        <ActivityIndicator size="small" color={Colors.primary} />
+                        <ActivityIndicator size="small" color={Colors.text} />
                       ) : (
-                        <View style={styles.arrowWrap}>
-                          <Text style={styles.arrow}>›</Text>
-                        </View>
+                        <Feather name="chevron-right" size={20} color={Colors.textMuted} />
                       )}
                     </View>
                   </TouchableOpacity>
@@ -170,7 +152,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
 
   header: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.text,
     alignItems: 'center',
     paddingTop: Spacing.xl,
     paddingBottom: Spacing.xl + 8,
@@ -180,12 +162,11 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
   },
-  logoText: { fontSize: 36 },
   appName: {
     fontSize: 26,
     fontWeight: '700',
@@ -193,24 +174,24 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginBottom: 4,
   },
-  tagline: { fontSize: 14, color: 'rgba(255,255,255,0.75)', fontWeight: '400' },
+  tagline: { fontSize: 14, color: 'rgba(255,255,255,0.65)', fontWeight: '400' },
 
   body: { flex: 1, paddingTop: Spacing.md },
 
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fce4ec',
+    gap: Spacing.xs,
+    backgroundColor: Colors.surfaceHover,
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
     borderRadius: Radius.sm,
     padding: Spacing.sm + 2,
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.danger,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  errorText: { color: Colors.danger, fontSize: 13, flex: 1 },
-  retryText: { color: Colors.primary, fontSize: 13, fontWeight: '600', marginLeft: 8 },
+  errorText: { color: Colors.textSecondary, fontSize: 13, flex: 1 },
+  retryText: { color: Colors.text, fontSize: 13, fontWeight: '600', marginLeft: 4 },
 
   centered: {
     flex: 1,
@@ -224,7 +205,7 @@ const styles = StyleSheet.create({
   emptySubText: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center' },
   retryBtn: {
     marginTop: 12,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.text,
     paddingHorizontal: Spacing.lg,
     paddingVertical: 10,
     borderRadius: Radius.md,
@@ -250,47 +231,39 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.md,
     gap: 12,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  cardBusy: { opacity: 0.7 },
+  cardBusy: { opacity: 0.65 },
 
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: Colors.primaryBg,
+    backgroundColor: Colors.surfaceHover,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarText: { fontSize: 16, fontWeight: '700', color: Colors.primary },
+  avatarText: { fontSize: 16, fontWeight: '700', color: Colors.text },
 
   cardInfo: { flex: 1, gap: 2 },
   empName: { fontSize: 15, fontWeight: '600', color: Colors.text },
   empEmail: { fontSize: 12, color: Colors.textSecondary },
   roleBadge: {
     alignSelf: 'flex-start',
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     borderRadius: Radius.full,
     paddingHorizontal: 8,
     paddingVertical: 1,
     marginTop: 3,
   },
-  roleText: { fontSize: 11, fontWeight: '500' },
+  roleText: { fontSize: 11, fontWeight: '500', color: Colors.textSecondary },
 
   cardAction: { width: 32, alignItems: 'center' },
-  arrowWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.primaryBg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  arrow: { fontSize: 20, color: Colors.primary, marginTop: -2 },
 
-  footer: {
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-  },
+  footer: { paddingVertical: Spacing.md, alignItems: 'center' },
   footerText: { fontSize: 11, color: Colors.textMuted },
 });
