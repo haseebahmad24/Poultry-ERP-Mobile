@@ -9,7 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { RouteProp, useRoute } from '@react-navigation/native';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchSODetail, SalesOrder, SOItem } from '@/api/salesOrders';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
@@ -19,14 +19,7 @@ import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type RouteProps = RouteProp<MoreStackParamList, 'SalesOrderDetail'>;
 
-const SO_STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
-  OPEN:      { bg: Colors.primaryBg,   fg: Colors.primary },
-  APPROVED:  { bg: Colors.successBg,   fg: Colors.success },
-  CLOSED:    { bg: Colors.borderLight, fg: Colors.textSecondary },
-  CANCELLED: { bg: Colors.dangerBg,    fg: Colors.danger },
-  DRAFT:     { bg: Colors.warningBg,   fg: Colors.warning },
-  DELIVERED: { bg: Colors.successBg,   fg: Colors.success },
-};
+const MUTED_STATUSES = new Set(['closed', 'cancelled']);
 
 export default function SalesOrderDetailScreen() {
   const route = useRoute<RouteProps>();
@@ -58,12 +51,8 @@ export default function SalesOrderDetailScreen() {
   if (error && !so) return <ErrorView message={error} onRetry={() => load()} />;
   if (!so) return <ErrorView message="Order not found" />;
 
-  const statusKey = (so.status ?? '').toUpperCase();
-  const statusColors = SO_STATUS_COLORS[statusKey] ?? {
-    bg: Colors.borderLight,
-    fg: Colors.textSecondary,
-  };
-
+  const statusKey = (so.status ?? '').toLowerCase();
+  const isMuted = MUTED_STATUSES.has(statusKey);
   const items = so.items ?? [];
 
   return (
@@ -78,32 +67,25 @@ export default function SalesOrderDetailScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => load(true)}
-            tintColor={Colors.primary}
+            tintColor={Colors.textMuted}
           />
         }
       >
-        {/* SO Header */}
         <View style={styles.heroCard}>
           <View style={styles.heroTop}>
             <View style={styles.heroInfo}>
               <Text style={styles.soNumber}>{so.so_number ?? `SO-${so.id}`}</Text>
               <Text style={styles.soCustomer}>{so.customer ?? 'Unknown Customer'}</Text>
             </View>
-            <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
-              <Text style={[styles.statusText, { color: statusColors.fg }]}>
-                {so.status ?? '—'}
-              </Text>
+            <View style={[styles.statusBadge, isMuted && styles.statusBadgeMuted]}>
+              <Text style={styles.statusText}>{so.status ?? '—'}</Text>
             </View>
           </View>
 
           <View style={styles.heroMeta}>
             {so.dt && <MetaRow label="Order Date" value={formatDate(so.dt)} />}
-            {so.delivery_date && (
-              <MetaRow label="Delivery Date" value={formatDate(so.delivery_date)} />
-            )}
-            {so.total != null && (
-              <MetaRow label="Total Amount" value={formatCurrency(so.total)} bold />
-            )}
+            {so.delivery_date && <MetaRow label="Delivery Date" value={formatDate(so.delivery_date)} />}
+            {so.total != null && <MetaRow label="Total Amount" value={formatCurrency(so.total)} bold />}
           </View>
 
           {so.notes && (
@@ -114,7 +96,6 @@ export default function SalesOrderDetailScreen() {
           )}
         </View>
 
-        {/* Line Items */}
         <SectionHeader title="Line Items" meta={`${items.length} items`} />
 
         {items.length === 0 ? (
@@ -130,7 +111,6 @@ export default function SalesOrderDetailScreen() {
                 isLast={idx === items.length - 1}
               />
             ))}
-            {/* Total row */}
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalValue}>
@@ -187,7 +167,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     padding: Spacing.md,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     gap: Spacing.md,
   },
 
@@ -196,8 +177,15 @@ const styles = StyleSheet.create({
   soNumber: { ...Typography.h2 },
   soCustomer: { ...Typography.body, color: Colors.textSecondary, marginTop: 4 },
 
-  statusBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: Radius.full },
-  statusText: { fontSize: 12, fontWeight: '700' },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  statusBadgeMuted: { opacity: 0.5 },
+  statusText: { fontSize: 12, fontWeight: '700', color: Colors.text },
 
   heroMeta: { gap: Spacing.xs + 2 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -208,6 +196,8 @@ const styles = StyleSheet.create({
   notesBox: {
     backgroundColor: Colors.background,
     borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     padding: Spacing.sm,
     gap: 4,
   },
@@ -218,15 +208,16 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
 
   lineItem: { padding: Spacing.md, gap: Spacing.xs + 2 },
-  lineItemBorder: { borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
+  lineItemBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border },
 
   lineItemHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   lineItemName: { flex: 1, ...Typography.h4 },
-  lineItemAmount: { ...Typography.h4, color: Colors.primary },
+  lineItemAmount: { ...Typography.h4, color: Colors.text },
 
   lineItemMeta: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center' },
   lineItemQty: { fontSize: 13, color: Colors.textSecondary },
@@ -238,22 +229,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: Spacing.md,
-    backgroundColor: Colors.primaryBg,
-    borderTopWidth: 2,
+    backgroundColor: Colors.surfaceHover,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.border,
     borderBottomLeftRadius: Radius.md,
     borderBottomRightRadius: Radius.md,
   },
-  totalLabel: { fontSize: 15, fontWeight: '700', color: Colors.primary },
-  totalValue: { fontSize: 17, fontWeight: '700', color: Colors.primary },
+  totalLabel: { fontSize: 15, fontWeight: '700', color: Colors.text },
+  totalValue: { fontSize: 17, fontWeight: '700', color: Colors.text },
 
   emptyItems: {
     marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     padding: Spacing.lg,
     alignItems: 'center',
-    ...Shadow.subtle,
   },
   emptyItemsText: { ...Typography.body, color: Colors.textMuted },
 });

@@ -9,7 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { RouteProp, useRoute } from '@react-navigation/native';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchPODetail, PurchaseOrder, POItem } from '@/api/purchaseOrders';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
@@ -19,14 +19,7 @@ import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type RouteProps = RouteProp<MoreStackParamList, 'PurchaseOrderDetail'>;
 
-const PO_STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
-  OPEN:      { bg: Colors.primaryBg,   fg: Colors.primary },
-  APPROVED:  { bg: Colors.successBg,   fg: Colors.success },
-  CLOSED:    { bg: Colors.borderLight, fg: Colors.textSecondary },
-  CANCELLED: { bg: Colors.dangerBg,    fg: Colors.danger },
-  DRAFT:     { bg: Colors.warningBg,   fg: Colors.warning },
-  PARTIAL:   { bg: Colors.orangeBg,    fg: Colors.orange },
-};
+const MUTED_STATUSES = new Set(['closed', 'cancelled']);
 
 export default function PurchaseOrderDetailScreen() {
   const route = useRoute<RouteProps>();
@@ -58,11 +51,8 @@ export default function PurchaseOrderDetailScreen() {
   if (error && !po) return <ErrorView message={error} onRetry={() => load()} />;
   if (!po) return <ErrorView message="Order not found" />;
 
-  const statusKey = (po.status ?? '').toUpperCase();
-  const statusColors = PO_STATUS_COLORS[statusKey] ?? {
-    bg: Colors.borderLight,
-    fg: Colors.textSecondary,
-  };
+  const statusKey = (po.status ?? '').toLowerCase();
+  const isMuted = MUTED_STATUSES.has(statusKey);
 
   const items = po.items ?? [];
   const totalOrdered = items.reduce((s, i) => s + (i.qty_ordered ?? 0), 0);
@@ -83,37 +73,27 @@ export default function PurchaseOrderDetailScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => load(true)}
-            tintColor={Colors.primary}
+            tintColor={Colors.textMuted}
           />
         }
       >
-        {/* PO Header Card */}
         <View style={styles.heroCard}>
           <View style={styles.heroTop}>
             <View style={styles.heroInfo}>
               <Text style={styles.poNumber}>{po.po_number ?? `PO-${po.id}`}</Text>
               <Text style={styles.poVendor}>{po.vendor ?? 'Unknown Vendor'}</Text>
             </View>
-            <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
-              <Text style={[styles.statusText, { color: statusColors.fg }]}>
-                {po.status ?? '—'}
-              </Text>
+            <View style={[styles.statusBadge, isMuted && styles.statusBadgeMuted]}>
+              <Text style={styles.statusText}>{po.status ?? '—'}</Text>
             </View>
           </View>
 
           <View style={styles.heroMeta}>
-            {po.dt && (
-              <MetaRow label="Order Date" value={formatDate(po.dt)} />
-            )}
-            {po.delivery_date && (
-              <MetaRow label="Delivery Date" value={formatDate(po.delivery_date)} />
-            )}
-            {po.total != null && (
-              <MetaRow label="Total Amount" value={formatCurrency(po.total)} bold />
-            )}
+            {po.dt && <MetaRow label="Order Date" value={formatDate(po.dt)} />}
+            {po.delivery_date && <MetaRow label="Delivery Date" value={formatDate(po.delivery_date)} />}
+            {po.total != null && <MetaRow label="Total Amount" value={formatCurrency(po.total)} bold />}
           </View>
 
-          {/* Progress Bar */}
           {items.length > 0 && (
             <View style={styles.progressSection}>
               <View style={styles.progressLabelRow}>
@@ -137,7 +117,6 @@ export default function PurchaseOrderDetailScreen() {
           )}
         </View>
 
-        {/* Line Items */}
         <SectionHeader title="Line Items" meta={`${items.length} items`} />
 
         {items.length === 0 ? (
@@ -183,9 +162,7 @@ function LineItemRow({ item, isLast }: { item: POItem; isLast: boolean }) {
       </View>
 
       <View style={styles.lineItemMeta}>
-        {item.rate != null && (
-          <Text style={styles.lineItemRate}>Rate: {formatCurrency(item.rate)}</Text>
-        )}
+        {item.rate != null && <Text style={styles.lineItemRate}>Rate: {formatCurrency(item.rate)}</Text>}
         {item.unit && <Text style={styles.lineItemUnit}>{item.unit}</Text>}
       </View>
 
@@ -196,13 +173,13 @@ function LineItemRow({ item, isLast }: { item: POItem; isLast: boolean }) {
         </View>
         <View style={styles.qtyBlock}>
           <Text style={styles.qtyLabel}>Received</Text>
-          <Text style={[styles.qtyValue, { color: isComplete ? Colors.success : Colors.warning }]}>
+          <Text style={[styles.qtyValue, isComplete && styles.qtyValueComplete]}>
             {received.toLocaleString()}
           </Text>
         </View>
         <View style={styles.qtyBlock}>
           <Text style={styles.qtyLabel}>Pending</Text>
-          <Text style={[styles.qtyValue, { color: ordered - received > 0 ? Colors.danger : Colors.success }]}>
+          <Text style={[styles.qtyValue, (ordered - received) === 0 && styles.qtyValueComplete]}>
             {(ordered - received).toLocaleString()}
           </Text>
         </View>
@@ -210,8 +187,7 @@ function LineItemRow({ item, isLast }: { item: POItem; isLast: boolean }) {
 
       {ordered > 0 && (
         <View style={styles.itemProgressBar}>
-          <View style={[styles.itemProgressFill, { width: `${itemPct}%` as any,
-            backgroundColor: isComplete ? Colors.success : Colors.primaryLight }]} />
+          <View style={[styles.itemProgressFill, { width: `${itemPct}%` as any }]} />
         </View>
       )}
     </View>
@@ -228,15 +204,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     padding: Spacing.md,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     gap: Spacing.md,
   },
 
-  heroTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.sm,
-  },
+  heroTop: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   heroInfo: { flex: 1 },
   poNumber: { ...Typography.h2 },
   poVendor: { ...Typography.body, color: Colors.textSecondary, marginTop: 4 },
@@ -245,8 +218,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  statusText: { fontSize: 12, fontWeight: '700' },
+  statusBadgeMuted: { opacity: 0.5 },
+  statusText: { fontSize: 12, fontWeight: '700', color: Colors.text },
 
   heroMeta: { gap: Spacing.xs + 2 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -257,23 +233,21 @@ const styles = StyleSheet.create({
   progressSection: { gap: Spacing.xs },
   progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   progressLabel: { ...Typography.bodySmall, fontWeight: '600', color: Colors.text },
-  progressPct: { ...Typography.bodySmall, fontWeight: '700', color: Colors.primary },
+  progressPct: { ...Typography.bodySmall, fontWeight: '700', color: Colors.text },
   progressBar: {
-    height: 8,
-    backgroundColor: Colors.borderLight,
+    height: 6,
+    backgroundColor: Colors.border,
     borderRadius: Radius.full,
     overflow: 'hidden',
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.success,
-    borderRadius: Radius.full,
-  },
+  progressFill: { height: '100%', backgroundColor: Colors.text, borderRadius: Radius.full },
   progressDetail: { ...Typography.bodySmall, color: Colors.textMuted },
 
   notesBox: {
     backgroundColor: Colors.background,
     borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     padding: Spacing.sm,
     gap: 4,
   },
@@ -284,50 +258,43 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
 
   lineItem: { padding: Spacing.md, gap: Spacing.xs + 2 },
-  lineItemBorder: { borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
+  lineItemBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border },
 
-  lineItemHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.sm,
-  },
+  lineItemHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   lineItemName: { flex: 1, ...Typography.h4 },
-  lineItemAmount: { ...Typography.h4, color: Colors.primary },
+  lineItemAmount: { ...Typography.h4, color: Colors.text },
 
   lineItemMeta: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' },
   lineItemRate: { ...Typography.bodySmall, color: Colors.textSecondary },
   lineItemUnit: { ...Typography.label },
 
-  lineItemQtys: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
+  lineItemQtys: { flexDirection: 'row', gap: Spacing.md },
   qtyBlock: { gap: 2 },
   qtyLabel: { ...Typography.label },
-  qtyValue: { fontSize: 15, fontWeight: '700', color: Colors.text },
+  qtyValue: { fontSize: 15, fontWeight: '700', color: Colors.textSecondary },
+  qtyValueComplete: { color: Colors.text },
 
   itemProgressBar: {
     height: 3,
-    backgroundColor: Colors.borderLight,
+    backgroundColor: Colors.border,
     borderRadius: Radius.full,
     overflow: 'hidden',
   },
-  itemProgressFill: {
-    height: '100%',
-    borderRadius: Radius.full,
-  },
+  itemProgressFill: { height: '100%', borderRadius: Radius.full, backgroundColor: Colors.text },
 
   emptyItems: {
     marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     padding: Spacing.lg,
     alignItems: 'center',
-    ...Shadow.subtle,
   },
   emptyItemsText: { ...Typography.body, color: Colors.textMuted },
 });
