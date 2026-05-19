@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -28,11 +29,11 @@ import { formatCurrency, formatShortDate } from '@/utils/currency';
 type Tab = 'summary' | 'invoices' | 'customers';
 
 const INVOICE_STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
-  PAID:      { bg: Colors.successBg, fg: Colors.success },
-  PARTIAL:   { bg: Colors.orangeBg,  fg: Colors.orange },
-  UNPAID:    { bg: Colors.dangerBg,  fg: Colors.danger },
-  OVERDUE:   { bg: Colors.dangerBg,  fg: Colors.danger },
-  DRAFT:     { bg: Colors.warningBg, fg: Colors.warning },
+  PAID:    { bg: Colors.successBg, fg: Colors.success },
+  PARTIAL: { bg: Colors.orangeBg,  fg: Colors.orange },
+  UNPAID:  { bg: Colors.dangerBg,  fg: Colors.danger },
+  OVERDUE: { bg: Colors.dangerBg,  fg: Colors.danger },
+  DRAFT:   { bg: Colors.warningBg, fg: Colors.warning },
 };
 
 export default function AccountsReceivableScreen() {
@@ -44,6 +45,8 @@ export default function AccountsReceivableScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [invoiceSearch, setInvoiceSearch] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -72,6 +75,21 @@ export default function AccountsReceivableScreen() {
   if (error && !summary.total_outstanding) {
     return <ErrorView message={error} onRetry={() => load()} />;
   }
+
+  const filteredInvoices = invoiceSearch.trim()
+    ? invoices.filter((inv) => {
+        const q = invoiceSearch.toLowerCase();
+        return (
+          inv.invoice_number?.toLowerCase().includes(q) ||
+          inv.customer?.toLowerCase().includes(q) ||
+          inv.status?.toLowerCase().includes(q)
+        );
+      })
+    : invoices;
+
+  const filteredCustomers = customerSearch.trim()
+    ? customers.filter((c) => c.name?.toLowerCase().includes(customerSearch.toLowerCase()))
+    : customers;
 
   const aging = summary.aging ?? {};
   const totalAging = (aging.current ?? 0) + (aging.days_30 ?? 0) +
@@ -167,12 +185,21 @@ export default function AccountsReceivableScreen() {
 
         {activeTab === 'invoices' && (
           <>
-            <SectionHeader title="Invoices" meta={`${invoices.length} records`} />
-            {invoices.length === 0 ? (
-              <EmptyState icon="🧾" message="No invoices found" />
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search invoices, customers…"
+                placeholderTextColor={Colors.textMuted}
+                value={invoiceSearch}
+                onChangeText={setInvoiceSearch}
+              />
+            </View>
+            <SectionHeader title="Invoices" meta={`${filteredInvoices.length} records`} />
+            {filteredInvoices.length === 0 ? (
+              <EmptyState icon="🧾" message={invoiceSearch ? 'No invoices match search' : 'No invoices found'} />
             ) : (
               <View style={styles.cardList}>
-                {invoices.map((inv) => (
+                {filteredInvoices.map((inv) => (
                   <InvoiceCard key={inv.id} invoice={inv} />
                 ))}
               </View>
@@ -182,12 +209,21 @@ export default function AccountsReceivableScreen() {
 
         {activeTab === 'customers' && (
           <>
-            <SectionHeader title="Customers" meta={`${customers.length} records`} />
-            {customers.length === 0 ? (
-              <EmptyState icon="👥" message="No customers found" />
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search customers…"
+                placeholderTextColor={Colors.textMuted}
+                value={customerSearch}
+                onChangeText={setCustomerSearch}
+              />
+            </View>
+            <SectionHeader title="Customers" meta={`${filteredCustomers.length} records`} />
+            {filteredCustomers.length === 0 ? (
+              <EmptyState icon="👥" message={customerSearch ? 'No customers match search' : 'No customers found'} />
             ) : (
               <View style={styles.cardList}>
-                {customers.map((c) => (
+                {filteredCustomers.map((c) => (
                   <CustomerCard key={c.id} customer={c} />
                 ))}
               </View>
@@ -419,6 +455,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: Radius.full,
+  },
+
+  searchContainer: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xs,
+    backgroundColor: Colors.background,
+  },
+  searchInput: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    fontSize: 14,
+    color: Colors.text,
   },
 
   emptyState: {

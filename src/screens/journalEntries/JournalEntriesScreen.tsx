@@ -38,6 +38,8 @@ const STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
   VOID:   { bg: Colors.dangerBg,  fg: Colors.danger },
 };
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 export default function JournalEntriesScreen() {
   const { companyId } = useCompany();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -47,6 +49,12 @@ export default function JournalEntriesScreen() {
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('All');
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [showDateFilter, setShowDateFilter] = useState(false);
+
+  const validFrom = DATE_RE.test(fromDate) ? fromDate : undefined;
+  const validTo = DATE_RE.test(toDate) ? toDate : undefined;
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -56,6 +64,8 @@ export default function JournalEntriesScreen() {
       const data = await fetchJournalEntries({
         companyId,
         type: selectedType !== 'All' ? selectedType : undefined,
+        from: validFrom,
+        to: validTo,
       });
       setEntries(data);
     } catch (e: any) {
@@ -64,7 +74,7 @@ export default function JournalEntriesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedType, companyId]);
+  }, [selectedType, companyId, validFrom, validTo]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -88,9 +98,55 @@ export default function JournalEntriesScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Journal Entries</Text>
         <Text style={styles.headerSub}>{filtered.length} entries</Text>
+        <TouchableOpacity
+          style={[styles.dateFilterBtn, (validFrom || validTo) && styles.dateFilterBtnActive]}
+          onPress={() => setShowDateFilter((v) => !v)}
+        >
+          <Text style={[styles.dateFilterBtnText, (validFrom || validTo) && styles.dateFilterBtnTextActive]}>
+            📅{(validFrom || validTo) ? ' ●' : ''}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <CompanyPicker showAll />
+
+      {/* Date Range Filter */}
+      {showDateFilter && (
+        <View style={styles.dateFilterRow}>
+          <View style={styles.dateInputWrap}>
+            <Text style={styles.dateLabel}>From</Text>
+            <TextInput
+              style={[styles.dateInput, validFrom ? styles.dateInputValid : fromDate ? styles.dateInputError : null]}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={Colors.textMuted}
+              value={fromDate}
+              onChangeText={setFromDate}
+              keyboardType="numbers-and-punctuation"
+              maxLength={10}
+            />
+          </View>
+          <View style={styles.dateInputWrap}>
+            <Text style={styles.dateLabel}>To</Text>
+            <TextInput
+              style={[styles.dateInput, validTo ? styles.dateInputValid : toDate ? styles.dateInputError : null]}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={Colors.textMuted}
+              value={toDate}
+              onChangeText={setToDate}
+              keyboardType="numbers-and-punctuation"
+              maxLength={10}
+            />
+          </View>
+          {(fromDate || toDate) && (
+            <TouchableOpacity
+              style={styles.clearDateBtn}
+              onPress={() => { setFromDate(''); setToDate(''); }}
+            >
+              <Text style={styles.clearDateText}>Clear</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       {/* Search */}
       <View style={styles.searchContainer}>
@@ -362,4 +418,49 @@ const styles = StyleSheet.create({
   },
   emptyIcon: { fontSize: 36 },
   emptyText: { ...Typography.body, color: Colors.textMuted },
+
+  dateFilterBtn: {
+    marginLeft: 'auto',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  dateFilterBtnActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryBg },
+  dateFilterBtnText: { fontSize: 14 },
+  dateFilterBtnTextActive: { color: Colors.primary },
+
+  dateFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  dateInputWrap: { flex: 1, gap: 2 },
+  dateLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '600', textTransform: 'uppercase' },
+  dateInput: {
+    backgroundColor: Colors.background,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    fontSize: 13,
+    color: Colors.text,
+  },
+  dateInputValid: { borderColor: Colors.success },
+  dateInputError: { borderColor: Colors.danger },
+  clearDateBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.dangerBg,
+  },
+  clearDateText: { fontSize: 12, color: Colors.danger, fontWeight: '600' },
 });

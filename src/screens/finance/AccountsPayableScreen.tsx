@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -44,6 +45,8 @@ export default function AccountsPayableScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [billSearch, setBillSearch] = useState('');
+  const [vendorSearch, setVendorSearch] = useState('');
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -72,6 +75,21 @@ export default function AccountsPayableScreen() {
   if (error && !summary.total_outstanding) {
     return <ErrorView message={error} onRetry={() => load()} />;
   }
+
+  const filteredBills = billSearch.trim()
+    ? bills.filter((b) => {
+        const q = billSearch.toLowerCase();
+        return (
+          b.bill_number?.toLowerCase().includes(q) ||
+          b.vendor?.toLowerCase().includes(q) ||
+          b.status?.toLowerCase().includes(q)
+        );
+      })
+    : bills;
+
+  const filteredVendors = vendorSearch.trim()
+    ? vendors.filter((v) => v.name?.toLowerCase().includes(vendorSearch.toLowerCase()))
+    : vendors;
 
   const aging = summary.aging ?? {};
   const totalAging = (aging.current ?? 0) + (aging.days_30 ?? 0) +
@@ -195,12 +213,21 @@ export default function AccountsPayableScreen() {
 
         {activeTab === 'bills' && (
           <>
-            <SectionHeader title="Bills" meta={`${bills.length} records`} />
-            {bills.length === 0 ? (
-              <EmptyState icon="🧾" message="No bills found" />
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search bills, vendors…"
+                placeholderTextColor={Colors.textMuted}
+                value={billSearch}
+                onChangeText={setBillSearch}
+              />
+            </View>
+            <SectionHeader title="Bills" meta={`${filteredBills.length} records`} />
+            {filteredBills.length === 0 ? (
+              <EmptyState icon="🧾" message={billSearch ? 'No bills match search' : 'No bills found'} />
             ) : (
               <View style={styles.cardList}>
-                {bills.map((bill) => (
+                {filteredBills.map((bill) => (
                   <BillCard key={bill.id} bill={bill} />
                 ))}
               </View>
@@ -210,12 +237,21 @@ export default function AccountsPayableScreen() {
 
         {activeTab === 'vendors' && (
           <>
-            <SectionHeader title="Vendors" meta={`${vendors.length} records`} />
-            {vendors.length === 0 ? (
-              <EmptyState icon="🏪" message="No vendors found" />
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search vendors…"
+                placeholderTextColor={Colors.textMuted}
+                value={vendorSearch}
+                onChangeText={setVendorSearch}
+              />
+            </View>
+            <SectionHeader title="Vendors" meta={`${filteredVendors.length} records`} />
+            {filteredVendors.length === 0 ? (
+              <EmptyState icon="🏪" message={vendorSearch ? 'No vendors match search' : 'No vendors found'} />
             ) : (
               <View style={styles.cardList}>
-                {vendors.map((v) => (
+                {filteredVendors.map((v) => (
                   <VendorCard key={v.id} vendor={v} />
                 ))}
               </View>
@@ -460,4 +496,21 @@ const styles = StyleSheet.create({
   },
   emptyIcon: { fontSize: 36 },
   emptyText: { ...Typography.body, color: Colors.textMuted },
+
+  searchContainer: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xs,
+    backgroundColor: Colors.background,
+  },
+  searchInput: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    fontSize: 14,
+    color: Colors.text,
+  },
 });

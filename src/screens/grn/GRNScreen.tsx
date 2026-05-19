@@ -4,18 +4,25 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
 import { fetchPurchaseOrders, PurchaseOrder } from '@/api/purchaseOrders';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
+import type { MoreStackParamList } from '@/navigation/MoreNavigator';
+
+type GRNNavProp = NativeStackNavigationProp<MoreStackParamList, 'GRN'>;
 
 export default function GRNScreen() {
+  const navigation = useNavigation<GRNNavProp>();
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -102,7 +109,11 @@ export default function GRNScreen() {
         ) : (
           <View style={styles.cardList}>
             {orders.map((po) => (
-              <GRNCard key={po.id} po={po} />
+              <GRNCard
+                key={po.id}
+                po={po}
+                onPress={() => navigation.navigate('PurchaseOrderDetail', { id: po.id })}
+              />
             ))}
           </View>
         )}
@@ -113,7 +124,7 @@ export default function GRNScreen() {
   );
 }
 
-function GRNCard({ po }: { po: PurchaseOrder }) {
+function GRNCard({ po, onPress }: { po: PurchaseOrder; onPress: () => void }) {
   const received = po.received ?? 0;
   const total = po.total ?? 0;
   const pct = total > 0 ? Math.min((received / total) * 100, 100) : 0;
@@ -128,7 +139,7 @@ function GRNCard({ po }: { po: PurchaseOrder }) {
       : { bg: Colors.primaryBg, fg: Colors.primary };
 
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.cardHeader}>
         <View style={styles.cardInfo}>
           <Text style={styles.poNumber}>{po.po_number ?? `PO-${po.id}`}</Text>
@@ -192,11 +203,14 @@ function GRNCard({ po }: { po: PurchaseOrder }) {
             );
           })}
           {po.items.length > 3 && (
-            <Text style={styles.moreItems}>+{po.items.length - 3} more items</Text>
+            <Text style={styles.moreItems}>+{po.items.length - 3} more items — tap to view all</Text>
           )}
         </View>
       )}
-    </View>
+      <View style={styles.tapHint}>
+        <Text style={styles.tapHintText}>Tap to view PO detail →</Text>
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -296,6 +310,12 @@ const styles = StyleSheet.create({
   itemQty: { fontSize: 12, color: Colors.textSecondary },
   itemPct: { fontSize: 11, fontWeight: '700', minWidth: 32, textAlign: 'right' },
   moreItems: { ...Typography.bodySmall, color: Colors.textMuted, textAlign: 'center', marginTop: 2 },
+
+  tapHint: {
+    alignItems: 'flex-end',
+    marginTop: 2,
+  },
+  tapHintText: { fontSize: 11, color: Colors.primary, fontWeight: '500' },
 
   emptyState: {
     marginHorizontal: Spacing.md,
