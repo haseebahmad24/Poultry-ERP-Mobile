@@ -37,7 +37,7 @@ export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { method = 'GET', body, useCookie = true, retries = 2 } = options;
+  const { method = 'GET', body, useCookie = false, retries = 2 } = options;
   const token = await getToken();
 
   const headers: Record<string, string> = {

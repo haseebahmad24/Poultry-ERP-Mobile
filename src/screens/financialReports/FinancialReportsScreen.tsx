@@ -95,7 +95,7 @@ export default function FinancialReportsScreen() {
     else setLoading(true);
     setError(null);
     try {
-      const companyId = selectedCompany ? Number(selectedCompany.id) : undefined;
+      const companyId = selectedCompany?.id;
       const result = await fetchTrialBalance(companyId, asOf);
       setRows(result.rows);
     } catch (e: any) {

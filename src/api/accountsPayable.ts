@@ -37,21 +37,21 @@ export interface APVendor {
   bills_count?: number;
 }
 
-export async function fetchAPSummary(companyId?: number): Promise<APSummary> {
+export async function fetchAPSummary(companyId?: string | number): Promise<APSummary> {
   const params = new URLSearchParams({ view: 'summary' });
   if (companyId != null) params.set('company_id', String(companyId));
   const data = await apiRequest<any>(`/api/mobile/accounts-payable?${params}`);
   return data.summary ?? data ?? {};
 }
 
-export async function fetchAPBills(companyId?: number): Promise<APBill[]> {
+export async function fetchAPBills(companyId?: string | number): Promise<APBill[]> {
   const params = new URLSearchParams({ view: 'bills' });
   if (companyId != null) params.set('company_id', String(companyId));
   const data = await apiRequest<any>(`/api/mobile/accounts-payable?${params}`);
   return data.bills ?? (Array.isArray(data) ? data : []);
 }
 
-export async function fetchAPVendors(companyId?: number): Promise<APVendor[]> {
+export async function fetchAPVendors(companyId?: string | number): Promise<APVendor[]> {
   const params = new URLSearchParams({ view: 'vendors' });
   if (companyId != null) params.set('company_id', String(companyId));
   const data = await apiRequest<any>(`/api/mobile/accounts-payable?${params}`);

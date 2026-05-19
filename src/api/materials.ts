@@ -18,7 +18,7 @@ export interface MaterialType {
 }
 
 export async function fetchMaterials(opts: {
-  companyId?: number;
+  companyId?: string | number;
   typeId?: number;
   status?: string;
 } = {}): Promise<Material[]> {

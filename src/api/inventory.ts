@@ -43,7 +43,7 @@ export interface Warehouse {
   total_qty?: number;
 }
 
-export async function fetchStockBalances(companyId?: number): Promise<StockBalance[]> {
+export async function fetchStockBalances(companyId?: string | number): Promise<StockBalance[]> {
   const params = new URLSearchParams({ view: 'stock' });
   if (companyId != null) params.set('company_id', String(companyId));
   const data = await apiRequest<any>(`/api/mobile/inventory?${params}`);
@@ -51,7 +51,7 @@ export async function fetchStockBalances(companyId?: number): Promise<StockBalan
 }
 
 export async function fetchStockLedger(opts: {
-  companyId?: number;
+  companyId?: string | number;
   itemId?: number;
   warehouseId?: number;
   from?: string;
@@ -67,14 +67,14 @@ export async function fetchStockLedger(opts: {
   return data.ledger ?? data.entries ?? (Array.isArray(data) ? data : []);
 }
 
-export async function fetchInventoryItems(companyId?: number): Promise<InventoryItem[]> {
+export async function fetchInventoryItems(companyId?: string | number): Promise<InventoryItem[]> {
   const params = new URLSearchParams({ view: 'items' });
   if (companyId != null) params.set('company_id', String(companyId));
   const data = await apiRequest<any>(`/api/mobile/inventory?${params}`);
   return data.items ?? (Array.isArray(data) ? data : []);
 }
 
-export async function fetchWarehouses(companyId?: number): Promise<Warehouse[]> {
+export async function fetchWarehouses(companyId?: string | number): Promise<Warehouse[]> {
   const params = new URLSearchParams({ view: 'warehouses' });
   if (companyId != null) params.set('company_id', String(companyId));
   const data = await apiRequest<any>(`/api/mobile/inventory?${params}`);

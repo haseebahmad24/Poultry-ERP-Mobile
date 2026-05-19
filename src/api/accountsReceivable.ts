@@ -37,21 +37,21 @@ export interface ARCustomer {
   invoices_count?: number;
 }
 
-export async function fetchARSummary(companyId?: number): Promise<ARSummary> {
+export async function fetchARSummary(companyId?: string | number): Promise<ARSummary> {
   const params = new URLSearchParams({ view: 'summary' });
   if (companyId != null) params.set('company_id', String(companyId));
   const data = await apiRequest<any>(`/api/mobile/accounts-receivable?${params}`);
   return data.summary ?? data ?? {};
 }
 
-export async function fetchARInvoices(companyId?: number): Promise<ARInvoice[]> {
+export async function fetchARInvoices(companyId?: string | number): Promise<ARInvoice[]> {
   const params = new URLSearchParams({ view: 'invoices' });
   if (companyId != null) params.set('company_id', String(companyId));
   const data = await apiRequest<any>(`/api/mobile/accounts-receivable?${params}`);
   return data.invoices ?? (Array.isArray(data) ? data : []);
 }
 
-export async function fetchARCustomers(companyId?: number): Promise<ARCustomer[]> {
+export async function fetchARCustomers(companyId?: string | number): Promise<ARCustomer[]> {
   const params = new URLSearchParams({ view: 'customers' });
   if (companyId != null) params.set('company_id', String(companyId));
   const data = await apiRequest<any>(`/api/mobile/accounts-receivable?${params}`);

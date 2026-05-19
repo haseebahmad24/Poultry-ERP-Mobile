@@ -15,7 +15,7 @@ export interface Partner {
   company?: string;
 }
 
-export async function fetchPartners(companyId?: number): Promise<Partner[]> {
+export async function fetchPartners(companyId?: string | number): Promise<Partner[]> {
   const params = new URLSearchParams();
   if (companyId != null) params.set('company_id', String(companyId));
   const data = await apiRequest<any>(`/api/mobile/partners?${params}`);

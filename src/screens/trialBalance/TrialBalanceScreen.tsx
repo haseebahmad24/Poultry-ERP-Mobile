@@ -46,7 +46,7 @@ export default function TrialBalanceScreen() {
     else setLoading(true);
     setError(null);
     try {
-      const companyId = selectedCompany ? Number(selectedCompany.id) : undefined;
+      const companyId = selectedCompany?.id;
       const data = await fetchTrialBalance(companyId, asOf);
       setResult(data);
     } catch (e: any) {

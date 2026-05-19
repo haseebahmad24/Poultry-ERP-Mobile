@@ -28,7 +28,7 @@ type SOView = 'open' | 'approved' | 'closed' | 'register';
 
 export async function fetchSalesOrders(
   view: SOView = 'register',
-  opts: { companyId?: number; from?: string; to?: string } = {}
+  opts: { companyId?: string | number; from?: string; to?: string } = {}
 ): Promise<SalesOrder[]> {
   const params = new URLSearchParams({ view });
   if (opts.companyId != null) params.set('company_id', String(opts.companyId));

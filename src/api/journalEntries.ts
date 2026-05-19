@@ -22,7 +22,7 @@ export interface JELine {
 }
 
 export async function fetchJournalEntries(opts: {
-  companyId?: number;
+  companyId?: string | number;
   from?: string;
   to?: string;
   account?: string;

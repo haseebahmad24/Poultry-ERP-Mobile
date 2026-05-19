@@ -8,7 +8,7 @@ interface CompanyContextValue {
   companies: Company[];
   selectedCompany: Company | null;
   setSelectedCompany: (company: Company | null) => void;
-  companyId: number | undefined;
+  companyId: string | undefined;
   loading: boolean;
 }
 
@@ -50,7 +50,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, load]);
 
-  const companyId = selectedCompany ? Number(selectedCompany.id) : undefined;
+  const companyId = selectedCompany?.id;
 
   return (
     <CompanyContext.Provider

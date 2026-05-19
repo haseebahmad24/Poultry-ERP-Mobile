@@ -21,7 +21,7 @@ export interface TrialBalanceResult {
 }
 
 export async function fetchTrialBalance(
-  companyId?: number,
+  companyId?: string | number,
   asOf?: string
 ): Promise<TrialBalanceResult> {
   const params = new URLSearchParams();
