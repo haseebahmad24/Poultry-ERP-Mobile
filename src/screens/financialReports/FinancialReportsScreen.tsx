@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Feather } from '@expo/vector-icons';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchTrialBalance, TrialBalanceRow } from '@/api/trialBalance';
 import { useCompany } from '@/context/CompanyContext';
 import LoadingView from '@/components/LoadingView';
@@ -27,7 +28,6 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-// Account type → P&L or Balance Sheet classification
 function classifyRow(row: TrialBalanceRow): 'revenue' | 'expense' | 'asset' | 'liability' | 'equity' | null {
   const type = (row.account_type ?? row.account_name ?? '').toLowerCase();
   if (type.includes('revenue') || type.includes('income') || type.includes('sales')) return 'revenue';
@@ -85,7 +85,6 @@ export default function FinancialReportsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showCompanyPicker, setShowCompanyPicker] = useState(false);
 
-  // Seed local selection from global context when companies load
   useEffect(() => {
     if (!selectedCompany && globalCompany) setSelectedCompany(globalCompany);
   }, [globalCompany, selectedCompany]);
@@ -149,16 +148,16 @@ export default function FinancialReportsScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.header}>
-        <BackButton color={Colors.primary} />
+        <BackButton />
         <Text style={styles.headerTitle}>Financial Reports</Text>
         {rows.length > 0 && (
           <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+            <Feather name="share" size={13} color={Colors.text} />
             <Text style={styles.exportBtnText}>Export</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Report tabs */}
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'pl' && styles.tabActive]}
@@ -190,7 +189,7 @@ export default function FinancialReportsScreen() {
               <Text style={styles.filterSelectorText} numberOfLines={1}>
                 {selectedCompany?.name ?? 'Select company'}
               </Text>
-              <Text style={styles.filterSelectorChevron}>▾</Text>
+              <Feather name="chevron-down" size={14} color={Colors.textMuted} />
             </TouchableOpacity>
           </View>
         )}
@@ -206,6 +205,9 @@ export default function FinancialReportsScreen() {
                 <Text style={[styles.companyOptionText, selectedCompany?.id === c.id && styles.companyOptionTextActive]}>
                   {c.name}
                 </Text>
+                {selectedCompany?.id === c.id && (
+                  <Feather name="check" size={14} color={Colors.text} />
+                )}
               </TouchableOpacity>
             ))}
           </View>
@@ -234,7 +236,7 @@ export default function FinancialReportsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.textMuted} />
         }
       >
         {activeTab === 'pl' ? (
@@ -252,17 +254,16 @@ export default function FinancialReportsScreen() {
 function PLReport({ pl }: { pl: PLData }) {
   return (
     <>
-      {/* Summary card */}
       <View style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>Profit & Loss Summary</Text>
         <View style={styles.summaryGrid}>
-          <SummaryBlock label="Total Revenue" value={formatCurrency(pl.totalRevenue)} color={Colors.success} />
-          <SummaryBlock label="Total Expenses" value={formatCurrency(pl.totalExpense)} color={Colors.danger} />
+          <SummaryBlock label="Total Revenue" value={formatCurrency(pl.totalRevenue)} />
+          <SummaryBlock label="Total Expenses" value={formatCurrency(pl.totalExpense)} />
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryNetRow}>
           <Text style={styles.summaryNetLabel}>Net Income</Text>
-          <Text style={[styles.summaryNetValue, { color: pl.netIncome >= 0 ? Colors.success : Colors.danger }]}>
+          <Text style={[styles.summaryNetValue, pl.netIncome < 0 && styles.summaryNetValueMuted]}>
             {formatCurrency(pl.netIncome)}
           </Text>
         </View>
@@ -272,14 +273,14 @@ function PLReport({ pl }: { pl: PLData }) {
       {pl.revenues.length === 0 ? (
         <NoDataNote message="No revenue accounts found in trial balance" />
       ) : (
-        <AccountTable rows={pl.revenues} totalLabel="Total Revenue" total={pl.totalRevenue} totalColor={Colors.success} />
+        <AccountTable rows={pl.revenues} totalLabel="Total Revenue" total={pl.totalRevenue} />
       )}
 
       <SectionHeader title="Expenses" meta={`${pl.expenses.length} accounts`} />
       {pl.expenses.length === 0 ? (
         <NoDataNote message="No expense accounts found in trial balance" />
       ) : (
-        <AccountTable rows={pl.expenses} totalLabel="Total Expenses" total={pl.totalExpense} totalColor={Colors.danger} />
+        <AccountTable rows={pl.expenses} totalLabel="Total Expenses" total={pl.totalExpense} />
       )}
     </>
   );
@@ -293,13 +294,14 @@ function BSReport({ bs }: { bs: BSData }) {
       <View style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>Balance Sheet Summary</Text>
         <View style={styles.summaryGrid}>
-          <SummaryBlock label="Total Assets" value={formatCurrency(bs.totalAssets)} color={Colors.primary} />
-          <SummaryBlock label="Liabilities + Equity" value={formatCurrency(bs.totalLiabilities + bs.totalEquity)} color={Colors.success} />
+          <SummaryBlock label="Total Assets" value={formatCurrency(bs.totalAssets)} />
+          <SummaryBlock label="Liabilities + Equity" value={formatCurrency(bs.totalLiabilities + bs.totalEquity)} />
         </View>
         {!isBalanced && (
           <View style={styles.imbalanceWarning}>
+            <Feather name="alert-circle" size={13} color={Colors.textSecondary} />
             <Text style={styles.imbalanceText}>
-              ⚠️ Balance sheet is out of balance by {formatCurrency(Math.abs(bs.totalAssets - (bs.totalLiabilities + bs.totalEquity)))}
+              Out of balance by {formatCurrency(Math.abs(bs.totalAssets - (bs.totalLiabilities + bs.totalEquity)))}
             </Text>
           </View>
         )}
@@ -309,30 +311,30 @@ function BSReport({ bs }: { bs: BSData }) {
       {bs.assets.length === 0 ? (
         <NoDataNote message="No asset accounts found in trial balance" />
       ) : (
-        <AccountTable rows={bs.assets} totalLabel="Total Assets" total={bs.totalAssets} totalColor={Colors.primary} />
+        <AccountTable rows={bs.assets} totalLabel="Total Assets" total={bs.totalAssets} />
       )}
 
       <SectionHeader title="Liabilities" meta={`${bs.liabilities.length} accounts`} />
       {bs.liabilities.length === 0 ? (
         <NoDataNote message="No liability accounts found in trial balance" />
       ) : (
-        <AccountTable rows={bs.liabilities} totalLabel="Total Liabilities" total={bs.totalLiabilities} totalColor={Colors.danger} />
+        <AccountTable rows={bs.liabilities} totalLabel="Total Liabilities" total={bs.totalLiabilities} />
       )}
 
       <SectionHeader title="Equity" meta={`${bs.equity.length} accounts`} />
       {bs.equity.length === 0 ? (
         <NoDataNote message="No equity accounts found in trial balance" />
       ) : (
-        <AccountTable rows={bs.equity} totalLabel="Total Equity" total={bs.totalEquity} totalColor={Colors.success} />
+        <AccountTable rows={bs.equity} totalLabel="Total Equity" total={bs.totalEquity} />
       )}
     </>
   );
 }
 
-function SummaryBlock({ label, value, color }: { label: string; value: string; color: string }) {
+function SummaryBlock({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.summaryBlock}>
-      <Text style={[styles.summaryValue, { color }]}>{value}</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
       <Text style={styles.summaryLabel}>{label}</Text>
     </View>
   );
@@ -342,12 +344,10 @@ function AccountTable({
   rows,
   totalLabel,
   total,
-  totalColor,
 }: {
   rows: TrialBalanceRow[];
   totalLabel: string;
   total: number;
-  totalColor: string;
 }) {
   return (
     <View style={styles.tableCard}>
@@ -363,7 +363,7 @@ function AccountTable({
       ))}
       <View style={styles.tableTotalRow}>
         <Text style={styles.tableTotalLabel}>{totalLabel}</Text>
-        <Text style={[styles.tableTotalValue, { color: totalColor }]}>{formatCurrency(total)}</Text>
+        <Text style={styles.tableTotalValue}>{formatCurrency(total)}</Text>
       </View>
     </View>
   );
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 4,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     flexDirection: 'row',
     alignItems: 'center',
@@ -393,19 +393,21 @@ const styles = StyleSheet.create({
   },
   headerTitle: { ...Typography.h2, flex: 1 },
   exportBtn: {
-    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: Radius.sm,
-    backgroundColor: Colors.primary + '18',
-    borderWidth: 1,
-    borderColor: Colors.primary + '40',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  exportBtnText: { fontSize: 12, fontWeight: '600', color: Colors.primary },
+  exportBtnText: { fontSize: 12, fontWeight: '600', color: Colors.text },
 
   tabBar: {
     flexDirection: 'row',
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
   tab: {
@@ -415,14 +417,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabActive: { borderBottomColor: Colors.primary },
+  tabActive: { borderBottomColor: Colors.text },
   tabText: { fontSize: 13, fontWeight: '500', color: Colors.textSecondary },
-  tabTextActive: { color: Colors.primary, fontWeight: '700' },
+  tabTextActive: { color: Colors.text, fontWeight: '700' },
 
   filtersCard: {
     backgroundColor: Colors.surface,
     padding: Spacing.md,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     gap: Spacing.sm,
   },
@@ -437,23 +439,28 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs + 2,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
   },
   filterSelectorText: { flex: 1, fontSize: 13, color: Colors.text },
-  filterSelectorChevron: { color: Colors.textMuted, fontSize: 14 },
 
   companyPicker: {
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.surface,
     borderRadius: Radius.sm,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     overflow: 'hidden',
   },
-  companyOption: { padding: Spacing.sm + 2, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
-  companyOptionActive: { backgroundColor: Colors.primaryBg },
-  companyOptionText: { fontSize: 13, color: Colors.text },
-  companyOptionTextActive: { color: Colors.primary, fontWeight: '700' },
+  companyOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.sm + 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  companyOptionActive: { backgroundColor: Colors.surfaceHover },
+  companyOptionText: { flex: 1, fontSize: 13, color: Colors.text },
+  companyOptionTextActive: { fontWeight: '700' },
 
   dateInput: {
     flex: 1,
@@ -461,14 +468,14 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs + 2,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     fontSize: 13,
     color: Colors.text,
   },
 
   runBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.text,
     borderRadius: Radius.md,
     paddingVertical: Spacing.sm,
     alignItems: 'center',
@@ -483,37 +490,45 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     padding: Spacing.md,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     gap: Spacing.sm,
     marginBottom: Spacing.sm,
   },
   summaryTitle: { ...Typography.label },
   summaryGrid: { flexDirection: 'row', gap: Spacing.md },
   summaryBlock: { flex: 1 },
-  summaryValue: { fontSize: 16, fontWeight: '700' },
+  summaryValue: { fontSize: 16, fontWeight: '700', color: Colors.text },
   summaryLabel: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 2 },
-  summaryDivider: { height: 1, backgroundColor: Colors.border },
+  summaryDivider: { height: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
   summaryNetRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   summaryNetLabel: { fontSize: 14, fontWeight: '700', color: Colors.text },
-  summaryNetValue: { fontSize: 18, fontWeight: '700' },
+  summaryNetValue: { fontSize: 18, fontWeight: '700', color: Colors.text },
+  summaryNetValueMuted: { color: Colors.textSecondary },
 
   imbalanceWarning: {
-    backgroundColor: Colors.warningBg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: Colors.surfaceHover,
     borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     padding: Spacing.sm,
   },
-  imbalanceText: { fontSize: 12, color: Colors.warning, fontWeight: '600' },
+  imbalanceText: { flex: 1, fontSize: 12, color: Colors.textSecondary, fontWeight: '600' },
 
   tableCard: {
     marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     overflow: 'hidden',
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     marginBottom: Spacing.sm,
   },
   tableRow: { flexDirection: 'row', padding: Spacing.sm + 2, alignItems: 'center' },
-  tableRowBorder: { borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
+  tableRowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border },
   accountName: { flex: 1, fontSize: 13, color: Colors.text, paddingRight: Spacing.sm },
   accountBalance: { fontSize: 13, fontWeight: '600', color: Colors.text },
   tableTotalRow: {
@@ -521,20 +536,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: Spacing.sm + 2,
-    backgroundColor: Colors.primaryBg,
-    borderTopWidth: 2,
+    backgroundColor: Colors.surfaceHover,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.border,
   },
   tableTotalLabel: { fontSize: 13, fontWeight: '700', color: Colors.text },
-  tableTotalValue: { fontSize: 15, fontWeight: '700' },
+  tableTotalValue: { fontSize: 15, fontWeight: '700', color: Colors.text },
 
   noDataNote: {
     marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     padding: Spacing.md,
     gap: Spacing.xs,
-    ...Shadow.subtle,
     marginBottom: Spacing.sm,
   },
   noDataText: { fontSize: 13, color: Colors.textSecondary },
