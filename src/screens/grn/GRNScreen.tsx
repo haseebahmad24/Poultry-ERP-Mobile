@@ -59,6 +59,7 @@ export default function GRNScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.header}>
+        <BackButton color={Colors.primary} />
         <Text style={styles.headerTitle}>Goods Receipt</Text>
         <Text style={styles.headerSub}>{orders.length} POs</Text>
       </View>

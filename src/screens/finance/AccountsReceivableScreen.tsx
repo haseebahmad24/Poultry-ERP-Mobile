@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import BackButton from '@/components/BackButton';
 import {
   fetchARSummary,
   fetchARInvoices,
@@ -100,6 +101,7 @@ export default function AccountsReceivableScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.header}>
+        <BackButton color={Colors.primary} />
         <Text style={styles.headerTitle}>Accounts Receivable</Text>
       </View>
 
@@ -344,6 +346,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm + 4,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
   headerTitle: { ...Typography.h2 },
 

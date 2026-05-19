@@ -13,6 +13,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
 import { fetchTrialBalance, TrialBalanceRow, TrialBalanceResult } from '@/api/trialBalance';
 import { useCompany } from '@/context/CompanyContext';
+import BackButton from '@/components/BackButton';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
@@ -74,6 +75,7 @@ export default function TrialBalanceScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.header}>
+        <BackButton color={Colors.primary} />
         <Text style={styles.headerTitle}>Trial Balance</Text>
         <Text style={styles.headerSub}>{filteredRows.length} accounts</Text>
       </View>

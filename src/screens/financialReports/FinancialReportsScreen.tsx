@@ -16,6 +16,7 @@ import { useCompany } from '@/context/CompanyContext';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
+import BackButton from '@/components/BackButton';
 import { formatCurrency } from '@/utils/currency';
 
 type ReportTab = 'pl' | 'bs';
@@ -117,6 +118,7 @@ export default function FinancialReportsScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.header}>
+        <BackButton color={Colors.primary} />
         <Text style={styles.headerTitle}>Financial Reports</Text>
       </View>
 
@@ -349,6 +351,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm + 4,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
   headerTitle: { ...Typography.h2 },
 

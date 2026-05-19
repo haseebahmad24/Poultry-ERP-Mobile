@@ -18,6 +18,7 @@ import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import CompanyPicker from '@/components/CompanyPicker';
 import { useCompany } from '@/context/CompanyContext';
+import BackButton from '@/components/BackButton';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
@@ -76,6 +77,7 @@ export default function SalesOrdersScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.header}>
+        <BackButton color={Colors.primary} />
         <Text style={styles.headerTitle}>Sales Orders</Text>
         <Text style={styles.headerSub}>{orders.length} records</Text>
       </View>

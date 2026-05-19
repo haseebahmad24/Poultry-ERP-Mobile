@@ -72,6 +72,7 @@ export default function PurchaseOrdersScreen() {
 
       {/* Header */}
       <View style={styles.header}>
+        <BackButton color={Colors.primary} />
         <Text style={styles.headerTitle}>Purchase Orders</Text>
         <Text style={styles.headerSub}>{orders.length} records</Text>
       </View>

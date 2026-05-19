@@ -17,6 +17,7 @@ import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import CompanyPicker from '@/components/CompanyPicker';
 import { useCompany } from '@/context/CompanyContext';
+import BackButton from '@/components/BackButton';
 
 const STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
   Active:   { bg: Colors.successBg,  fg: Colors.success },
@@ -80,6 +81,7 @@ export default function MaterialsScreen() {
 
       {/* Header */}
       <View style={styles.header}>
+        <BackButton color={Colors.primary} />
         <Text style={styles.headerTitle}>Materials</Text>
         <Text style={styles.headerSub}>{filtered.length} items</Text>
       </View>

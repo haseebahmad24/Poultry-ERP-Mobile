@@ -45,6 +45,7 @@ export default function CompaniesScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.header}>
+        <BackButton color={Colors.primary} />
         <Text style={styles.headerTitle}>Companies</Text>
         <Text style={styles.headerSub}>{companies.length} companies</Text>
       </View>

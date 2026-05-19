@@ -17,6 +17,7 @@ import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import CompanyPicker from '@/components/CompanyPicker';
 import { useCompany } from '@/context/CompanyContext';
+import BackButton from '@/components/BackButton';
 
 type RoleFilter = 'all' | 'customer' | 'vendor';
 
@@ -69,6 +70,7 @@ export default function PartnersScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.header}>
+        <BackButton color={Colors.primary} />
         <Text style={styles.headerTitle}>Business Partners</Text>
         <Text style={styles.headerSub}>{filtered.length} records</Text>
       </View>

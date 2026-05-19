@@ -17,6 +17,7 @@ import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import CompanyPicker from '@/components/CompanyPicker';
 import { useCompany } from '@/context/CompanyContext';
+import BackButton from '@/components/BackButton';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 
 const VOUCHER_TYPES = ['All', 'JV', 'GRN', 'PAY', 'REC', 'INV', 'SO', 'PO', 'DN'];
@@ -96,6 +97,7 @@ export default function JournalEntriesScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.header}>
+        <BackButton color={Colors.primary} />
         <Text style={styles.headerTitle}>Journal Entries</Text>
         <Text style={styles.headerSub}>{filtered.length} entries</Text>
         <TouchableOpacity
