@@ -10,13 +10,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Feather } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchPurchaseOrders, PurchaseOrder } from '@/api/purchaseOrders';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
+import BackButton from '@/components/BackButton';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
@@ -29,15 +31,6 @@ const STATUS_TABS: { key: StatusTab; label: string }[] = [
   { key: 'open', label: 'Open' },
   { key: 'progress', label: 'In Progress' },
 ];
-
-const PO_STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
-  OPEN:      { bg: Colors.primaryBg,  fg: Colors.primary },
-  APPROVED:  { bg: Colors.successBg,  fg: Colors.success },
-  CLOSED:    { bg: Colors.borderLight, fg: Colors.textSecondary },
-  CANCELLED: { bg: Colors.dangerBg,   fg: Colors.danger },
-  DRAFT:     { bg: Colors.warningBg,  fg: Colors.warning },
-  PARTIAL:   { bg: Colors.orangeBg,   fg: Colors.orange },
-};
 
 export default function PurchaseOrdersScreen() {
   const navigation = useNavigation<Nav>();
@@ -53,7 +46,9 @@ export default function PurchaseOrdersScreen() {
     else setLoading(true);
     setError(null);
     try {
-      const data = await fetchPurchaseOrders(activeTab === 'progress' ? 'progress' : activeTab === 'open' ? 'open' : 'all');
+      const data = await fetchPurchaseOrders(
+        activeTab === 'progress' ? 'progress' : activeTab === 'open' ? 'open' : 'all'
+      );
       setOrders(data);
     } catch (e: any) {
       setError(String(e?.message ?? e));
@@ -83,15 +78,14 @@ export default function PurchaseOrdersScreen() {
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
 
-      {/* Header */}
       <View style={styles.header}>
-        <BackButton color={Colors.primary} />
+        <BackButton />
         <Text style={styles.headerTitle}>Purchase Orders</Text>
         <Text style={styles.headerSub}>{filtered.length} records</Text>
       </View>
 
-      {/* Search */}
       <View style={styles.searchContainer}>
+        <Feather name="search" size={14} color={Colors.textMuted} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search PO number, vendor…"
@@ -99,9 +93,13 @@ export default function PurchaseOrdersScreen() {
           value={search}
           onChangeText={setSearch}
         />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch('')}>
+            <Feather name="x" size={14} color={Colors.textMuted} />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Status Tab Bar */}
       <View style={styles.tabBar}>
         {STATUS_TABS.map((t) => (
           <TouchableOpacity
@@ -124,7 +122,7 @@ export default function PurchaseOrdersScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => load(true)}
-            tintColor={Colors.primary}
+            tintColor={Colors.textMuted}
           />
         }
       >
@@ -132,8 +130,10 @@ export default function PurchaseOrdersScreen() {
 
         {filtered.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🛒</Text>
-            <Text style={styles.emptyText}>{search ? 'No orders match search' : 'No purchase orders found'}</Text>
+            <Feather name="shopping-cart" size={32} color={Colors.textMuted} />
+            <Text style={styles.emptyText}>
+              {search ? 'No orders match search' : 'No purchase orders found'}
+            </Text>
           </View>
         ) : (
           <View style={styles.cardList}>
@@ -154,16 +154,11 @@ export default function PurchaseOrdersScreen() {
 }
 
 function POCard({ po, onPress }: { po: PurchaseOrder; onPress: () => void }) {
-  const statusKey = (po.status ?? '').toUpperCase();
-  const statusColors = PO_STATUS_COLORS[statusKey] ?? {
-    bg: Colors.borderLight,
-    fg: Colors.textSecondary,
-  };
-
   const total = po.total ?? 0;
   const received = po.received ?? 0;
   const progressPct = total > 0 ? Math.min((received / total) * 100, 100) : 0;
   const showProgress = received > 0 || (po.status ?? '').toUpperCase() === 'PARTIAL';
+  const isClosed = ['CLOSED', 'CANCELLED'].includes((po.status ?? '').toUpperCase());
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
@@ -172,8 +167,8 @@ function POCard({ po, onPress }: { po: PurchaseOrder; onPress: () => void }) {
           <Text style={styles.poNumber}>{po.po_number ?? `PO-${po.id}`}</Text>
           <Text style={styles.poVendor} numberOfLines={1}>{po.vendor ?? 'Unknown Vendor'}</Text>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
-          <Text style={[styles.statusText, { color: statusColors.fg }]}>
+        <View style={[styles.statusBadge, isClosed && styles.statusBadgeMuted]}>
+          <Text style={[styles.statusText, isClosed && styles.statusTextMuted]}>
             {po.status ?? 'UNKNOWN'}
           </Text>
         </View>
@@ -181,10 +176,16 @@ function POCard({ po, onPress }: { po: PurchaseOrder; onPress: () => void }) {
 
       <View style={styles.cardMeta}>
         {po.dt && (
-          <Text style={styles.metaText}>📅 {formatShortDate(po.dt)}</Text>
+          <View style={styles.metaItem}>
+            <Feather name="calendar" size={11} color={Colors.textMuted} />
+            <Text style={styles.metaText}>{formatShortDate(po.dt)}</Text>
+          </View>
         )}
         {po.delivery_date && (
-          <Text style={styles.metaText}>🚚 {formatShortDate(po.delivery_date)}</Text>
+          <View style={styles.metaItem}>
+            <Feather name="truck" size={11} color={Colors.textMuted} />
+            <Text style={styles.metaText}>{formatShortDate(po.delivery_date)}</Text>
+          </View>
         )}
         <Text style={styles.metaAmount}>{formatCurrency(total)}</Text>
       </View>
@@ -198,7 +199,9 @@ function POCard({ po, onPress }: { po: PurchaseOrder; onPress: () => void }) {
         </View>
       )}
 
-      <Text style={styles.tapHint}>Tap for details →</Text>
+      <View style={styles.cardFooter}>
+        <Feather name="chevron-right" size={14} color={Colors.textMuted} />
+      </View>
     </TouchableOpacity>
   );
 }
@@ -210,27 +213,27 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 4,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     gap: Spacing.sm,
   },
-  headerTitle: { ...Typography.h2 },
+  headerTitle: { ...Typography.h2, flex: 1 },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted },
 
   searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.borderLight,
   },
   searchInput: {
-    backgroundColor: Colors.background,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    flex: 1,
     fontSize: 14,
     color: Colors.text,
   },
@@ -238,7 +241,7 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
   tab: {
@@ -248,65 +251,60 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabActive: { borderBottomColor: Colors.primary },
+  tabActive: { borderBottomColor: Colors.text },
   tabText: { fontSize: 13, fontWeight: '500', color: Colors.textSecondary },
-  tabTextActive: { color: Colors.primary, fontWeight: '700' },
+  tabTextActive: { color: Colors.text, fontWeight: '700' },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },
 
-  cardList: {
-    marginHorizontal: Spacing.md,
-    gap: Spacing.sm,
-  },
+  cardList: { marginHorizontal: Spacing.md, gap: Spacing.sm },
 
   card: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     padding: Spacing.md,
     gap: Spacing.sm,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
 
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.sm,
-  },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   cardInfo: { flex: 1 },
   poNumber: { ...Typography.h4 },
   poVendor: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 2 },
 
   statusBadge: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  statusText: { fontSize: 11, fontWeight: '700' },
+  statusBadgeMuted: { opacity: 0.5 },
+  statusText: { fontSize: 11, fontWeight: '700', color: Colors.text },
+  statusTextMuted: { color: Colors.textSecondary },
 
-  cardMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
+  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: 12, color: Colors.textSecondary },
   metaAmount: { fontSize: 14, fontWeight: '700', color: Colors.text, marginLeft: 'auto' },
 
   progressContainer: { gap: 4 },
   progressBar: {
-    height: 4,
+    height: 3,
     backgroundColor: Colors.borderLight,
     borderRadius: Radius.full,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.success,
+    backgroundColor: Colors.text,
     borderRadius: Radius.full,
   },
   progressText: { fontSize: 10, color: Colors.textMuted, textAlign: 'right' },
 
-  tapHint: { fontSize: 11, color: Colors.textMuted, textAlign: 'right' },
+  cardFooter: { alignItems: 'flex-end' },
 
   emptyState: {
     marginHorizontal: Spacing.md,
@@ -315,8 +313,8 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     alignItems: 'center',
     gap: Spacing.sm,
-    ...Shadow.subtle,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  emptyIcon: { fontSize: 36 },
   emptyText: { ...Typography.body, color: Colors.textMuted },
 });
