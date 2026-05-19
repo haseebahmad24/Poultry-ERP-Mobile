@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -67,6 +68,31 @@ export default function TrialBalanceScreen() {
   const totalDebit = result.total_debit ?? filteredRows.reduce((s, r) => s + (r.debit ?? 0), 0);
   const totalCredit = result.total_credit ?? filteredRows.reduce((s, r) => s + (r.credit ?? 0), 0);
 
+  const handleExport = async () => {
+    const colW = 30;
+    const amtW = 16;
+    const line = '-'.repeat(colW + amtW * 2 + 4);
+    const pad = (s: string, w: number) => s.length >= w ? s.slice(0, w - 1) + '…' : s.padEnd(w);
+    const padL = (s: string, w: number) => s.padStart(w);
+
+    const header = `Trial Balance\nCompany: ${selectedCompany?.name ?? 'All'}\nAs of: ${asOf}\n${line}`;
+    const col = `${pad('Account', colW)}  ${padL('Debit', amtW)}  ${padL('Credit', amtW)}`;
+    const rows = filteredRows.map((r) => {
+      const indent = '  '.repeat(r.level ?? 0);
+      const name = indent + (r.account_code ? `${r.account_code} ${r.account_name ?? ''}` : (r.account_name ?? ''));
+      const dr = r.debit ? formatCurrency(r.debit) : '';
+      const cr = r.credit ? formatCurrency(r.credit) : '';
+      return `${pad(name, colW)}  ${padL(dr, amtW)}  ${padL(cr, amtW)}`;
+    });
+    const totals = `${line}\n${pad('TOTAL', colW)}  ${padL(formatCurrency(totalDebit), amtW)}  ${padL(formatCurrency(totalCredit), amtW)}`;
+    const balanced = Math.abs(totalDebit - totalCredit) < 0.01
+      ? 'Balanced ✓'
+      : `Out of balance by ${formatCurrency(Math.abs(totalDebit - totalCredit))}`;
+
+    const text = [header, col, line, ...rows, totals, balanced].join('\n');
+    await Share.share({ message: text, title: 'Trial Balance' });
+  };
+
   if (loading) return <LoadingView message="Loading trial balance…" />;
   if (error && result.rows.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
@@ -78,6 +104,11 @@ export default function TrialBalanceScreen() {
         <BackButton color={Colors.primary} />
         <Text style={styles.headerTitle}>Trial Balance</Text>
         <Text style={styles.headerSub}>{filteredRows.length} accounts</Text>
+        {result.rows.length > 0 && (
+          <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+            <Text style={styles.exportBtnText}>Export</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Filters */}
@@ -282,11 +313,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     gap: Spacing.sm,
   },
   headerTitle: { ...Typography.h2 },
-  headerSub: { ...Typography.bodySmall, color: Colors.textMuted },
+  headerSub: { ...Typography.bodySmall, color: Colors.textMuted, flex: 1 },
+  exportBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.primary + '18',
+    borderWidth: 1,
+    borderColor: Colors.primary + '40',
+  },
+  exportBtnText: { fontSize: 12, fontWeight: '600', color: Colors.primary },
 
   filtersCard: {
     backgroundColor: Colors.surface,

@@ -32,6 +32,17 @@ export interface InventoryItem {
   uom?: string;
 }
 
+export interface Warehouse {
+  id: number;
+  name: string;
+  code?: string;
+  type?: string;
+  address?: string;
+  is_active?: boolean;
+  total_items?: number;
+  total_qty?: number;
+}
+
 export async function fetchStockBalances(companyId?: number): Promise<StockBalance[]> {
   const params = new URLSearchParams({ view: 'stock' });
   if (companyId != null) params.set('company_id', String(companyId));
@@ -61,4 +72,11 @@ export async function fetchInventoryItems(companyId?: number): Promise<Inventory
   if (companyId != null) params.set('company_id', String(companyId));
   const data = await apiRequest<any>(`/api/mobile/inventory?${params}`);
   return data.items ?? (Array.isArray(data) ? data : []);
+}
+
+export async function fetchWarehouses(companyId?: number): Promise<Warehouse[]> {
+  const params = new URLSearchParams({ view: 'warehouses' });
+  if (companyId != null) params.set('company_id', String(companyId));
+  const data = await apiRequest<any>(`/api/mobile/inventory?${params}`);
+  return data.warehouses ?? (Array.isArray(data) ? data : []);
 }
