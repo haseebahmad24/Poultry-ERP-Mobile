@@ -27,6 +27,7 @@ import { useCompany } from '@/context/CompanyContext';
 import { formatShortDate } from '@/utils/currency';
 
 type Tab = 'stock' | 'ledger' | 'warehouses';
+type StockFilter = 'all' | 'low' | 'out';
 
 const VOUCHER_COLORS: Record<string, { bg: string; fg: string }> = {
   GRN:  { bg: '#e8f5e9', fg: '#2e7d32' },
@@ -71,6 +72,7 @@ export default function InventoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [stockFilter, setStockFilter] = useState<StockFilter>('all');
 
   // Ledger date filter
   const [showDateFilter, setShowDateFilter] = useState(false);
@@ -146,10 +148,23 @@ export default function InventoryScreen() {
 
   const hasDateFilter = !!(fromDate || toDate);
 
-  const filteredStock = stockData.filter((s) =>
-    !search || s.item_name?.toLowerCase().includes(search.toLowerCase()) ||
-    s.warehouse_name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const LOW_STOCK_THRESHOLD = 100;
+
+  const filteredStock = stockData.filter((s) => {
+    const q = search.toLowerCase();
+    const matchesSearch = !search ||
+      s.item_name?.toLowerCase().includes(q) ||
+      s.warehouse_name?.toLowerCase().includes(q);
+    const qty = s.qty ?? 0;
+    const matchesStockFilter =
+      stockFilter === 'all' ||
+      (stockFilter === 'out' && qty <= 0) ||
+      (stockFilter === 'low' && qty > 0 && qty < LOW_STOCK_THRESHOLD);
+    return matchesSearch && matchesStockFilter;
+  });
+
+  const outOfStockCount = stockData.filter((s) => (s.qty ?? 0) <= 0).length;
+  const lowStockCount = stockData.filter((s) => { const q = s.qty ?? 0; return q > 0 && q < LOW_STOCK_THRESHOLD; }).length;
 
   const filteredLedger = ledgerData.filter((e) =>
     !search || e.item_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -268,6 +283,37 @@ export default function InventoryScreen() {
         </View>
       )}
 
+      {/* Stock filter chips (only on stock tab) */}
+      {activeTab === 'stock' && (
+        <View style={styles.stockFilterBar}>
+          {([
+            { key: 'all', label: 'All' },
+            { key: 'low', label: `Low Stock${lowStockCount > 0 ? ` (${lowStockCount})` : ''}` },
+            { key: 'out', label: `Out of Stock${outOfStockCount > 0 ? ` (${outOfStockCount})` : ''}` },
+          ] as { key: StockFilter; label: string }[]).map(({ key, label }) => (
+            <TouchableOpacity
+              key={key}
+              style={[
+                styles.stockFilterChip,
+                stockFilter === key && styles.stockFilterChipActive,
+                key === 'out' && stockFilter === key && styles.stockFilterChipDanger,
+                key === 'low' && stockFilter === key && styles.stockFilterChipWarning,
+              ]}
+              onPress={() => setStockFilter(key)}
+            >
+              <Text style={[
+                styles.stockFilterChipText,
+                stockFilter === key && styles.stockFilterChipTextActive,
+                key === 'out' && stockFilter === key && { color: Colors.danger },
+                key === 'low' && stockFilter === key && { color: Colors.warning },
+              ]}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
       {/* Search */}
       <View style={styles.searchContainer}>
         <TextInput
@@ -297,9 +343,16 @@ export default function InventoryScreen() {
       >
         {activeTab === 'stock' && (
           <>
-            <SectionHeader title="Current Stock" meta={`${filteredStock.length} records`} />
+            <SectionHeader
+              title="Current Stock"
+              meta={`${filteredStock.length} records${stockFilter !== 'all' ? ` (filtered)` : ''}`}
+            />
             {filteredStock.length === 0 ? (
-              <EmptyState message="No stock balances found" />
+              <EmptyState message={
+                stockFilter === 'out' ? 'No out-of-stock items' :
+                stockFilter === 'low' ? 'No low-stock items' :
+                'No stock balances found'
+              } />
             ) : (
               <View style={styles.cardList}>
                 {filteredStock.map((item, idx) => (
@@ -562,6 +615,38 @@ const styles = StyleSheet.create({
     borderColor: Colors.danger + '40',
   },
   clearBtnText: { fontSize: 12, fontWeight: '500', color: Colors.danger },
+
+  stockFilterBar: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  stockFilterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  stockFilterChipActive: {
+    backgroundColor: '#e3f2fd',
+    borderColor: Colors.primary + '60',
+  },
+  stockFilterChipDanger: {
+    backgroundColor: '#fce4ec',
+    borderColor: Colors.danger + '60',
+  },
+  stockFilterChipWarning: {
+    backgroundColor: '#fff3e0',
+    borderColor: Colors.warning + '60',
+  },
+  stockFilterChipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
+  stockFilterChipTextActive: { color: Colors.primary, fontWeight: '600' },
 
   searchContainer: {
     paddingHorizontal: Spacing.md,

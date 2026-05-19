@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -110,6 +111,36 @@ export default function FinancialReportsScreen() {
   const pl = computePL(rows);
   const bs = computeBS(rows);
 
+  const handleExport = async () => {
+    const line = '─'.repeat(50);
+    const company = selectedCompany?.name ?? 'All Companies';
+
+    let text = '';
+    if (activeTab === 'pl') {
+      text = `PROFIT & LOSS STATEMENT\nCompany: ${company}\nAs of: ${asOf}\n${line}\n`;
+      text += `\nREVENUE\n`;
+      pl.revenues.forEach((r) => { text += `  ${r.account_name ?? ''}\t${formatCurrency(Math.abs(r.balance ?? r.credit - r.debit))}\n`; });
+      text += `Total Revenue\t${formatCurrency(pl.totalRevenue)}\n`;
+      text += `\nEXPENSES\n`;
+      pl.expenses.forEach((r) => { text += `  ${r.account_name ?? ''}\t${formatCurrency(Math.abs(r.balance ?? r.debit - r.credit))}\n`; });
+      text += `Total Expenses\t${formatCurrency(pl.totalExpense)}\n`;
+      text += `\n${line}\nNET INCOME\t${formatCurrency(pl.netIncome)}\n`;
+    } else {
+      text = `BALANCE SHEET\nCompany: ${company}\nAs of: ${asOf}\n${line}\n`;
+      text += `\nASSETS\n`;
+      bs.assets.forEach((r) => { text += `  ${r.account_name ?? ''}\t${formatCurrency(Math.abs(r.balance ?? r.debit - r.credit))}\n`; });
+      text += `Total Assets\t${formatCurrency(bs.totalAssets)}\n`;
+      text += `\nLIABILITIES\n`;
+      bs.liabilities.forEach((r) => { text += `  ${r.account_name ?? ''}\t${formatCurrency(Math.abs(r.balance ?? r.credit - r.debit))}\n`; });
+      text += `Total Liabilities\t${formatCurrency(bs.totalLiabilities)}\n`;
+      text += `\nEQUITY\n`;
+      bs.equity.forEach((r) => { text += `  ${r.account_name ?? ''}\t${formatCurrency(Math.abs(r.balance ?? r.credit - r.debit))}\n`; });
+      text += `Total Equity\t${formatCurrency(bs.totalEquity)}\n`;
+      text += `\n${line}\nTOTAL L+E\t${formatCurrency(bs.totalLiabilities + bs.totalEquity)}\n`;
+    }
+    await Share.share({ message: text, title: activeTab === 'pl' ? 'P&L Statement' : 'Balance Sheet' });
+  };
+
   if (loading) return <LoadingView message="Loading financial data…" />;
   if (error && rows.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
@@ -120,6 +151,11 @@ export default function FinancialReportsScreen() {
       <View style={styles.header}>
         <BackButton color={Colors.primary} />
         <Text style={styles.headerTitle}>Financial Reports</Text>
+        {rows.length > 0 && (
+          <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+            <Text style={styles.exportBtnText}>Export</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Report tabs */}
@@ -355,7 +391,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  headerTitle: { ...Typography.h2 },
+  headerTitle: { ...Typography.h2, flex: 1 },
+  exportBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.primary + '18',
+    borderWidth: 1,
+    borderColor: Colors.primary + '40',
+  },
+  exportBtnText: { fontSize: 12, fontWeight: '600', color: Colors.primary },
 
   tabBar: {
     flexDirection: 'row',
