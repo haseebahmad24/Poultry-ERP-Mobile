@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -133,6 +134,19 @@ export default function JournalEntriesScreen() {
     );
   });
 
+  const handleExport = async () => {
+    const line = '─'.repeat(55);
+    const header = `JOURNAL ENTRIES\nType: ${selectedType}${validFrom ? `  From: ${validFrom}` : ''}${validTo ? `  To: ${validTo}` : ''}\n${line}`;
+    const rows = filtered.map((e) => {
+      const lines = (e.lines ?? []).map((l) =>
+        `    ${(l.account ?? '').padEnd(28)}  DR: ${l.debit ? formatCurrency(l.debit) : '—'.padStart(12)}  CR: ${l.credit ? formatCurrency(l.credit) : '—'.padStart(12)}`
+      ).join('\n');
+      return `${e.voucher_type ?? ''} ${e.voucher_no ?? ''}  ${e.dt ?? ''}  ${e.status ?? ''}\n  ${e.narration ?? ''}\n${lines}`;
+    });
+    const text = [header, ...rows].join(`\n${line}\n`);
+    await Share.share({ message: text, title: 'Journal Entries' });
+  };
+
   if (loading) return <LoadingView message="Loading journal entries…" />;
   if (error && entries.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
@@ -152,6 +166,11 @@ export default function JournalEntriesScreen() {
             📅{(validFrom || validTo) ? ' ●' : ''}
           </Text>
         </TouchableOpacity>
+        {filtered.length > 0 && (
+          <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+            <Text style={styles.exportBtnText}>Export</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <CompanyPicker showAll />
@@ -373,11 +392,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     gap: Spacing.sm,
   },
   headerTitle: { ...Typography.h2 },
-  headerSub: { ...Typography.bodySmall, color: Colors.textMuted },
+  headerSub: { ...Typography.bodySmall, color: Colors.textMuted, flex: 1 },
+  exportBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.primary + '18',
+    borderWidth: 1,
+    borderColor: Colors.primary + '40',
+  },
+  exportBtnText: { fontSize: 11, fontWeight: '600', color: Colors.primary },
 
   searchContainer: {
     paddingHorizontal: Spacing.md,
