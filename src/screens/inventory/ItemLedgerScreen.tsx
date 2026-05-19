@@ -10,8 +10,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Feather } from '@expo/vector-icons';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchStockLedger, StockLedgerEntry } from '@/api/inventory';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
@@ -22,14 +23,6 @@ import { formatShortDate } from '@/utils/currency';
 import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 
 type RouteType = RouteProp<InventoryStackParamList, 'ItemLedger'>;
-
-const VOUCHER_COLORS: Record<string, { bg: string; fg: string }> = {
-  GRN: { bg: '#e8f5e9', fg: '#2e7d32' },
-  SRN: { bg: '#fce4ec', fg: '#c62828' },
-  ADJ: { bg: '#fff3e0', fg: '#e65100' },
-  TRN: { bg: '#e8eaf6', fg: '#283593' },
-  INV: { bg: '#f3e5f5', fg: '#6a1b9a' },
-};
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -138,7 +131,6 @@ export default function ItemLedgerScreen() {
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
 
-      {/* Header */}
       <View style={styles.header}>
         <BackButton />
         <View style={styles.headerText}>
@@ -149,37 +141,37 @@ export default function ItemLedgerScreen() {
           style={[styles.filterToggle, hasDateFilter && styles.filterToggleActive]}
           onPress={() => setShowDateFilter((v) => !v)}
         >
-          <Text style={[styles.filterToggleText, hasDateFilter && styles.filterToggleTextActive]}>
-            📅{hasDateFilter ? ' ●' : ''}
-          </Text>
+          <Feather
+            name="calendar"
+            size={14}
+            color={hasDateFilter ? '#ffffff' : Colors.textSecondary}
+          />
         </TouchableOpacity>
       </View>
 
-      {/* Summary bar */}
       <View style={styles.summaryBar}>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>Total In</Text>
-          <Text style={[styles.summaryValue, { color: Colors.success }]}>+{totalIn.toLocaleString()}</Text>
+          <Text style={styles.summaryValue}>+{totalIn.toLocaleString()}</Text>
         </View>
         <View style={styles.summarySep} />
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>Total Out</Text>
-          <Text style={[styles.summaryValue, { color: Colors.danger }]}>-{totalOut.toLocaleString()}</Text>
+          <Text style={styles.summaryValue}>-{totalOut.toLocaleString()}</Text>
         </View>
         {latestBalance != null && (
           <>
             <View style={styles.summarySep} />
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Balance</Text>
-              <Text style={[styles.summaryValue, {
-                color: latestBalance <= 0 ? Colors.danger : latestBalance < 100 ? Colors.warning : Colors.text,
-              }]}>{latestBalance.toLocaleString()}</Text>
+              <Text style={[styles.summaryValue, latestBalance <= 0 && styles.summaryValueMuted]}>
+                {latestBalance.toLocaleString()}
+              </Text>
             </View>
           </>
         )}
       </View>
 
-      {/* Date filter panel */}
       {showDateFilter && (
         <View style={styles.datePanel}>
           <View style={styles.datePresets}>
@@ -188,24 +180,30 @@ export default function ItemLedgerScreen() {
               { label: 'This Week', preset: 'week' },
               { label: 'This Month', preset: 'month' },
               { label: 'Last Month', preset: 'lastMonth' },
-            ] as const).map(({ label, preset }) => (
-              <TouchableOpacity
-                key={preset}
-                style={styles.presetChip}
-                onPress={() => applyPreset(preset)}
-              >
-                <Text style={styles.presetChipText}>{label}</Text>
-              </TouchableOpacity>
-            ))}
+            ] as const).map(({ label, preset }) => {
+              const isActive =
+                (preset === 'today' && fromDate === todayISO() && toDate === todayISO()) ||
+                (preset === 'week' && fromDate === thisWeekStart() && toDate === todayISO()) ||
+                (preset === 'month' && fromDate === monthStartISO() && toDate === todayISO()) ||
+                (preset === 'lastMonth' && fromDate === lastMonthRange().from && toDate === lastMonthRange().to);
+              return (
+                <TouchableOpacity
+                  key={preset}
+                  style={[styles.presetChip, isActive && styles.presetChipActive]}
+                  onPress={() => applyPreset(preset)}
+                >
+                  <Text style={[styles.presetChipText, isActive && styles.presetChipTextActive]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
           <View style={styles.dateInputRow}>
             <View style={styles.dateInputWrap}>
               <Text style={styles.dateLabel}>From</Text>
               <TextInput
-                style={[
-                  styles.dateInput,
-                  fromInput && (/^\d{4}-\d{2}-\d{2}$/.test(fromInput) ? styles.dateInputValid : styles.dateInputInvalid),
-                ]}
+                style={styles.dateInput}
                 value={fromInput}
                 onChangeText={setFromInput}
                 placeholder="YYYY-MM-DD"
@@ -217,10 +215,7 @@ export default function ItemLedgerScreen() {
             <View style={styles.dateInputWrap}>
               <Text style={styles.dateLabel}>To</Text>
               <TextInput
-                style={[
-                  styles.dateInput,
-                  toInput && (/^\d{4}-\d{2}-\d{2}$/.test(toInput) ? styles.dateInputValid : styles.dateInputInvalid),
-                ]}
+                style={styles.dateInput}
                 value={toInput}
                 onChangeText={setToInput}
                 placeholder="YYYY-MM-DD"
@@ -246,7 +241,7 @@ export default function ItemLedgerScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => load(true)}
-            tintColor={Colors.primary}
+            tintColor={Colors.textMuted}
           />
         }
       >
@@ -257,7 +252,7 @@ export default function ItemLedgerScreen() {
 
         {entries.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>📦</Text>
+            <Feather name="box" size={36} color={Colors.textMuted} />
             <Text style={styles.emptyText}>No ledger entries found</Text>
             {hasDateFilter && (
               <TouchableOpacity onPress={clearDates}>
@@ -281,15 +276,14 @@ export default function ItemLedgerScreen() {
 
 function LedgerCard({ entry }: { entry: StockLedgerEntry }) {
   const vtype = entry.voucher_type ?? '';
-  const colors = VOUCHER_COLORS[vtype] ?? { bg: Colors.borderLight, fg: Colors.textSecondary };
   const qtyIn = entry.qty_in ?? 0;
   const qtyOut = entry.qty_out ?? 0;
 
   return (
     <View style={styles.card}>
       <View style={styles.ledgerHeader}>
-        <View style={[styles.voucherBadge, { backgroundColor: colors.bg }]}>
-          <Text style={[styles.voucherBadgeText, { color: colors.fg }]}>{vtype || 'TXN'}</Text>
+        <View style={styles.voucherBadge}>
+          <Text style={styles.voucherBadgeText}>{vtype || 'TXN'}</Text>
         </View>
         <Text style={styles.ledgerVoucherNo} numberOfLines={1}>{entry.voucher_no ?? '—'}</Text>
         <Text style={styles.ledgerDate}>{formatShortDate(entry.dt)}</Text>
@@ -300,14 +294,16 @@ function LedgerCard({ entry }: { entry: StockLedgerEntry }) {
       <View style={styles.ledgerQtys}>
         {qtyIn !== 0 && (
           <View style={styles.qtyPill}>
-            <Text style={[styles.qtyPillLabel, { color: Colors.success }]}>IN</Text>
-            <Text style={[styles.qtyPillValue, { color: Colors.success }]}>+{qtyIn.toLocaleString()}</Text>
+            <Feather name="arrow-up" size={11} color={Colors.textSecondary} />
+            <Text style={styles.qtyPillLabel}>IN</Text>
+            <Text style={styles.qtyPillValue}>+{qtyIn.toLocaleString()}</Text>
           </View>
         )}
         {qtyOut !== 0 && (
           <View style={styles.qtyPill}>
-            <Text style={[styles.qtyPillLabel, { color: Colors.danger }]}>OUT</Text>
-            <Text style={[styles.qtyPillValue, { color: Colors.danger }]}>-{qtyOut.toLocaleString()}</Text>
+            <Feather name="arrow-down" size={11} color={Colors.textSecondary} />
+            <Text style={styles.qtyPillLabel}>OUT</Text>
+            <Text style={styles.qtyPillValue}>-{qtyOut.toLocaleString()}</Text>
           </View>
         )}
         {entry.balance != null && (
@@ -324,27 +320,32 @@ function LedgerCard({ entry }: { entry: StockLedgerEntry }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
+    gap: Spacing.sm,
   },
-  headerText: { flex: 1, marginLeft: Spacing.xs },
+  headerText: { flex: 1 },
   headerTitle: { ...Typography.h3, color: Colors.text },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
   filterToggle: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.borderLight,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
-  filterToggleActive: { backgroundColor: Colors.primaryBg },
-  filterToggleText: { fontSize: 14 },
-  filterToggleTextActive: { color: Colors.primary },
+  filterToggleActive: {
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
+  },
 
   summaryBar: {
     flexDirection: 'row',
@@ -352,50 +353,55 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
   summaryItem: { flex: 1, alignItems: 'center' },
   summaryLabel: { ...Typography.bodySmall, color: Colors.textMuted },
-  summaryValue: { ...Typography.h4, fontWeight: '700', marginTop: 2 },
-  summarySep: { width: 1, height: 32, backgroundColor: Colors.border },
+  summaryValue: { ...Typography.h4, fontWeight: '700', marginTop: 2, color: Colors.text },
+  summaryValueMuted: { color: Colors.textSecondary },
+  summarySep: { width: StyleSheet.hairlineWidth, height: 32, backgroundColor: Colors.border },
 
   datePanel: {
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
+    gap: Spacing.sm,
   },
-  datePresets: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.sm },
+  datePresets: { flexDirection: 'row', gap: Spacing.xs, flexWrap: 'wrap' },
   presetChip: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.primaryBg,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
-  presetChipText: { ...Typography.bodySmall, color: Colors.primary, fontWeight: '600' },
+  presetChipActive: { backgroundColor: Colors.text, borderColor: Colors.text },
+  presetChipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
+  presetChipTextActive: { color: '#ffffff', fontWeight: '600' },
   dateInputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm },
   dateInputWrap: { flex: 1 },
   dateLabel: { ...Typography.bodySmall, color: Colors.textMuted, marginBottom: 4 },
   dateInput: {
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
-    borderRadius: Radius.sm,
+    borderRadius: Radius.md,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
+    paddingVertical: 7,
     ...Typography.body,
     color: Colors.text,
   },
-  dateInputValid: { borderColor: Colors.success },
-  dateInputInvalid: { borderColor: Colors.danger },
   clearBtn: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.dangerBg,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  clearBtnText: { ...Typography.bodySmall, color: Colors.danger, fontWeight: '600' },
+  clearBtnText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
 
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
@@ -405,31 +411,34 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     padding: Spacing.md,
-    ...Shadow.subtle,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    gap: Spacing.xs,
   },
   ledgerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
-    marginBottom: Spacing.xs,
   },
   voucherBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
-  voucherBadgeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+  voucherBadgeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, color: Colors.text },
   ledgerVoucherNo: { flex: 1, ...Typography.body, color: Colors.text, fontWeight: '600' },
   ledgerDate: { ...Typography.bodySmall, color: Colors.textMuted },
-  ledgerWarehouse: { ...Typography.bodySmall, color: Colors.textSecondary, marginBottom: Spacing.xs },
+  ledgerWarehouse: { ...Typography.bodySmall, color: Colors.textSecondary },
   ledgerQtys: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.sm },
-  qtyPill: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  qtyPill: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   qtyPillLabel: { fontSize: 10, fontWeight: '700', color: Colors.textMuted },
   qtyPillValue: { ...Typography.body, fontWeight: '700', color: Colors.text },
   qtyUnit: { ...Typography.bodySmall, color: Colors.textMuted },
 
-  emptyState: { alignItems: 'center', paddingVertical: Spacing.xxl },
-  emptyIcon: { fontSize: 40, marginBottom: Spacing.md },
-  emptyText: { ...Typography.body, color: Colors.textMuted, marginBottom: Spacing.sm },
-  emptyLink: { ...Typography.body, color: Colors.primary, fontWeight: '600' },
+  emptyState: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: Spacing.sm },
+  emptyText: { ...Typography.body, color: Colors.textMuted },
+  emptyLink: { ...Typography.body, color: Colors.textSecondary, fontWeight: '600' },
 });

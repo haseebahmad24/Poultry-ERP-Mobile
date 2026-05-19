@@ -10,9 +10,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import {
   fetchStockBalances,
   fetchStockLedger,
@@ -24,7 +25,7 @@ import {
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
-import CompanyPicker from '@/components/CompanyPicker';
+import CompanySelector from '@/components/CompanySelector';
 import { useCompany } from '@/context/CompanyContext';
 import { formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
@@ -33,14 +34,6 @@ import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 
 type Tab = 'stock' | 'ledger' | 'warehouses';
 type StockFilter = 'all' | 'low' | 'out';
-
-const VOUCHER_COLORS: Record<string, { bg: string; fg: string }> = {
-  GRN:  { bg: '#e8f5e9', fg: '#2e7d32' },
-  SRN:  { bg: '#fce4ec', fg: '#c62828' },
-  ADJ:  { bg: '#fff3e0', fg: '#e65100' },
-  TRN:  { bg: '#e8eaf6', fg: '#283593' },
-  INV:  { bg: '#f3e5f5', fg: '#6a1b9a' },
-};
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -54,9 +47,9 @@ function monthStartISO(): string {
 
 function lastMonthRange(): { from: string; to: string } {
   const d = new Date();
-  d.setDate(0); // last day of prev month
+  d.setDate(0);
   const to = d.toISOString().slice(0, 10);
-  d.setDate(1); // first day of prev month
+  d.setDate(1);
   const from = d.toISOString().slice(0, 10);
   return { from, to };
 }
@@ -81,7 +74,6 @@ export default function InventoryScreen() {
   const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
 
-  // Ledger date filter
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [fromInput, setFromInput] = useState('');
   const [toInput, setToInput] = useState('');
@@ -217,7 +209,6 @@ export default function InventoryScreen() {
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
 
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Inventory</Text>
         <Text style={styles.headerSub}>{tabMeta[activeTab]}</Text>
@@ -226,18 +217,21 @@ export default function InventoryScreen() {
             style={[styles.filterToggle, hasDateFilter && styles.filterToggleActive]}
             onPress={() => setShowDateFilter((v) => !v)}
           >
-            <Text style={[styles.filterToggleText, hasDateFilter && styles.filterToggleTextActive]}>
-              📅{hasDateFilter ? ' ●' : ''}
-            </Text>
+            <Feather
+              name="calendar"
+              size={14}
+              color={hasDateFilter ? '#ffffff' : Colors.textSecondary}
+            />
+            {hasDateFilter && (
+              <View style={styles.filterDot} />
+            )}
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Company picker */}
-      <CompanyPicker />
+      <CompanySelector />
       <OfflineBanner visible={isStale} />
 
-      {/* Tab Bar */}
       <View style={styles.tabBar}>
         {(['stock', 'ledger', 'warehouses'] as Tab[]).map((tab) => (
           <TouchableOpacity
@@ -246,13 +240,12 @@ export default function InventoryScreen() {
             onPress={() => setActiveTab(tab)}
           >
             <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-              {tab === 'stock' ? 'Stock Balances' : tab === 'ledger' ? 'Ledger' : 'Warehouses'}
+              {tab === 'stock' ? 'Stock' : tab === 'ledger' ? 'Ledger' : 'Warehouses'}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Ledger date filter panel */}
       {activeTab === 'ledger' && showDateFilter && (
         <View style={styles.datePanel}>
           <View style={styles.datePresets}>
@@ -261,24 +254,30 @@ export default function InventoryScreen() {
               { label: 'This Week', preset: 'week' },
               { label: 'This Month', preset: 'month' },
               { label: 'Last Month', preset: 'lastMonth' },
-            ] as const).map(({ label, preset }) => (
-              <TouchableOpacity
-                key={preset}
-                style={styles.presetChip}
-                onPress={() => applyPreset(preset)}
-              >
-                <Text style={styles.presetChipText}>{label}</Text>
-              </TouchableOpacity>
-            ))}
+            ] as const).map(({ label, preset }) => {
+              const isActive =
+                (preset === 'today' && fromDate === todayISO() && toDate === todayISO()) ||
+                (preset === 'week' && fromDate === thisWeekStart() && toDate === todayISO()) ||
+                (preset === 'month' && fromDate === monthStartISO() && toDate === todayISO()) ||
+                (preset === 'lastMonth' && fromDate === lastMonthRange().from && toDate === lastMonthRange().to);
+              return (
+                <TouchableOpacity
+                  key={preset}
+                  style={[styles.presetChip, isActive && styles.presetChipActive]}
+                  onPress={() => applyPreset(preset)}
+                >
+                  <Text style={[styles.presetChipText, isActive && styles.presetChipTextActive]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
           <View style={styles.dateInputRow}>
             <View style={styles.dateInputWrap}>
               <Text style={styles.dateLabel}>From</Text>
               <TextInput
-                style={[
-                  styles.dateInput,
-                  fromInput && (/^\d{4}-\d{2}-\d{2}$/.test(fromInput) ? styles.dateInputValid : styles.dateInputInvalid),
-                ]}
+                style={styles.dateInput}
                 value={fromInput}
                 onChangeText={setFromInput}
                 placeholder="YYYY-MM-DD"
@@ -290,10 +289,7 @@ export default function InventoryScreen() {
             <View style={styles.dateInputWrap}>
               <Text style={styles.dateLabel}>To</Text>
               <TextInput
-                style={[
-                  styles.dateInput,
-                  toInput && (/^\d{4}-\d{2}-\d{2}$/.test(toInput) ? styles.dateInputValid : styles.dateInputInvalid),
-                ]}
+                style={styles.dateInput}
                 value={toInput}
                 onChangeText={setToInput}
                 placeholder="YYYY-MM-DD"
@@ -311,7 +307,6 @@ export default function InventoryScreen() {
         </View>
       )}
 
-      {/* Stock filter chips (only on stock tab) */}
       {activeTab === 'stock' && (
         <View style={styles.stockFilterBar}>
           {([
@@ -321,20 +316,10 @@ export default function InventoryScreen() {
           ] as { key: StockFilter; label: string }[]).map(({ key, label }) => (
             <TouchableOpacity
               key={key}
-              style={[
-                styles.stockFilterChip,
-                stockFilter === key && styles.stockFilterChipActive,
-                key === 'out' && stockFilter === key && styles.stockFilterChipDanger,
-                key === 'low' && stockFilter === key && styles.stockFilterChipWarning,
-              ]}
+              style={[styles.stockFilterChip, stockFilter === key && styles.stockFilterChipActive]}
               onPress={() => setStockFilter(key)}
             >
-              <Text style={[
-                styles.stockFilterChipText,
-                stockFilter === key && styles.stockFilterChipTextActive,
-                key === 'out' && stockFilter === key && { color: Colors.danger },
-                key === 'low' && stockFilter === key && { color: Colors.warning },
-              ]}>
+              <Text style={[styles.stockFilterChipText, stockFilter === key && styles.stockFilterChipTextActive]}>
                 {label}
               </Text>
             </TouchableOpacity>
@@ -342,19 +327,22 @@ export default function InventoryScreen() {
         </View>
       )}
 
-      {/* Search */}
       <View style={styles.searchContainer}>
+        <Feather name="search" size={14} color={Colors.textMuted} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           placeholder={
-            activeTab === 'stock' ? 'Search items or warehouses…' :
-            activeTab === 'ledger' ? 'Search items or warehouses…' :
-            'Search warehouses…'
+            activeTab === 'warehouses' ? 'Search warehouses…' : 'Search items or warehouses…'
           }
           placeholderTextColor={Colors.textMuted}
           value={search}
           onChangeText={setSearch}
         />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch('')}>
+            <Feather name="x" size={14} color={Colors.textMuted} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView
@@ -365,7 +353,7 @@ export default function InventoryScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => load(true)}
-            tintColor={Colors.primary}
+            tintColor={Colors.textMuted}
           />
         }
       >
@@ -373,7 +361,7 @@ export default function InventoryScreen() {
           <>
             <SectionHeader
               title="Current Stock"
-              meta={`${filteredStock.length} records${stockFilter !== 'all' ? ` (filtered)` : ''}`}
+              meta={`${filteredStock.length} records${stockFilter !== 'all' ? ' (filtered)' : ''}`}
             />
             {filteredStock.length === 0 ? (
               <EmptyState message={
@@ -387,6 +375,7 @@ export default function InventoryScreen() {
                   <StockCard
                     key={`${item.item_id ?? item.item_name}-${idx}`}
                     item={item}
+                    lowThreshold={LOW_STOCK_THRESHOLD}
                     onPress={item.item_id != null ? () => navigation.navigate('ItemLedger', {
                       item_id: item.item_id!,
                       item_name: item.item_name,
@@ -438,9 +427,19 @@ export default function InventoryScreen() {
   );
 }
 
-function StockCard({ item, onPress }: { item: StockBalance; onPress?: () => void }) {
+function StockCard({
+  item,
+  lowThreshold,
+  onPress,
+}: {
+  item: StockBalance;
+  lowThreshold: number;
+  onPress?: () => void;
+}) {
   const qty = item.qty ?? 0;
-  const qtyColor = qty <= 0 ? Colors.danger : qty < 100 ? Colors.warning : Colors.success;
+  const isOut = qty <= 0;
+  const isLow = qty > 0 && qty < lowThreshold;
+  const statusLabel = isOut ? 'Out' : isLow ? 'Low' : null;
 
   const inner = (
     <View style={styles.cardRow}>
@@ -450,9 +449,16 @@ function StockCard({ item, onPress }: { item: StockBalance; onPress?: () => void
         {item.warehouse_name && <Text style={styles.cardSub}>{item.warehouse_name}</Text>}
       </View>
       <View style={styles.cardRight}>
-        <Text style={[styles.qtyValue, { color: qtyColor }]}>{qty.toLocaleString()}</Text>
-        {item.unit && <Text style={styles.qtyUnit}>{item.unit}</Text>}
-        {onPress && <Text style={styles.cardChevron}>›</Text>}
+        <Text style={styles.qtyValue}>{qty.toLocaleString()}</Text>
+        <View style={styles.qtyMeta}>
+          {item.unit && <Text style={styles.qtyUnit}>{item.unit}</Text>}
+          {statusLabel && (
+            <View style={styles.statusPill}>
+              <Text style={styles.statusPillText}>{statusLabel}</Text>
+            </View>
+          )}
+        </View>
+        {onPress && <Feather name="chevron-right" size={14} color={Colors.textMuted} style={{ marginTop: 4 }} />}
       </View>
     </View>
   );
@@ -469,15 +475,14 @@ function StockCard({ item, onPress }: { item: StockBalance; onPress?: () => void
 
 function LedgerCard({ entry }: { entry: StockLedgerEntry }) {
   const vtype = entry.voucher_type ?? '';
-  const colors = VOUCHER_COLORS[vtype] ?? { bg: Colors.borderLight, fg: Colors.textSecondary };
   const qtyIn = entry.qty_in ?? 0;
   const qtyOut = entry.qty_out ?? 0;
 
   return (
     <View style={styles.card}>
       <View style={styles.ledgerHeader}>
-        <View style={[styles.voucherBadge, { backgroundColor: colors.bg }]}>
-          <Text style={[styles.voucherBadgeText, { color: colors.fg }]}>{vtype || 'TXN'}</Text>
+        <View style={styles.voucherBadge}>
+          <Text style={styles.voucherBadgeText}>{vtype || 'TXN'}</Text>
         </View>
         <Text style={styles.ledgerVoucherNo} numberOfLines={1}>{entry.voucher_no ?? '—'}</Text>
         <Text style={styles.ledgerDate}>{formatShortDate(entry.dt)}</Text>
@@ -489,14 +494,16 @@ function LedgerCard({ entry }: { entry: StockLedgerEntry }) {
       <View style={styles.ledgerQtys}>
         {qtyIn !== 0 && (
           <View style={styles.qtyPill}>
-            <Text style={[styles.qtyPillLabel, { color: Colors.success }]}>IN</Text>
-            <Text style={[styles.qtyPillValue, { color: Colors.success }]}>+{qtyIn.toLocaleString()}</Text>
+            <Feather name="arrow-up" size={11} color={Colors.textSecondary} />
+            <Text style={styles.qtyPillLabel}>IN</Text>
+            <Text style={styles.qtyPillValue}>{qtyIn.toLocaleString()}</Text>
           </View>
         )}
         {qtyOut !== 0 && (
           <View style={styles.qtyPill}>
-            <Text style={[styles.qtyPillLabel, { color: Colors.danger }]}>OUT</Text>
-            <Text style={[styles.qtyPillValue, { color: Colors.danger }]}>-{qtyOut.toLocaleString()}</Text>
+            <Feather name="arrow-down" size={11} color={Colors.textSecondary} />
+            <Text style={styles.qtyPillLabel}>OUT</Text>
+            <Text style={styles.qtyPillValue}>{qtyOut.toLocaleString()}</Text>
           </View>
         )}
         {entry.balance != null && (
@@ -513,8 +520,6 @@ function LedgerCard({ entry }: { entry: StockLedgerEntry }) {
 
 function WarehouseCard({ warehouse: wh }: { warehouse: Warehouse }) {
   const isActive = wh.is_active !== false;
-  const statusColor = isActive ? Colors.success : Colors.textMuted;
-  const statusLabel = isActive ? 'Active' : 'Inactive';
 
   return (
     <View style={styles.card}>
@@ -522,8 +527,10 @@ function WarehouseCard({ warehouse: wh }: { warehouse: Warehouse }) {
         <View style={styles.cardLeft}>
           <View style={styles.whNameRow}>
             <Text style={styles.cardTitle} numberOfLines={1}>{wh.name}</Text>
-            <View style={[styles.statusPill, { backgroundColor: isActive ? '#e8f5e9' : '#f5f5f5' }]}>
-              <Text style={[styles.statusPillText, { color: statusColor }]}>{statusLabel}</Text>
+            <View style={[styles.statusPill, !isActive && styles.statusPillMuted]}>
+              <Text style={[styles.statusPillText, !isActive && styles.statusPillTextMuted]}>
+                {isActive ? 'Active' : 'Inactive'}
+              </Text>
             </View>
           </View>
           {wh.code && <Text style={styles.cardCode}>{wh.code}</Text>}
@@ -556,7 +563,7 @@ function WarehouseCard({ warehouse: wh }: { warehouse: Warehouse }) {
 function EmptyState({ message }: { message: string }) {
   return (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyIcon}>📦</Text>
+      <Feather name="box" size={32} color={Colors.textMuted} />
       <Text style={styles.emptyText}>{message}</Text>
     </View>
   );
@@ -569,7 +576,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 4,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     flexDirection: 'row',
     alignItems: 'center',
@@ -578,24 +585,31 @@ const styles = StyleSheet.create({
   headerTitle: { ...Typography.h2 },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted, flex: 1 },
   filterToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.background,
-    borderWidth: 1,
+    paddingVertical: 6,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
   filterToggleActive: {
-    backgroundColor: '#e3f2fd',
-    borderColor: Colors.primary,
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
   },
-  filterToggleText: { fontSize: 14, color: Colors.textSecondary },
-  filterToggleTextActive: { color: Colors.primary },
+  filterDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#ffffff',
+  },
 
   tabBar: {
     flexDirection: 'row',
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
   tab: {
@@ -605,15 +619,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabActive: { borderBottomColor: Colors.primary },
+  tabActive: { borderBottomColor: Colors.text },
   tabText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
-  tabTextActive: { color: Colors.primary, fontWeight: '700' },
+  tabTextActive: { color: Colors.text, fontWeight: '700' },
 
   datePanel: {
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.borderLight,
     gap: Spacing.sm,
   },
@@ -626,11 +640,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: Radius.full,
-    backgroundColor: '#e3f2fd',
-    borderWidth: 1,
-    borderColor: Colors.primary + '40',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
-  presetChipText: { fontSize: 12, fontWeight: '500', color: Colors.primary },
+  presetChipActive: {
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
+  },
+  presetChipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
+  presetChipTextActive: { color: '#ffffff', fontWeight: '600' },
+
   dateInputRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
@@ -639,26 +659,23 @@ const styles = StyleSheet.create({
   dateInputWrap: { flex: 1 },
   dateLabel: { fontSize: 11, color: Colors.textMuted, marginBottom: 3 },
   dateInput: {
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
-    borderRadius: Radius.sm,
+    borderRadius: Radius.md,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
+    paddingVertical: 7,
     fontSize: 13,
     color: Colors.text,
     backgroundColor: Colors.background,
   },
-  dateInputValid: { borderColor: Colors.success },
-  dateInputInvalid: { borderColor: Colors.danger },
   clearBtn: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.danger + '18',
-    borderWidth: 1,
-    borderColor: Colors.danger + '40',
+    paddingVertical: 7,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  clearBtnText: { fontSize: 12, fontWeight: '500', color: Colors.danger },
+  clearBtnText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
 
   stockFilterBar: {
     flexDirection: 'row',
@@ -666,44 +683,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs + 2,
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.borderLight,
   },
   stockFilterChip: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: Radius.full,
-    backgroundColor: Colors.background,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
   stockFilterChipActive: {
-    backgroundColor: '#e3f2fd',
-    borderColor: Colors.primary + '60',
-  },
-  stockFilterChipDanger: {
-    backgroundColor: '#fce4ec',
-    borderColor: Colors.danger + '60',
-  },
-  stockFilterChipWarning: {
-    backgroundColor: '#fff3e0',
-    borderColor: Colors.warning + '60',
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
   },
   stockFilterChipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
-  stockFilterChipTextActive: { color: Colors.primary, fontWeight: '600' },
+  stockFilterChipTextActive: { color: '#ffffff', fontWeight: '600' },
 
   searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.borderLight,
   },
+  searchIcon: {},
   searchInput: {
-    backgroundColor: Colors.background,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    flex: 1,
     fontSize: 14,
     color: Colors.text,
   },
@@ -716,12 +726,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     overflow: 'hidden',
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
 
   card: {
     padding: Spacing.md,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.borderLight,
     gap: Spacing.xs,
   },
@@ -733,13 +744,31 @@ const styles = StyleSheet.create({
   cardCode: { ...Typography.bodySmall, color: Colors.textMuted },
   cardSub: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 2 },
 
-  qtyValue: { fontSize: 20, fontWeight: '700' },
-  qtyUnit: { ...Typography.label, marginTop: 2, color: Colors.textMuted },
-  cardChevron: { fontSize: 20, color: Colors.textMuted, marginTop: 2 },
+  qtyValue: { fontSize: 20, fontWeight: '700', color: Colors.text },
+  qtyMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  qtyUnit: { ...Typography.label, color: Colors.textMuted },
+
+  statusPill: {
+    borderRadius: Radius.full,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  statusPillText: { fontSize: 10, fontWeight: '600', color: Colors.text },
+  statusPillMuted: { opacity: 0.5 },
+  statusPillTextMuted: { color: Colors.textSecondary },
 
   ledgerHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  voucherBadge: { borderRadius: Radius.sm, paddingHorizontal: 7, paddingVertical: 2 },
-  voucherBadgeText: { fontSize: 10, fontWeight: '700' },
+  voucherBadge: {
+    borderRadius: Radius.sm,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  voucherBadgeText: { fontSize: 10, fontWeight: '700', color: Colors.text },
   ledgerVoucherNo: { flex: 1, ...Typography.bodySmall, color: Colors.textSecondary },
   ledgerDate: { ...Typography.bodySmall, color: Colors.textMuted },
 
@@ -758,21 +787,11 @@ const styles = StyleSheet.create({
   qtyPillLabel: { fontSize: 10, fontWeight: '700', color: Colors.textMuted },
   qtyPillValue: { fontSize: 13, fontWeight: '600', color: Colors.text },
 
-  // Warehouse card
   whNameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flexWrap: 'wrap' },
-  statusPill: {
-    borderRadius: Radius.full,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
-  statusPillText: { fontSize: 10, fontWeight: '600' },
   whAddress: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
-  whStats: {
-    alignItems: 'flex-end',
-    gap: 8,
-  },
+  whStats: { alignItems: 'flex-end', gap: 8 },
   whStat: { alignItems: 'flex-end' },
-  whStatValue: { fontSize: 16, fontWeight: '700', color: Colors.primary },
+  whStatValue: { fontSize: 16, fontWeight: '700', color: Colors.text },
   whStatLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '500' },
 
   emptyState: {
@@ -782,8 +801,8 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     alignItems: 'center',
     gap: Spacing.sm,
-    ...Shadow.subtle,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  emptyIcon: { fontSize: 36 },
   emptyText: { ...Typography.body, color: Colors.textMuted },
 });
