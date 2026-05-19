@@ -37,6 +37,18 @@ const INVOICE_STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
   DRAFT:   { bg: Colors.warningBg, fg: Colors.warning },
 };
 
+function daysOverdue(dueDate: string | undefined, status: string | undefined): number {
+  if (!dueDate) return 0;
+  const paid = (status ?? '').toUpperCase() === 'PAID';
+  if (paid) return 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+  const diff = Math.floor((today.getTime() - due.getTime()) / 86_400_000);
+  return diff > 0 ? diff : 0;
+}
+
 export default function AccountsReceivableScreen() {
   const { companyId } = useCompany();
   const [activeTab, setActiveTab] = useState<Tab>('summary');
@@ -77,7 +89,7 @@ export default function AccountsReceivableScreen() {
     return <ErrorView message={error} onRetry={() => load()} />;
   }
 
-  const filteredInvoices = invoiceSearch.trim()
+  const filteredInvoices = (invoiceSearch.trim()
     ? invoices.filter((inv) => {
         const q = invoiceSearch.toLowerCase();
         return (
@@ -86,7 +98,14 @@ export default function AccountsReceivableScreen() {
           inv.status?.toLowerCase().includes(q)
         );
       })
-    : invoices;
+    : invoices
+  ).slice().sort((a, b) => {
+    const da = daysOverdue(a.due_date, a.status);
+    const db = daysOverdue(b.due_date, b.status);
+    return db - da;
+  });
+
+  const overdueCount = invoices.filter((inv) => daysOverdue(inv.due_date, inv.status) > 0).length;
 
   const filteredCustomers = customerSearch.trim()
     ? customers.filter((c) => c.name?.toLowerCase().includes(customerSearch.toLowerCase()))
@@ -114,9 +133,16 @@ export default function AccountsReceivableScreen() {
             style={[styles.tab, activeTab === t && styles.tabActive]}
             onPress={() => setActiveTab(t)}
           >
-            <Text style={[styles.tabText, activeTab === t && styles.tabTextActive]}>
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-            </Text>
+            <View style={styles.tabLabelRow}>
+              <Text style={[styles.tabText, activeTab === t && styles.tabTextActive]}>
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </Text>
+              {t === 'invoices' && overdueCount > 0 && (
+                <View style={styles.overdueTabBadge}>
+                  <Text style={styles.overdueTabBadgeText}>{overdueCount}</Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
         ))}
       </View>
@@ -196,13 +222,16 @@ export default function AccountsReceivableScreen() {
                 onChangeText={setInvoiceSearch}
               />
             </View>
-            <SectionHeader title="Invoices" meta={`${filteredInvoices.length} records`} />
+            <SectionHeader
+              title="Invoices"
+              meta={overdueCount > 0 ? `${filteredInvoices.length} records · ${overdueCount} overdue` : `${filteredInvoices.length} records`}
+            />
             {filteredInvoices.length === 0 ? (
               <EmptyState icon="🧾" message={invoiceSearch ? 'No invoices match search' : 'No invoices found'} />
             ) : (
               <View style={styles.cardList}>
                 {filteredInvoices.map((inv) => (
-                  <InvoiceCard key={inv.id} invoice={inv} />
+                  <InvoiceCard key={inv.id} invoice={inv} overdueDays={daysOverdue(inv.due_date, inv.status)} />
                 ))}
               </View>
             )}
@@ -263,13 +292,19 @@ function AgingBar({ label, amount, total, color }: {
   );
 }
 
-function InvoiceCard({ invoice: inv }: { invoice: ARInvoice }) {
+function InvoiceCard({ invoice: inv, overdueDays }: { invoice: ARInvoice; overdueDays: number }) {
   const statusKey = (inv.status ?? '').toUpperCase();
   const colors = INVOICE_STATUS_COLORS[statusKey] ?? { bg: Colors.borderLight, fg: Colors.textSecondary };
   const outstanding = inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0);
+  const isOverdue = overdueDays > 0;
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, isOverdue && styles.cardOverdue]}>
+      {isOverdue && (
+        <View style={styles.overdueBanner}>
+          <Text style={styles.overdueBannerText}>⚠ {overdueDays} day{overdueDays !== 1 ? 's' : ''} overdue</Text>
+        </View>
+      )}
       <View style={styles.cardHeader}>
         <View style={styles.cardInfo}>
           <Text style={styles.cardTitle}>{inv.invoice_number ?? `INV-${inv.id}`}</Text>
@@ -281,7 +316,11 @@ function InvoiceCard({ invoice: inv }: { invoice: ARInvoice }) {
       </View>
       <View style={styles.cardMeta}>
         {inv.dt && <Text style={styles.metaText}>📅 {formatShortDate(inv.dt)}</Text>}
-        {inv.due_date && <Text style={styles.metaText}>⏰ Due {formatShortDate(inv.due_date)}</Text>}
+        {inv.due_date && (
+          <Text style={[styles.metaText, isOverdue && styles.metaTextOverdue]}>
+            ⏰ Due {formatShortDate(inv.due_date)}
+          </Text>
+        )}
       </View>
       <View style={styles.amountRow}>
         <View>
@@ -490,4 +529,28 @@ const styles = StyleSheet.create({
   },
   emptyIcon: { fontSize: 36 },
   emptyText: { ...Typography.body, color: Colors.textMuted },
+
+  tabLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  overdueTabBadge: {
+    backgroundColor: Colors.danger,
+    borderRadius: Radius.full,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  overdueTabBadgeText: { fontSize: 10, fontWeight: '700', color: '#fff' },
+  cardOverdue: {
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.danger,
+  },
+  overdueBanner: {
+    backgroundColor: Colors.dangerBg,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+  },
+  overdueBannerText: { fontSize: 12, fontWeight: '700', color: Colors.danger },
+  metaTextOverdue: { color: Colors.danger, fontWeight: '600' },
 });

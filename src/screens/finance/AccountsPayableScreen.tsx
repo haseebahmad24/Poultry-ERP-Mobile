@@ -37,6 +37,18 @@ const BILL_STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
   DRAFT:     { bg: Colors.warningBg,   fg: Colors.warning },
 };
 
+function daysOverdue(dueDate: string | undefined, status: string | undefined): number {
+  if (!dueDate) return 0;
+  const paid = (status ?? '').toUpperCase() === 'PAID';
+  if (paid) return 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+  const diff = Math.floor((today.getTime() - due.getTime()) / 86_400_000);
+  return diff > 0 ? diff : 0;
+}
+
 export default function AccountsPayableScreen() {
   const { companyId } = useCompany();
   const [activeTab, setActiveTab] = useState<Tab>('summary');
@@ -77,7 +89,7 @@ export default function AccountsPayableScreen() {
     return <ErrorView message={error} onRetry={() => load()} />;
   }
 
-  const filteredBills = billSearch.trim()
+  const filteredBills = (billSearch.trim()
     ? bills.filter((b) => {
         const q = billSearch.toLowerCase();
         return (
@@ -86,7 +98,14 @@ export default function AccountsPayableScreen() {
           b.status?.toLowerCase().includes(q)
         );
       })
-    : bills;
+    : bills
+  ).slice().sort((a, b) => {
+    const da = daysOverdue(a.due_date, a.status);
+    const db = daysOverdue(b.due_date, b.status);
+    return db - da; // overdue first, most overdue at top
+  });
+
+  const overdueCount = bills.filter((b) => daysOverdue(b.due_date, b.status) > 0).length;
 
   const filteredVendors = vendorSearch.trim()
     ? vendors.filter((v) => v.name?.toLowerCase().includes(vendorSearch.toLowerCase()))
@@ -114,9 +133,16 @@ export default function AccountsPayableScreen() {
             style={[styles.tab, activeTab === t && styles.tabActive]}
             onPress={() => setActiveTab(t)}
           >
-            <Text style={[styles.tabText, activeTab === t && styles.tabTextActive]}>
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-            </Text>
+            <View style={styles.tabLabelRow}>
+              <Text style={[styles.tabText, activeTab === t && styles.tabTextActive]}>
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </Text>
+              {t === 'bills' && overdueCount > 0 && (
+                <View style={styles.overdueTabBadge}>
+                  <Text style={styles.overdueTabBadgeText}>{overdueCount}</Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
         ))}
       </View>
@@ -224,13 +250,16 @@ export default function AccountsPayableScreen() {
                 onChangeText={setBillSearch}
               />
             </View>
-            <SectionHeader title="Bills" meta={`${filteredBills.length} records`} />
+            <SectionHeader
+              title="Bills"
+              meta={overdueCount > 0 ? `${filteredBills.length} records · ${overdueCount} overdue` : `${filteredBills.length} records`}
+            />
             {filteredBills.length === 0 ? (
               <EmptyState icon="🧾" message={billSearch ? 'No bills match search' : 'No bills found'} />
             ) : (
               <View style={styles.cardList}>
                 {filteredBills.map((bill) => (
-                  <BillCard key={bill.id} bill={bill} />
+                  <BillCard key={bill.id} bill={bill} overdueDays={daysOverdue(bill.due_date, bill.status)} />
                 ))}
               </View>
             )}
@@ -291,13 +320,19 @@ function AgingBar({ label, amount, total, color }: {
   );
 }
 
-function BillCard({ bill }: { bill: APBill }) {
+function BillCard({ bill, overdueDays }: { bill: APBill; overdueDays: number }) {
   const statusKey = (bill.status ?? '').toUpperCase();
   const colors = BILL_STATUS_COLORS[statusKey] ?? { bg: Colors.borderLight, fg: Colors.textSecondary };
   const outstanding = bill.outstanding ?? (bill.amount ?? 0) - (bill.paid ?? 0);
+  const isOverdue = overdueDays > 0;
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, isOverdue && styles.cardOverdue]}>
+      {isOverdue && (
+        <View style={styles.overdueBanner}>
+          <Text style={styles.overdueBannerText}>⚠ {overdueDays} day{overdueDays !== 1 ? 's' : ''} overdue</Text>
+        </View>
+      )}
       <View style={styles.cardHeader}>
         <View style={styles.cardInfo}>
           <Text style={styles.cardTitle}>{bill.bill_number ?? `Bill-${bill.id}`}</Text>
@@ -309,7 +344,11 @@ function BillCard({ bill }: { bill: APBill }) {
       </View>
       <View style={styles.cardMeta}>
         {bill.dt && <Text style={styles.metaText}>📅 {formatShortDate(bill.dt)}</Text>}
-        {bill.due_date && <Text style={styles.metaText}>⏰ Due {formatShortDate(bill.due_date)}</Text>}
+        {bill.due_date && (
+          <Text style={[styles.metaText, isOverdue && styles.metaTextOverdue]}>
+            ⏰ Due {formatShortDate(bill.due_date)}
+          </Text>
+        )}
       </View>
       <View style={styles.amountRow}>
         <View>
@@ -518,4 +557,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.text,
   },
+
+  tabLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  overdueTabBadge: {
+    backgroundColor: Colors.danger,
+    borderRadius: Radius.full,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  overdueTabBadgeText: { fontSize: 10, fontWeight: '700', color: '#fff' },
+
+  cardOverdue: {
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.danger,
+  },
+  overdueBanner: {
+    backgroundColor: Colors.dangerBg,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+  },
+  overdueBannerText: { fontSize: 12, fontWeight: '700', color: Colors.danger },
+  metaTextOverdue: { color: Colors.danger, fontWeight: '600' },
 });
