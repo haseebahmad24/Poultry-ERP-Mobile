@@ -1,5 +1,37 @@
 # Mobile App Progress
 
+## Session 6 — 2026-05-19
+
+### Completed This Session
+
+**Inventory Item Detail Screen**
+- New `InventoryNavigator` (stack) wraps `InventoryScreen` + `ItemLedgerScreen`
+- `StockCard` is now tappable when `item_id` is present — navigates to `ItemLedgerScreen`
+- `ItemLedgerScreen`: shows full movement log for a single item
+  - Summary bar: Total In / Total Out / Current Balance with color coding
+  - Date filter panel with quick presets (Today, This Week, This Month, Last Month)
+  - Pull-to-refresh support
+  - Empty state with optional clear-filter CTA
+- `AppNavigator` updated: `Inventory` tab now uses `InventoryNavigator` instead of bare screen
+
+**AP/AR Overdue Due-Date Alerts**
+- `daysOverdue()` helper: computes calendar days past `due_date` (0 for paid or future)
+- Bills/Invoices sorted overdue-first (most overdue at top of list)
+- Bills/Invoices tab shows red dot badge with overdue count
+- `SectionHeader` meta shows "N records · M overdue" when applicable
+- Overdue cards have red left border + amber "⚠ X days overdue" banner
+- Due date text turns red when overdue
+- Applied to both `AccountsPayableScreen` and `AccountsReceivableScreen`
+
+**Offline Data Caching**
+- Installed `@react-native-async-storage/async-storage`
+- `src/utils/cache.ts`: `getCached` / `setCached` with 24h TTL and version key
+- `src/components/OfflineBanner.tsx`: amber "showing cached data" banner component
+- `DashboardScreen`: serves cached KPIs/vouchers instantly on mount, fetches fresh in background; shows `OfflineBanner` if network fails and cached data exists
+- `InventoryScreen`: caches stock balances per company; populates UI from cache immediately then refreshes silently
+
+---
+
 ## Session 5 — 2026-05-19
 
 ### Completed This Session
@@ -223,15 +255,14 @@
 
 ---
 
-## What's Next (Session 6)
+## What's Next (Session 7)
 
 All primary roadmap items are complete. Remaining polish options:
 
-1. **Offline caching** — Cache last-fetched data for offline viewing using AsyncStorage
-2. **Low-stock threshold setting** — Let user configure the low-stock qty threshold
-3. **AP/AR due date alerts** — Highlight overdue bills/invoices prominently
-4. **Inventory item detail** — Tap a stock balance row to see full ledger for that item
-5. **Notifications** — Local push notifications for overdue AP/AR items
+1. **Low-stock threshold setting** — Let user configure the low-stock qty threshold (store in AsyncStorage)
+2. **Extend offline caching** — Add caching to AP, AR, Materials, Partners, PO list screens
+3. **Notifications** — Local push notifications for overdue AP/AR items
+4. **AP/AR vendor/customer detail** — Tap a vendor/customer row to see their full bill/invoice history
 
 ---
 
@@ -244,12 +275,13 @@ All primary roadmap items are complete. Remaining polish options:
 | Inventory (Stock + Ledger + Warehouses tabs) | ✅ Done |
 | Inventory Low-Stock Filter | ✅ Done |
 | Inventory Ledger Date Filter | ✅ Done |
+| Inventory Item Detail (tap stock row → item ledger) | ✅ Done |
 | Materials | ✅ Done |
 | Purchase Orders + Detail | ✅ Done |
 | Sales Orders + Detail | ✅ Done |
 | GRN (with PO detail nav) | ✅ Done |
-| Accounts Payable (with search) | ✅ Done |
-| Accounts Receivable (with search) | ✅ Done |
+| Accounts Payable (with search + overdue alerts) | ✅ Done |
+| Accounts Receivable (with search + overdue alerts) | ✅ Done |
 | Journal Entries (with date filter + presets + Export) | ✅ Done |
 | Trial Balance (with Export) | ✅ Done |
 | Financial Reports (P&L, BS, with Export) | ✅ Done |
@@ -264,3 +296,5 @@ All primary roadmap items are complete. Remaining polish options:
 | Back buttons (all non-root screens) | ✅ Done |
 | Search (PO, SO, AP, AR) | ✅ Done |
 | Date range filter + presets (JE) | ✅ Done |
+| Offline caching (Dashboard + Inventory stock) | ✅ Done |
+| OfflineBanner component | ✅ Done |
