@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
 import {
   fetchStockBalances,
@@ -25,6 +27,7 @@ import SectionHeader from '@/components/SectionHeader';
 import CompanyPicker from '@/components/CompanyPicker';
 import { useCompany } from '@/context/CompanyContext';
 import { formatShortDate } from '@/utils/currency';
+import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 
 type Tab = 'stock' | 'ledger' | 'warehouses';
 type StockFilter = 'all' | 'low' | 'out';
@@ -64,6 +67,7 @@ function thisWeekStart(): string {
 
 export default function InventoryScreen() {
   const { companyId } = useCompany();
+  const navigation = useNavigation<NativeStackNavigationProp<InventoryStackParamList>>();
   const [activeTab, setActiveTab] = useState<Tab>('stock');
   const [stockData, setStockData] = useState<StockBalance[]>([]);
   const [ledgerData, setLedgerData] = useState<StockLedgerEntry[]>([]);
@@ -356,7 +360,15 @@ export default function InventoryScreen() {
             ) : (
               <View style={styles.cardList}>
                 {filteredStock.map((item, idx) => (
-                  <StockCard key={`${item.item_id ?? item.item_name}-${idx}`} item={item} />
+                  <StockCard
+                    key={`${item.item_id ?? item.item_name}-${idx}`}
+                    item={item}
+                    onPress={item.item_id != null ? () => navigation.navigate('ItemLedger', {
+                      item_id: item.item_id!,
+                      item_name: item.item_name,
+                      item_code: item.item_code,
+                    }) : undefined}
+                  />
                 ))}
               </View>
             )}
@@ -402,25 +414,33 @@ export default function InventoryScreen() {
   );
 }
 
-function StockCard({ item }: { item: StockBalance }) {
+function StockCard({ item, onPress }: { item: StockBalance; onPress?: () => void }) {
   const qty = item.qty ?? 0;
   const qtyColor = qty <= 0 ? Colors.danger : qty < 100 ? Colors.warning : Colors.success;
 
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardRow}>
-        <View style={styles.cardLeft}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{item.item_name}</Text>
-          {item.item_code && <Text style={styles.cardCode}>{item.item_code}</Text>}
-          {item.warehouse_name && <Text style={styles.cardSub}>{item.warehouse_name}</Text>}
-        </View>
-        <View style={styles.cardRight}>
-          <Text style={[styles.qtyValue, { color: qtyColor }]}>{qty.toLocaleString()}</Text>
-          {item.unit && <Text style={styles.qtyUnit}>{item.unit}</Text>}
-        </View>
+  const inner = (
+    <View style={styles.cardRow}>
+      <View style={styles.cardLeft}>
+        <Text style={styles.cardTitle} numberOfLines={1}>{item.item_name}</Text>
+        {item.item_code && <Text style={styles.cardCode}>{item.item_code}</Text>}
+        {item.warehouse_name && <Text style={styles.cardSub}>{item.warehouse_name}</Text>}
+      </View>
+      <View style={styles.cardRight}>
+        <Text style={[styles.qtyValue, { color: qtyColor }]}>{qty.toLocaleString()}</Text>
+        {item.unit && <Text style={styles.qtyUnit}>{item.unit}</Text>}
+        {onPress && <Text style={styles.cardChevron}>›</Text>}
       </View>
     </View>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.75}>
+        {inner}
+      </TouchableOpacity>
+    );
+  }
+  return <View style={styles.card}>{inner}</View>;
 }
 
 function LedgerCard({ entry }: { entry: StockLedgerEntry }) {
@@ -691,6 +711,7 @@ const styles = StyleSheet.create({
 
   qtyValue: { fontSize: 20, fontWeight: '700' },
   qtyUnit: { ...Typography.label, marginTop: 2, color: Colors.textMuted },
+  cardChevron: { fontSize: 20, color: Colors.textMuted, marginTop: 2 },
 
   ledgerHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   voucherBadge: { borderRadius: Radius.sm, paddingHorizontal: 7, paddingVertical: 2 },

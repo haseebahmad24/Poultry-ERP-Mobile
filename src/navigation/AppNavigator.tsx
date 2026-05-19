@@ -3,16 +3,17 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigatorScreenParams } from '@react-navigation/native';
 import { Text } from 'react-native';
 import DashboardScreen from '@/screens/dashboard/DashboardScreen';
-import InventoryScreen from '@/screens/inventory/InventoryScreen';
+import InventoryNavigator from '@/navigation/InventoryNavigator';
 import MoreNavigator from '@/navigation/MoreNavigator';
 import FinanceNavigator from '@/navigation/FinanceNavigator';
 import { Colors } from '@/theme';
+import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
 import type { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 export type AppTabParamList = {
   Dashboard: undefined;
-  Inventory: undefined;
+  Inventory: NavigatorScreenParams<InventoryStackParamList>;
   Finance: NavigatorScreenParams<FinanceStackParamList>;
   More: NavigatorScreenParams<MoreStackParamList>;
 };
@@ -49,7 +50,7 @@ export default function AppNavigator() {
       })}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="Inventory" component={InventoryScreen} />
+      <Tab.Screen name="Inventory" component={InventoryNavigator} />
       <Tab.Screen name="Finance" component={FinanceNavigator} />
       <Tab.Screen name="More" component={MoreNavigator} />
     </Tab.Navigator>
