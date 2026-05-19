@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -51,6 +52,7 @@ export default function SalesOrdersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -72,6 +74,17 @@ export default function SalesOrdersScreen() {
   if (loading) return <LoadingView message="Loading sales orders…" />;
   if (error && orders.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
+  const filtered = search.trim()
+    ? orders.filter((so) => {
+        const q = search.toLowerCase();
+        return (
+          so.so_number?.toLowerCase().includes(q) ||
+          so.customer?.toLowerCase().includes(q) ||
+          so.status?.toLowerCase().includes(q)
+        );
+      })
+    : orders;
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
@@ -79,10 +92,20 @@ export default function SalesOrdersScreen() {
       <View style={styles.header}>
         <BackButton color={Colors.primary} />
         <Text style={styles.headerTitle}>Sales Orders</Text>
-        <Text style={styles.headerSub}>{orders.length} records</Text>
+        <Text style={styles.headerSub}>{filtered.length} records</Text>
       </View>
 
       <CompanyPicker showAll />
+
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search SO number, customer…"
+          placeholderTextColor={Colors.textMuted}
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
 
       <View style={styles.tabBar}>
         {STATUS_TABS.map((t) => (
@@ -110,16 +133,16 @@ export default function SalesOrdersScreen() {
           />
         }
       >
-        <SectionHeader title="Orders" meta={`${orders.length} total`} />
+        <SectionHeader title="Orders" meta={`${filtered.length} total`} />
 
-        {orders.length === 0 ? (
+        {filtered.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>📦</Text>
-            <Text style={styles.emptyText}>No sales orders found</Text>
+            <Text style={styles.emptyText}>{search ? 'No orders match search' : 'No sales orders found'}</Text>
           </View>
         ) : (
           <View style={styles.cardList}>
-            {orders.map((so) => (
+            {filtered.map((so) => (
               <SOCard
                 key={so.id}
                 so={so}
@@ -188,6 +211,22 @@ const styles = StyleSheet.create({
   },
   headerTitle: { ...Typography.h2 },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted },
+
+  searchContainer: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  searchInput: {
+    backgroundColor: Colors.background,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    fontSize: 14,
+    color: Colors.text,
+  },
 
   tabBar: {
     flexDirection: 'row',
