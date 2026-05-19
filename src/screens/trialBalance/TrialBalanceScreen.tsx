@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Feather } from '@expo/vector-icons';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchTrialBalance, TrialBalanceRow, TrialBalanceResult } from '@/api/trialBalance';
 import { useCompany } from '@/context/CompanyContext';
 import BackButton from '@/components/BackButton';
@@ -36,7 +37,6 @@ export default function TrialBalanceScreen() {
   const [search, setSearch] = useState('');
   const [showCompanyPicker, setShowCompanyPicker] = useState(false);
 
-  // Seed local selection from global context when companies load
   useEffect(() => {
     if (!selectedCompany && globalCompany) setSelectedCompany(globalCompany);
   }, [globalCompany, selectedCompany]);
@@ -86,7 +86,7 @@ export default function TrialBalanceScreen() {
     });
     const totals = `${line}\n${pad('TOTAL', colW)}  ${padL(formatCurrency(totalDebit), amtW)}  ${padL(formatCurrency(totalCredit), amtW)}`;
     const balanced = Math.abs(totalDebit - totalCredit) < 0.01
-      ? 'Balanced ✓'
+      ? 'Balanced'
       : `Out of balance by ${formatCurrency(Math.abs(totalDebit - totalCredit))}`;
 
     const text = [header, col, line, ...rows, totals, balanced].join('\n');
@@ -96,16 +96,19 @@ export default function TrialBalanceScreen() {
   if (loading) return <LoadingView message="Loading trial balance…" />;
   if (error && result.rows.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
+  const isOutOfBalance = Math.abs(totalDebit - totalCredit) > 0.01;
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
 
       <View style={styles.header}>
-        <BackButton color={Colors.primary} />
+        <BackButton />
         <Text style={styles.headerTitle}>Trial Balance</Text>
         <Text style={styles.headerSub}>{filteredRows.length} accounts</Text>
         {result.rows.length > 0 && (
           <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+            <Feather name="share" size={13} color={Colors.text} />
             <Text style={styles.exportBtnText}>Export</Text>
           </TouchableOpacity>
         )}
@@ -113,7 +116,6 @@ export default function TrialBalanceScreen() {
 
       {/* Filters */}
       <View style={styles.filtersCard}>
-        {/* Company selector */}
         {companies.length > 0 && (
           <View style={styles.filterRow}>
             <Text style={styles.filterLabel}>Company</Text>
@@ -124,7 +126,7 @@ export default function TrialBalanceScreen() {
               <Text style={styles.filterSelectorText} numberOfLines={1}>
                 {selectedCompany?.name ?? 'Select company'}
               </Text>
-              <Text style={styles.filterSelectorChevron}>▾</Text>
+              <Feather name="chevron-down" size={14} color={Colors.textMuted} />
             </TouchableOpacity>
           </View>
         )}
@@ -149,6 +151,9 @@ export default function TrialBalanceScreen() {
                 ]}>
                   {c.name}
                 </Text>
+                {selectedCompany?.id === c.id && (
+                  <Feather name="check" size={14} color={Colors.text} />
+                )}
               </TouchableOpacity>
             ))}
           </View>
@@ -183,13 +188,21 @@ export default function TrialBalanceScreen() {
 
       {/* Search */}
       <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search accounts…"
-          placeholderTextColor={Colors.textMuted}
-          value={search}
-          onChangeText={setSearch}
-        />
+        <View style={styles.searchRow}>
+          <Feather name="search" size={15} color={Colors.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search accounts…"
+            placeholderTextColor={Colors.textMuted}
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Feather name="x" size={15} color={Colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <ScrollView
@@ -197,31 +210,28 @@ export default function TrialBalanceScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.textMuted} />
         }
       >
         {/* Totals row */}
         <View style={styles.totalsCard}>
           <View style={styles.totalBlock}>
             <Text style={styles.totalLabel}>Total Debit</Text>
-            <Text style={[styles.totalValue, { color: Colors.primary }]}>
-              {formatCurrency(totalDebit)}
-            </Text>
+            <Text style={styles.totalValue}>{formatCurrency(totalDebit)}</Text>
           </View>
           <View style={styles.totalDivider} />
           <View style={[styles.totalBlock, { alignItems: 'flex-end' }]}>
             <Text style={styles.totalLabel}>Total Credit</Text>
-            <Text style={[styles.totalValue, { color: Colors.success }]}>
-              {formatCurrency(totalCredit)}
-            </Text>
+            <Text style={styles.totalValue}>{formatCurrency(totalCredit)}</Text>
           </View>
         </View>
 
-        {/* Difference warning */}
-        {Math.abs(totalDebit - totalCredit) > 0.01 && (
+        {/* Out-of-balance warning */}
+        {isOutOfBalance && (
           <View style={styles.diffWarning}>
+            <Feather name="alert-circle" size={14} color={Colors.textSecondary} />
             <Text style={styles.diffText}>
-              ⚠️ Out of balance by {formatCurrency(Math.abs(totalDebit - totalCredit))}
+              Out of balance by {formatCurrency(Math.abs(totalDebit - totalCredit))}
             </Text>
           </View>
         )}
@@ -233,12 +243,11 @@ export default function TrialBalanceScreen() {
 
         {filteredRows.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>⚖️</Text>
+            <Feather name="scale" size={36} color={Colors.textMuted} />
             <Text style={styles.emptyText}>No accounts found</Text>
           </View>
         ) : (
           <View style={styles.tableCard}>
-            {/* Header row */}
             <View style={[styles.tableRow, styles.tableHeaderRow]}>
               <Text style={[styles.colAccount, styles.tableHeaderText]}>Account</Text>
               <Text style={[styles.colAmount, styles.tableHeaderText]}>Debit</Text>
@@ -253,13 +262,12 @@ export default function TrialBalanceScreen() {
               />
             ))}
 
-            {/* Totals footer */}
             <View style={[styles.tableRow, styles.tableTotalRow]}>
               <Text style={[styles.colAccount, styles.tableTotalText]}>TOTAL</Text>
-              <Text style={[styles.colAmount, styles.tableTotalText, { color: Colors.primary }]}>
+              <Text style={[styles.colAmount, styles.tableTotalText]}>
                 {formatCurrency(totalDebit)}
               </Text>
-              <Text style={[styles.colAmount, styles.tableTotalText, { color: Colors.success }]}>
+              <Text style={[styles.colAmount, styles.tableTotalText, isOutOfBalance && styles.outOfBalance]}>
                 {formatCurrency(totalCredit)}
               </Text>
             </View>
@@ -293,10 +301,10 @@ function TBRow({ row, isLast }: { row: TrialBalanceRow; isLast: boolean }) {
           <Text style={styles.accountType}>{row.account_type}</Text>
         )}
       </View>
-      <Text style={[styles.colAmount, row.debit > 0 && { color: Colors.primary }]}>
+      <Text style={[styles.colAmount, !row.debit && styles.colAmountMuted]}>
         {row.debit > 0 ? formatCurrency(row.debit) : '—'}
       </Text>
-      <Text style={[styles.colAmount, row.credit > 0 && { color: Colors.success }]}>
+      <Text style={[styles.colAmount, !row.credit && styles.colAmountMuted]}>
         {row.credit > 0 ? formatCurrency(row.credit) : '—'}
       </Text>
     </View>
@@ -310,7 +318,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 4,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     flexDirection: 'row',
     alignItems: 'center',
@@ -319,19 +327,21 @@ const styles = StyleSheet.create({
   headerTitle: { ...Typography.h2 },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted, flex: 1 },
   exportBtn: {
-    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: Radius.sm,
-    backgroundColor: Colors.primary + '18',
-    borderWidth: 1,
-    borderColor: Colors.primary + '40',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  exportBtnText: { fontSize: 12, fontWeight: '600', color: Colors.primary },
+  exportBtnText: { fontSize: 12, fontWeight: '600', color: Colors.text },
 
   filtersCard: {
     backgroundColor: Colors.surface,
     padding: Spacing.md,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     gap: Spacing.sm,
   },
@@ -346,23 +356,28 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs + 2,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
   },
   filterSelectorText: { flex: 1, fontSize: 13, color: Colors.text },
-  filterSelectorChevron: { color: Colors.textMuted, fontSize: 14 },
 
   companyPicker: {
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.surface,
     borderRadius: Radius.sm,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     overflow: 'hidden',
   },
-  companyOption: { padding: Spacing.sm + 2, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
-  companyOptionActive: { backgroundColor: Colors.primaryBg },
-  companyOptionText: { fontSize: 13, color: Colors.text },
-  companyOptionTextActive: { color: Colors.primary, fontWeight: '700' },
+  companyOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.sm + 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  companyOptionActive: { backgroundColor: Colors.surfaceHover },
+  companyOptionText: { flex: 1, fontSize: 13, color: Colors.text },
+  companyOptionTextActive: { fontWeight: '700' },
 
   dateInput: {
     flex: 1,
@@ -370,14 +385,14 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs + 2,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     fontSize: 13,
     color: Colors.text,
   },
 
   runBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.text,
     borderRadius: Radius.md,
     paddingVertical: Spacing.sm,
     alignItems: 'center',
@@ -388,16 +403,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
-  searchInput: {
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
     backgroundColor: Colors.background,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  searchInput: {
+    flex: 1,
     fontSize: 14,
     color: Colors.text,
+    padding: 0,
   },
 
   scroll: { flex: 1 },
@@ -411,29 +435,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.md,
     alignItems: 'center',
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     marginBottom: Spacing.sm,
   },
   totalBlock: { flex: 1 },
-  totalDivider: { width: 1, height: 40, backgroundColor: Colors.border },
+  totalDivider: { width: StyleSheet.hairlineWidth, height: 40, backgroundColor: Colors.border },
   totalLabel: { ...Typography.label, marginBottom: 4 },
-  totalValue: { fontSize: 16, fontWeight: '700' },
+  totalValue: { fontSize: 16, fontWeight: '700', color: Colors.text },
 
   diffWarning: {
     marginHorizontal: Spacing.md,
-    backgroundColor: Colors.dangerBg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: Colors.surfaceHover,
     borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     padding: Spacing.sm,
     marginBottom: Spacing.sm,
   },
-  diffText: { fontSize: 13, color: Colors.danger, fontWeight: '600' },
+  diffText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '600', flex: 1 },
 
   tableCard: {
     marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     overflow: 'hidden',
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
 
   tableRow: {
@@ -442,15 +473,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.sm,
   },
-  tableRowBorder: { borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
-  tableRowGroup: { backgroundColor: Colors.background },
-  tableHeaderRow: { backgroundColor: Colors.primaryBg, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  tableHeaderText: { fontSize: 11, fontWeight: '700', color: Colors.primary },
-  tableTotalRow: { backgroundColor: Colors.primaryBg, borderTopWidth: 2, borderTopColor: Colors.border },
-  tableTotalText: { fontSize: 13, fontWeight: '700' },
+  tableRowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border },
+  tableRowGroup: { backgroundColor: Colors.surfaceHover },
+  tableHeaderRow: {
+    backgroundColor: Colors.surfaceHover,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  tableHeaderText: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary },
+  tableTotalRow: {
+    backgroundColor: Colors.surfaceHover,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
+  },
+  tableTotalText: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  outOfBalance: { fontWeight: '700' },
 
   colAccount: { flex: 2, paddingRight: Spacing.xs },
   colAmount: { flex: 1, fontSize: 12, fontWeight: '500', color: Colors.text, textAlign: 'right' },
+  colAmountMuted: { color: Colors.textMuted },
 
   accountName: { fontSize: 12, color: Colors.text },
   accountNameGroup: { fontWeight: '700', fontSize: 13 },
@@ -460,11 +501,11 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     padding: Spacing.xl,
     alignItems: 'center',
     gap: Spacing.sm,
-    ...Shadow.subtle,
   },
-  emptyIcon: { fontSize: 36 },
   emptyText: { ...Typography.body, color: Colors.textMuted },
 });
