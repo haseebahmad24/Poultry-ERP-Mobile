@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useAuth } from '@/context/AuthContext';
@@ -18,23 +19,12 @@ import KPICard from '@/components/KPICard';
 import SectionHeader from '@/components/SectionHeader';
 import ErrorView from '@/components/ErrorView';
 import LoadingView from '@/components/LoadingView';
-import CompanyPicker from '@/components/CompanyPicker';
+import CompanySelector from '@/components/CompanySelector';
 import OfflineBanner from '@/components/OfflineBanner';
 import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
-
-const VOUCHER_COLORS: Record<string, { bg: string; fg: string }> = {
-  JV:  { bg: '#e8eaf6', fg: '#283593' },
-  GRN: { bg: '#e8f5e9', fg: '#2e7d32' },
-  DN:  { bg: '#fff3e0', fg: '#e65100' },
-  PAY: { bg: '#e3f2fd', fg: '#1565c0' },
-  REC: { bg: '#f3e5f5', fg: '#6a1b9a' },
-  INV: { bg: '#fce4ec', fg: '#c62828' },
-  SO:  { bg: '#e0f7fa', fg: '#00695c' },
-  PO:  { bg: '#f1f8e9', fg: '#558b2f' },
-};
 
 type Nav = BottomTabNavigationProp<AppTabParamList>;
 
@@ -47,32 +37,32 @@ type QuickAction = {
 const QUICK_ACTIONS: QuickAction[] = [
   {
     label: 'Journal Entry',
-    icon: '📒',
+    icon: 'book-open',
     navigate: (nav) => nav.navigate('Finance', { screen: 'JournalEntries' }),
   },
   {
     label: 'Purchase Order',
-    icon: '🛒',
+    icon: 'shopping-cart',
     navigate: (nav) => nav.navigate('More', { screen: 'PurchaseOrders' }),
   },
   {
     label: 'Sales Order',
-    icon: '📦',
+    icon: 'package',
     navigate: (nav) => nav.navigate('More', { screen: 'SalesOrders' }),
   },
   {
     label: 'Goods Receipt',
-    icon: '🚚',
+    icon: 'truck',
     navigate: (nav) => nav.navigate('More', { screen: 'GRN' }),
   },
   {
     label: 'Trial Balance',
-    icon: '⚖️',
+    icon: 'bar-chart-2',
     navigate: (nav) => nav.navigate('Finance', { screen: 'TrialBalance' }),
   },
   {
     label: 'Inventory',
-    icon: '🏭',
+    icon: 'box',
     navigate: (nav) => nav.navigate('Inventory'),
   },
 ];
@@ -97,7 +87,6 @@ export default function DashboardScreen() {
     if (isRefresh) {
       setRefreshing(true);
     } else {
-      // Try cache first so the screen is never blank on initial load
       const cached = await getCached<{ kpis: KPIs; recentVouchers: RecentVoucher[] }>(cacheKey);
       if (cached) {
         hadCachedData = true;
@@ -117,7 +106,6 @@ export default function DashboardScreen() {
       setIsStale(false);
       await setCached(cacheKey, { kpis: data.kpis, recentVouchers: data.recentVouchers });
     } catch (e: any) {
-      // If we already populated UI from cache, just mark stale; otherwise show full error
       if (hadCachedData) {
         setIsStale(true);
       } else {
@@ -145,7 +133,7 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
       {/* Top bar */}
       <View style={styles.topBar}>
@@ -158,11 +146,12 @@ export default function DashboardScreen() {
           </Text>
         </View>
         <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+          <Feather name="log-out" size={14} color={Colors.textSecondary} />
           <Text style={styles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
       </View>
 
-      <CompanyPicker showAll />
+      <CompanySelector showAll />
       <OfflineBanner visible={isStale} />
 
       <ScrollView
@@ -173,13 +162,14 @@ export default function DashboardScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => load(true)}
-            tintColor={Colors.primary}
+            tintColor={Colors.textMuted}
           />
         }
       >
         {error && (
           <View style={styles.inlineError}>
-            <Text style={styles.inlineErrorText}>⚠️ {error}</Text>
+            <Feather name="alert-circle" size={14} color={Colors.text} style={{ marginRight: 6 }} />
+            <Text style={styles.inlineErrorText}>{error}</Text>
           </View>
         )}
 
@@ -191,13 +181,11 @@ export default function DashboardScreen() {
               label="Revenue"
               value={formatCurrency(kpis?.revenue ?? 0)}
               subtext="Month to date"
-              valueColor={Colors.success}
             />
             <KPICard
               label="Expenses"
               value={formatCurrency(kpis?.expenses ?? 0)}
               subtext="Month to date"
-              valueColor={Colors.danger}
             />
           </View>
           <View style={styles.kpiRow}>
@@ -205,7 +193,6 @@ export default function DashboardScreen() {
               label="Net Income"
               value={formatCurrency(netIncome)}
               subtext={netIncome >= 0 ? 'Profit' : 'Loss'}
-              valueColor={netIncome >= 0 ? Colors.success : Colors.danger}
             />
             <KPICard
               label="Cash & Bank"
@@ -218,13 +205,11 @@ export default function DashboardScreen() {
               label="Receivables"
               value={formatCurrency(kpis?.totalAR ?? 0)}
               subtext="Total AR"
-              valueColor={Colors.primaryLight}
             />
             <KPICard
               label="Payables"
               value={formatCurrency(kpis?.totalAP ?? 0)}
               subtext="Total AP"
-              valueColor={Colors.orange}
             />
           </View>
         </View>
@@ -233,15 +218,13 @@ export default function DashboardScreen() {
         <SectionHeader title="Working Capital" />
         <View style={styles.wcCard}>
           <WCRow label="Cash & Bank" value={kpis?.cash ?? 0} />
-          <WCRow label="+ Receivables" value={kpis?.totalAR ?? 0} color={Colors.primaryLight} />
-          <WCRow label="− Payables" value={-(kpis?.totalAP ?? 0)} color={Colors.orange} />
+          <WCRow label="+ Receivables" value={kpis?.totalAR ?? 0} />
+          <WCRow label="− Payables" value={-(kpis?.totalAP ?? 0)} />
           <View style={styles.wcDivider} />
           <WCRow
             label="Net Working Capital"
             value={(kpis?.cash ?? 0) + (kpis?.totalAR ?? 0) - (kpis?.totalAP ?? 0)}
             bold
-            color={((kpis?.cash ?? 0) + (kpis?.totalAR ?? 0) - (kpis?.totalAP ?? 0)) >= 0
-              ? Colors.success : Colors.danger}
           />
         </View>
 
@@ -255,7 +238,7 @@ export default function DashboardScreen() {
               activeOpacity={0.7}
               onPress={() => qa.navigate(navigation)}
             >
-              <Text style={styles.quickIcon}>{qa.icon}</Text>
+              <Feather name={qa.icon as any} size={22} color={Colors.text} />
               <Text style={styles.quickLabel}>{qa.label}</Text>
             </TouchableOpacity>
           ))}
@@ -273,17 +256,11 @@ export default function DashboardScreen() {
         ) : (
           <View style={styles.voucherList}>
             {vouchers.map((v) => {
-              const colors = VOUCHER_COLORS[v.type] ?? { bg: '#f5f5f5', fg: '#546e7a' };
-              const statusColor =
-                v.status === 'POSTED'
-                  ? Colors.success
-                  : v.status === 'DRAFT'
-                  ? Colors.warning
-                  : Colors.textMuted;
+              const isDraft = v.status === 'DRAFT';
               return (
                 <View key={v.id} style={styles.voucherRow}>
-                  <View style={[styles.typeBadge, { backgroundColor: colors.bg }]}>
-                    <Text style={[styles.typeText, { color: colors.fg }]}>{v.type}</Text>
+                  <View style={styles.typeBadge}>
+                    <Text style={styles.typeText}>{v.type}</Text>
                   </View>
                   <View style={styles.voucherInfo}>
                     <Text style={styles.voucherNum}>{v.number ?? `#${v.id}`}</Text>
@@ -291,7 +268,7 @@ export default function DashboardScreen() {
                   </View>
                   <View style={styles.voucherRight}>
                     <Text style={styles.voucherAmount}>{formatCurrency(v.amount)}</Text>
-                    <Text style={[styles.voucherStatus, { color: statusColor }]}>
+                    <Text style={[styles.voucherStatus, isDraft && styles.voucherStatusDraft]}>
                       {v.status ?? '—'}
                     </Text>
                   </View>
@@ -310,18 +287,16 @@ export default function DashboardScreen() {
 function WCRow({
   label,
   value,
-  color,
   bold,
 }: {
   label: string;
   value: number;
-  color?: string;
   bold?: boolean;
 }) {
   return (
     <View style={styles.wcRow}>
       <Text style={[styles.wcLabel, bold && styles.wcLabelBold]}>{label}</Text>
-      <Text style={[styles.wcValue, { color: color ?? Colors.text }, bold && styles.wcValueBold]}>
+      <Text style={[styles.wcValue, bold && styles.wcValueBold]}>
         {formatCurrency(value)}
       </Text>
     </View>
@@ -335,33 +310,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
   topBarLeft: { flex: 1 },
-  greeting: { fontSize: 18, fontWeight: '700', color: '#fff' },
-  subGreeting: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  greeting: { fontSize: 18, fontWeight: '700', color: Colors.text },
+  subGreeting: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
   logoutBtn: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: Radius.full,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  logoutText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  logoutText: { color: Colors.textSecondary, fontSize: 12, fontWeight: '500' },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },
 
   inlineError: {
-    backgroundColor: '#fce4ec',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surfaceHover,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     marginHorizontal: Spacing.md,
-    borderRadius: Radius.sm,
+    borderRadius: Radius.md,
     padding: Spacing.sm,
     marginBottom: Spacing.sm,
   },
-  inlineErrorText: { color: Colors.danger, fontSize: 13 },
+  inlineErrorText: { color: Colors.text, fontSize: 13, flex: 1 },
 
   kpiGrid: { paddingHorizontal: Spacing.md, gap: 10 },
   kpiRow: { flexDirection: 'row', gap: 10 },
@@ -371,7 +356,8 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.md,
     borderRadius: Radius.md,
     padding: Spacing.md,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     gap: 10,
   },
   wcRow: {
@@ -381,9 +367,9 @@ const styles = StyleSheet.create({
   },
   wcLabel: { fontSize: 13, color: Colors.textSecondary },
   wcLabelBold: { fontWeight: '700', color: Colors.text, fontSize: 14 },
-  wcValue: { fontSize: 13, fontWeight: '600' },
+  wcValue: { fontSize: 13, fontWeight: '500', color: Colors.text },
   wcValueBold: { fontSize: 15, fontWeight: '700' },
-  wcDivider: { height: 1, backgroundColor: Colors.border },
+  wcDivider: { height: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
 
   quickGrid: {
     flexDirection: 'row',
@@ -396,34 +382,33 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
-    padding: Spacing.sm + 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Spacing.md,
     alignItems: 'center',
-    gap: 6,
-    ...Shadow.subtle,
+    gap: 8,
   },
-  quickCardDisabled: { opacity: 0.55 },
-  quickIcon: { fontSize: 26 },
   quickLabel: {
     fontSize: 11,
     fontWeight: '500',
     color: Colors.textSecondary,
     textAlign: 'center',
   },
-  quickLabelDisabled: { color: Colors.textMuted },
 
   voucherList: {
     marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     overflow: 'hidden',
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
   voucherRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: 12,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.borderLight,
     gap: 10,
   },
@@ -433,14 +418,18 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     minWidth: 42,
     alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
-  typeText: { fontSize: 11, fontWeight: '700' },
+  typeText: { fontSize: 11, fontWeight: '700', color: Colors.text },
   voucherInfo: { flex: 1 },
   voucherNum: { fontSize: 13, fontWeight: '600', color: Colors.text },
   voucherDate: { fontSize: 11, color: Colors.textMuted, marginTop: 1 },
   voucherRight: { alignItems: 'flex-end' },
   voucherAmount: { fontSize: 13, fontWeight: '600', color: Colors.text },
-  voucherStatus: { fontSize: 10, fontWeight: '500', marginTop: 1 },
+  voucherStatus: { fontSize: 10, fontWeight: '600', marginTop: 1, color: Colors.text },
+  voucherStatusDraft: { color: Colors.textMuted, fontWeight: '400' },
 
   emptyState: {
     marginHorizontal: Spacing.md,
@@ -448,7 +437,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.lg,
     alignItems: 'center',
-    ...Shadow.subtle,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
   emptyText: { color: Colors.textMuted, fontSize: 13 },
 });

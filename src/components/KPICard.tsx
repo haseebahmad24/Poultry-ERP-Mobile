@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
-import { Colors, Spacing, Radius, Shadow, Typography } from '@/theme';
+import { Colors, Spacing, Radius, Typography } from '@/theme';
 
 type Props = {
   label: string;
@@ -35,7 +35,8 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     flex: 1,
     minWidth: 140,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
   label: {
     fontSize: 11,

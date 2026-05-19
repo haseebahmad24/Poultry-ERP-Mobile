@@ -306,3 +306,6 @@ All primary roadmap items are complete. Remaining polish options:
 | Date (UTC) | Screen / Component | Summary |
 |---|---|---|
 | 2026-05-19 | `src/theme/index.ts` | Replaced full semantic color palette with monochrome tokens (black/gray/white). All export names kept stable; Colors.primary/success/danger/warning now resolve to #0a0a0a. Shadow toned down to near-zero opacity. Radius values tightened (md→8, lg→12). |
+| 2026-05-19 | `src/components/CompanySelector.tsx` (new) | Built shared monochrome company selector: compact pill trigger with Feather chevron-down, opens bottom-sheet modal with bold active / gray inactive company list. |
+| 2026-05-19 | `src/screens/dashboard/DashboardScreen.tsx` | Full monochrome polish: white top bar replacing blue, Feather icons (book-open/shopping-cart/package/truck/bar-chart-2/box) replacing all emojis, hairline borders replacing shadows on all cards, voucher type chips now outline-only, KPI values all black, status differentiated by weight not color. Migrated CompanyPicker → CompanySelector. |
+| 2026-05-19 | `src/components/KPICard.tsx` | Replaced Shadow.card with hairline border. |
