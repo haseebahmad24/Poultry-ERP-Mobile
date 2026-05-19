@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Feather } from '@expo/vector-icons';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
 import {
   fetchAPSummary,
@@ -23,24 +24,18 @@ import {
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
-import CompanyPicker from '@/components/CompanyPicker';
+import CompanySelector from '@/components/CompanySelector';
 import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 
 type Tab = 'summary' | 'bills' | 'vendors';
 
-const BILL_STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
-  PAID:      { bg: Colors.successBg,   fg: Colors.success },
-  PARTIAL:   { bg: Colors.orangeBg,    fg: Colors.orange },
-  UNPAID:    { bg: Colors.dangerBg,    fg: Colors.danger },
-  OVERDUE:   { bg: Colors.dangerBg,    fg: Colors.danger },
-  DRAFT:     { bg: Colors.warningBg,   fg: Colors.warning },
-};
+// Grayscale aging fills — conveys severity without semantic color
+const AGING_FILLS = ['#d1d5db', '#9ca3af', '#6b7280', '#374151', '#111827'];
 
 function daysOverdue(dueDate: string | undefined, status: string | undefined): number {
   if (!dueDate) return 0;
-  const paid = (status ?? '').toUpperCase() === 'PAID';
-  if (paid) return 0;
+  if ((status ?? '').toUpperCase() === 'PAID') return 0;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const due = new Date(dueDate);
@@ -100,9 +95,7 @@ export default function AccountsPayableScreen() {
       })
     : bills
   ).slice().sort((a, b) => {
-    const da = daysOverdue(a.due_date, a.status);
-    const db = daysOverdue(b.due_date, b.status);
-    return db - da; // overdue first, most overdue at top
+    return daysOverdue(b.due_date, b.status) - daysOverdue(a.due_date, a.status);
   });
 
   const overdueCount = bills.filter((b) => daysOverdue(b.due_date, b.status) > 0).length;
@@ -120,11 +113,11 @@ export default function AccountsPayableScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.header}>
-        <BackButton color={Colors.primary} />
+        <BackButton />
         <Text style={styles.headerTitle}>Accounts Payable</Text>
       </View>
 
-      <CompanyPicker />
+      <CompanySelector />
 
       <View style={styles.tabBar}>
         {(['summary', 'bills', 'vendors'] as Tab[]).map((t) => (
@@ -155,72 +148,28 @@ export default function AccountsPayableScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => load(true)}
-            tintColor={Colors.primary}
+            tintColor={Colors.textMuted}
           />
         }
       >
         {activeTab === 'summary' && (
           <>
-            {/* KPI Cards */}
             <View style={styles.kpiGrid}>
-              <KPICard
-                label="Total Outstanding"
-                value={formatCurrency(summary.total_outstanding ?? 0)}
-                color={Colors.danger}
-              />
-              <KPICard
-                label="Total Overdue"
-                value={formatCurrency(summary.total_overdue ?? 0)}
-                color={Colors.orange}
-              />
-              <KPICard
-                label="Vendors"
-                value={String(summary.vendors_count ?? vendors.length)}
-                color={Colors.primary}
-              />
-              <KPICard
-                label="Bills"
-                value={String(summary.bills_count ?? bills.length)}
-                color={Colors.textSecondary}
-              />
+              <KPICard label="Total Outstanding" value={formatCurrency(summary.total_outstanding ?? 0)} />
+              <KPICard label="Total Overdue" value={formatCurrency(summary.total_overdue ?? 0)} />
+              <KPICard label="Vendors" value={String(summary.vendors_count ?? vendors.length)} />
+              <KPICard label="Bills" value={String(summary.bills_count ?? bills.length)} />
             </View>
 
-            {/* Aging breakdown */}
             <SectionHeader title="Aging Analysis" />
             <View style={styles.agingCard}>
-              <AgingBar
-                label="Current"
-                amount={aging.current ?? 0}
-                total={totalAging}
-                color={Colors.success}
-              />
-              <AgingBar
-                label="1–30 days"
-                amount={aging.days_30 ?? 0}
-                total={totalAging}
-                color={Colors.warning}
-              />
-              <AgingBar
-                label="31–60 days"
-                amount={aging.days_60 ?? 0}
-                total={totalAging}
-                color={Colors.orange}
-              />
-              <AgingBar
-                label="61–90 days"
-                amount={aging.days_90 ?? 0}
-                total={totalAging}
-                color={Colors.danger}
-              />
-              <AgingBar
-                label="Over 90 days"
-                amount={aging.over_90 ?? 0}
-                total={totalAging}
-                color={Colors.primaryDark}
-              />
+              <AgingBar label="Current"     amount={aging.current ?? 0} total={totalAging} fill={AGING_FILLS[0]} />
+              <AgingBar label="1–30 days"   amount={aging.days_30 ?? 0} total={totalAging} fill={AGING_FILLS[1]} />
+              <AgingBar label="31–60 days"  amount={aging.days_60 ?? 0} total={totalAging} fill={AGING_FILLS[2]} />
+              <AgingBar label="61–90 days"  amount={aging.days_90 ?? 0} total={totalAging} fill={AGING_FILLS[3]} />
+              <AgingBar label="Over 90 days" amount={aging.over_90 ?? 0} total={totalAging} fill={AGING_FILLS[4]} />
             </View>
 
-            {/* Top vendors */}
             {vendors.length > 0 && (
               <>
                 <SectionHeader title="Top Vendors" meta="By outstanding" />
@@ -228,9 +177,7 @@ export default function AccountsPayableScreen() {
                   {vendors.slice(0, 5).map((v) => (
                     <View key={v.id} style={styles.miniRow}>
                       <Text style={styles.miniName} numberOfLines={1}>{v.name ?? `Vendor ${v.id}`}</Text>
-                      <Text style={[styles.miniAmount, { color: Colors.danger }]}>
-                        {formatCurrency(v.outstanding ?? 0)}
-                      </Text>
+                      <Text style={styles.miniAmount}>{formatCurrency(v.outstanding ?? 0)}</Text>
                     </View>
                   ))}
                 </View>
@@ -242,6 +189,7 @@ export default function AccountsPayableScreen() {
         {activeTab === 'bills' && (
           <>
             <View style={styles.searchContainer}>
+              <Feather name="search" size={14} color={Colors.textMuted} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search bills, vendors…"
@@ -249,13 +197,20 @@ export default function AccountsPayableScreen() {
                 value={billSearch}
                 onChangeText={setBillSearch}
               />
+              {billSearch.length > 0 && (
+                <TouchableOpacity onPress={() => setBillSearch('')}>
+                  <Feather name="x" size={14} color={Colors.textMuted} />
+                </TouchableOpacity>
+              )}
             </View>
             <SectionHeader
               title="Bills"
-              meta={overdueCount > 0 ? `${filteredBills.length} records · ${overdueCount} overdue` : `${filteredBills.length} records`}
+              meta={overdueCount > 0
+                ? `${filteredBills.length} records · ${overdueCount} overdue`
+                : `${filteredBills.length} records`}
             />
             {filteredBills.length === 0 ? (
-              <EmptyState icon="🧾" message={billSearch ? 'No bills match search' : 'No bills found'} />
+              <EmptyState icon="file-text" message={billSearch ? 'No bills match search' : 'No bills found'} />
             ) : (
               <View style={styles.cardList}>
                 {filteredBills.map((bill) => (
@@ -269,6 +224,7 @@ export default function AccountsPayableScreen() {
         {activeTab === 'vendors' && (
           <>
             <View style={styles.searchContainer}>
+              <Feather name="search" size={14} color={Colors.textMuted} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search vendors…"
@@ -276,10 +232,15 @@ export default function AccountsPayableScreen() {
                 value={vendorSearch}
                 onChangeText={setVendorSearch}
               />
+              {vendorSearch.length > 0 && (
+                <TouchableOpacity onPress={() => setVendorSearch('')}>
+                  <Feather name="x" size={14} color={Colors.textMuted} />
+                </TouchableOpacity>
+              )}
             </View>
             <SectionHeader title="Vendors" meta={`${filteredVendors.length} records`} />
             {filteredVendors.length === 0 ? (
-              <EmptyState icon="🏪" message={vendorSearch ? 'No vendors match search' : 'No vendors found'} />
+              <EmptyState icon="briefcase" message={vendorSearch ? 'No vendors match search' : 'No vendors found'} />
             ) : (
               <View style={styles.cardList}>
                 {filteredVendors.map((v) => (
@@ -296,41 +257,43 @@ export default function AccountsPayableScreen() {
   );
 }
 
-function KPICard({ label, value, color }: { label: string; value: string; color: string }) {
+function KPICard({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.kpiCard}>
-      <Text style={[styles.kpiValue, { color }]}>{value}</Text>
+      <Text style={styles.kpiValue}>{value}</Text>
       <Text style={styles.kpiLabel}>{label}</Text>
     </View>
   );
 }
 
-function AgingBar({ label, amount, total, color }: {
-  label: string; amount: number; total: number; color: string;
+function AgingBar({ label, amount, total, fill }: {
+  label: string; amount: number; total: number; fill: string;
 }) {
   const pct = total > 0 ? Math.min((amount / total) * 100, 100) : 0;
   return (
     <View style={styles.agingRow}>
       <Text style={styles.agingLabel}>{label}</Text>
       <View style={styles.agingBarContainer}>
-        <View style={[styles.agingBarFill, { width: `${pct}%` as any, backgroundColor: color }]} />
+        <View style={[styles.agingBarFill, { width: `${pct}%` as any, backgroundColor: fill }]} />
       </View>
-      <Text style={[styles.agingAmount, { color }]}>{formatCurrency(amount)}</Text>
+      <Text style={styles.agingAmount}>{formatCurrency(amount)}</Text>
     </View>
   );
 }
 
 function BillCard({ bill, overdueDays }: { bill: APBill; overdueDays: number }) {
-  const statusKey = (bill.status ?? '').toUpperCase();
-  const colors = BILL_STATUS_COLORS[statusKey] ?? { bg: Colors.borderLight, fg: Colors.textSecondary };
   const outstanding = bill.outstanding ?? (bill.amount ?? 0) - (bill.paid ?? 0);
   const isOverdue = overdueDays > 0;
+  const isPaid = (bill.status ?? '').toUpperCase() === 'PAID';
 
   return (
-    <View style={[styles.card, isOverdue && styles.cardOverdue]}>
+    <View style={styles.card}>
       {isOverdue && (
         <View style={styles.overdueBanner}>
-          <Text style={styles.overdueBannerText}>⚠ {overdueDays} day{overdueDays !== 1 ? 's' : ''} overdue</Text>
+          <Feather name="alert-circle" size={12} color={Colors.text} />
+          <Text style={styles.overdueBannerText}>
+            {overdueDays} day{overdueDays !== 1 ? 's' : ''} overdue
+          </Text>
         </View>
       )}
       <View style={styles.cardHeader}>
@@ -338,16 +301,24 @@ function BillCard({ bill, overdueDays }: { bill: APBill; overdueDays: number }) 
           <Text style={styles.cardTitle}>{bill.bill_number ?? `Bill-${bill.id}`}</Text>
           <Text style={styles.cardSub}>{bill.vendor ?? 'Unknown Vendor'}</Text>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: colors.bg }]}>
-          <Text style={[styles.statusText, { color: colors.fg }]}>{bill.status ?? '—'}</Text>
+        <View style={[styles.statusBadge, isPaid && styles.statusBadgeMuted]}>
+          <Text style={[styles.statusText, isPaid && styles.statusTextMuted]}>{bill.status ?? '—'}</Text>
         </View>
       </View>
       <View style={styles.cardMeta}>
-        {bill.dt && <Text style={styles.metaText}>📅 {formatShortDate(bill.dt)}</Text>}
+        {bill.dt && (
+          <View style={styles.metaItem}>
+            <Feather name="calendar" size={11} color={Colors.textMuted} />
+            <Text style={styles.metaText}>{formatShortDate(bill.dt)}</Text>
+          </View>
+        )}
         {bill.due_date && (
-          <Text style={[styles.metaText, isOverdue && styles.metaTextOverdue]}>
-            ⏰ Due {formatShortDate(bill.due_date)}
-          </Text>
+          <View style={styles.metaItem}>
+            <Feather name="clock" size={11} color={isOverdue ? Colors.text : Colors.textMuted} />
+            <Text style={[styles.metaText, isOverdue && styles.metaTextOverdue]}>
+              Due {formatShortDate(bill.due_date)}
+            </Text>
+          </View>
         )}
       </View>
       <View style={styles.amountRow}>
@@ -357,7 +328,7 @@ function BillCard({ bill, overdueDays }: { bill: APBill; overdueDays: number }) 
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={styles.amtLabel}>Outstanding</Text>
-          <Text style={[styles.amtValue, { color: outstanding > 0 ? Colors.danger : Colors.success }]}>
+          <Text style={[styles.amtValue, outstanding <= 0 && styles.amtValueMuted]}>
             {formatCurrency(outstanding)}
           </Text>
         </View>
@@ -378,16 +349,12 @@ function VendorCard({ vendor: v }: { vendor: APVendor }) {
       <View style={styles.amountRow}>
         <View>
           <Text style={styles.amtLabel}>Outstanding</Text>
-          <Text style={[styles.amtValue, { color: Colors.danger }]}>
-            {formatCurrency(v.outstanding ?? 0)}
-          </Text>
+          <Text style={styles.amtValue}>{formatCurrency(v.outstanding ?? 0)}</Text>
         </View>
         {v.overdue != null && v.overdue > 0 && (
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={styles.amtLabel}>Overdue</Text>
-            <Text style={[styles.amtValue, { color: Colors.orange }]}>
-              {formatCurrency(v.overdue)}
-            </Text>
+            <Text style={[styles.amtValue, styles.amtValueBold]}>{formatCurrency(v.overdue)}</Text>
           </View>
         )}
       </View>
@@ -398,7 +365,7 @@ function VendorCard({ vendor: v }: { vendor: APVendor }) {
 function EmptyState({ icon, message }: { icon: string; message: string }) {
   return (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyIcon}>{icon}</Text>
+      <Feather name={icon as any} size={32} color={Colors.textMuted} />
       <Text style={styles.emptyText}>{message}</Text>
     </View>
   );
@@ -411,18 +378,18 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 4,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  headerTitle: { ...Typography.h2 },
+  headerTitle: { ...Typography.h2, flex: 1 },
 
   tabBar: {
     flexDirection: 'row',
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
   tab: {
@@ -432,9 +399,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabActive: { borderBottomColor: Colors.primary },
+  tabActive: { borderBottomColor: Colors.text },
   tabText: { fontSize: 13, fontWeight: '500', color: Colors.textSecondary },
-  tabTextActive: { color: Colors.primary, fontWeight: '700' },
+  tabTextActive: { color: Colors.text, fontWeight: '700' },
+  tabLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  overdueTabBadge: {
+    borderRadius: Radius.full,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.text,
+  },
+  overdueTabBadgeText: { fontSize: 10, fontWeight: '700', color: '#fff' },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },
@@ -453,9 +433,10 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.md,
     gap: 4,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  kpiValue: { fontSize: 18, fontWeight: '700' },
+  kpiValue: { fontSize: 18, fontWeight: '700', color: Colors.text },
   kpiLabel: { ...Typography.bodySmall, color: Colors.textSecondary },
 
   agingCard: {
@@ -464,37 +445,39 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.md,
     gap: Spacing.sm,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
   agingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   agingLabel: { fontSize: 12, color: Colors.textSecondary, width: 90 },
   agingBarContainer: {
     flex: 1,
-    height: 6,
+    height: 4,
     backgroundColor: Colors.borderLight,
     borderRadius: Radius.full,
     overflow: 'hidden',
   },
   agingBarFill: { height: '100%', borderRadius: Radius.full },
-  agingAmount: { fontSize: 12, fontWeight: '600', minWidth: 80, textAlign: 'right' },
+  agingAmount: { fontSize: 12, fontWeight: '600', color: Colors.text, minWidth: 80, textAlign: 'right' },
 
   miniList: {
     marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     overflow: 'hidden',
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
   miniRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: Spacing.md,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.borderLight,
   },
   miniName: { flex: 1, ...Typography.body },
-  miniAmount: { fontSize: 14, fontWeight: '700' },
+  miniAmount: { fontSize: 14, fontWeight: '700', color: Colors.text },
 
   cardList: { marginHorizontal: Spacing.md, gap: Spacing.sm },
 
@@ -503,27 +486,41 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.md,
     gap: Spacing.sm,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   cardInfo: { flex: 1 },
   cardTitle: { ...Typography.h4 },
   cardSub: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 2 },
 
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: Radius.full },
-  statusText: { fontSize: 11, fontWeight: '700' },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  statusBadgeMuted: { opacity: 0.5 },
+  statusText: { fontSize: 11, fontWeight: '700', color: Colors.text },
+  statusTextMuted: { color: Colors.textSecondary },
 
   cardMeta: { flexDirection: 'row', gap: Spacing.md },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: 12, color: Colors.textSecondary },
+  metaTextOverdue: { color: Colors.text, fontWeight: '700' },
 
   amountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   amtLabel: { ...Typography.label },
   amtValue: { fontSize: 15, fontWeight: '700', color: Colors.text },
+  amtValueMuted: { color: Colors.textMuted },
+  amtValueBold: { fontWeight: '700' },
 
   countBadge: {
     fontSize: 11,
     color: Colors.textMuted,
-    backgroundColor: Colors.borderLight,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: Radius.full,
@@ -536,50 +533,36 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     alignItems: 'center',
     gap: Spacing.sm,
-    ...Shadow.subtle,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  emptyIcon: { fontSize: 36 },
   emptyText: { ...Typography.body, color: Colors.textMuted },
 
   searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.xs,
     backgroundColor: Colors.background,
   },
   searchInput: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    flex: 1,
     fontSize: 14,
     color: Colors.text,
   },
 
-  tabLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  overdueTabBadge: {
-    backgroundColor: Colors.danger,
-    borderRadius: Radius.full,
-    minWidth: 18,
-    height: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 5,
-  },
-  overdueTabBadgeText: { fontSize: 10, fontWeight: '700', color: '#fff' },
-
-  cardOverdue: {
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.danger,
-  },
   overdueBanner: {
-    backgroundColor: Colors.dangerBg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: Colors.surfaceHover,
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: 5,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  overdueBannerText: { fontSize: 12, fontWeight: '700', color: Colors.danger },
-  metaTextOverdue: { color: Colors.danger, fontWeight: '600' },
+  overdueBannerText: { fontSize: 12, fontWeight: '700', color: Colors.text },
 });

@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Feather } from '@expo/vector-icons';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
 import {
   fetchARSummary,
@@ -23,24 +24,17 @@ import {
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
-import CompanyPicker from '@/components/CompanyPicker';
+import CompanySelector from '@/components/CompanySelector';
 import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 
 type Tab = 'summary' | 'invoices' | 'customers';
 
-const INVOICE_STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
-  PAID:    { bg: Colors.successBg, fg: Colors.success },
-  PARTIAL: { bg: Colors.orangeBg,  fg: Colors.orange },
-  UNPAID:  { bg: Colors.dangerBg,  fg: Colors.danger },
-  OVERDUE: { bg: Colors.dangerBg,  fg: Colors.danger },
-  DRAFT:   { bg: Colors.warningBg, fg: Colors.warning },
-};
+const AGING_FILLS = ['#d1d5db', '#9ca3af', '#6b7280', '#374151', '#111827'];
 
 function daysOverdue(dueDate: string | undefined, status: string | undefined): number {
   if (!dueDate) return 0;
-  const paid = (status ?? '').toUpperCase() === 'PAID';
-  if (paid) return 0;
+  if ((status ?? '').toUpperCase() === 'PAID') return 0;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const due = new Date(dueDate);
@@ -100,9 +94,7 @@ export default function AccountsReceivableScreen() {
       })
     : invoices
   ).slice().sort((a, b) => {
-    const da = daysOverdue(a.due_date, a.status);
-    const db = daysOverdue(b.due_date, b.status);
-    return db - da;
+    return daysOverdue(b.due_date, b.status) - daysOverdue(a.due_date, a.status);
   });
 
   const overdueCount = invoices.filter((inv) => daysOverdue(inv.due_date, inv.status) > 0).length;
@@ -120,11 +112,11 @@ export default function AccountsReceivableScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.header}>
-        <BackButton color={Colors.primary} />
+        <BackButton />
         <Text style={styles.headerTitle}>Accounts Receivable</Text>
       </View>
 
-      <CompanyPicker />
+      <CompanySelector />
 
       <View style={styles.tabBar}>
         {(['summary', 'invoices', 'customers'] as Tab[]).map((t) => (
@@ -155,42 +147,26 @@ export default function AccountsReceivableScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => load(true)}
-            tintColor={Colors.primary}
+            tintColor={Colors.textMuted}
           />
         }
       >
         {activeTab === 'summary' && (
           <>
             <View style={styles.kpiGrid}>
-              <KPICard
-                label="Total Outstanding"
-                value={formatCurrency(summary.total_outstanding ?? 0)}
-                color={Colors.primary}
-              />
-              <KPICard
-                label="Total Overdue"
-                value={formatCurrency(summary.total_overdue ?? 0)}
-                color={Colors.danger}
-              />
-              <KPICard
-                label="Customers"
-                value={String(summary.customers_count ?? customers.length)}
-                color={Colors.success}
-              />
-              <KPICard
-                label="Invoices"
-                value={String(summary.invoices_count ?? invoices.length)}
-                color={Colors.textSecondary}
-              />
+              <KPICard label="Total Outstanding" value={formatCurrency(summary.total_outstanding ?? 0)} />
+              <KPICard label="Total Overdue" value={formatCurrency(summary.total_overdue ?? 0)} />
+              <KPICard label="Customers" value={String(summary.customers_count ?? customers.length)} />
+              <KPICard label="Invoices" value={String(summary.invoices_count ?? invoices.length)} />
             </View>
 
             <SectionHeader title="Aging Analysis" />
             <View style={styles.agingCard}>
-              <AgingBar label="Current" amount={aging.current ?? 0} total={totalAging} color={Colors.success} />
-              <AgingBar label="1–30 days" amount={aging.days_30 ?? 0} total={totalAging} color={Colors.warning} />
-              <AgingBar label="31–60 days" amount={aging.days_60 ?? 0} total={totalAging} color={Colors.orange} />
-              <AgingBar label="61–90 days" amount={aging.days_90 ?? 0} total={totalAging} color={Colors.danger} />
-              <AgingBar label="Over 90 days" amount={aging.over_90 ?? 0} total={totalAging} color={Colors.primaryDark} />
+              <AgingBar label="Current"      amount={aging.current ?? 0} total={totalAging} fill={AGING_FILLS[0]} />
+              <AgingBar label="1–30 days"    amount={aging.days_30 ?? 0} total={totalAging} fill={AGING_FILLS[1]} />
+              <AgingBar label="31–60 days"   amount={aging.days_60 ?? 0} total={totalAging} fill={AGING_FILLS[2]} />
+              <AgingBar label="61–90 days"   amount={aging.days_90 ?? 0} total={totalAging} fill={AGING_FILLS[3]} />
+              <AgingBar label="Over 90 days" amount={aging.over_90 ?? 0} total={totalAging} fill={AGING_FILLS[4]} />
             </View>
 
             {customers.length > 0 && (
@@ -200,9 +176,7 @@ export default function AccountsReceivableScreen() {
                   {customers.slice(0, 5).map((c) => (
                     <View key={c.id} style={styles.miniRow}>
                       <Text style={styles.miniName} numberOfLines={1}>{c.name ?? `Customer ${c.id}`}</Text>
-                      <Text style={[styles.miniAmount, { color: Colors.primary }]}>
-                        {formatCurrency(c.outstanding ?? 0)}
-                      </Text>
+                      <Text style={styles.miniAmount}>{formatCurrency(c.outstanding ?? 0)}</Text>
                     </View>
                   ))}
                 </View>
@@ -214,6 +188,7 @@ export default function AccountsReceivableScreen() {
         {activeTab === 'invoices' && (
           <>
             <View style={styles.searchContainer}>
+              <Feather name="search" size={14} color={Colors.textMuted} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search invoices, customers…"
@@ -221,13 +196,20 @@ export default function AccountsReceivableScreen() {
                 value={invoiceSearch}
                 onChangeText={setInvoiceSearch}
               />
+              {invoiceSearch.length > 0 && (
+                <TouchableOpacity onPress={() => setInvoiceSearch('')}>
+                  <Feather name="x" size={14} color={Colors.textMuted} />
+                </TouchableOpacity>
+              )}
             </View>
             <SectionHeader
               title="Invoices"
-              meta={overdueCount > 0 ? `${filteredInvoices.length} records · ${overdueCount} overdue` : `${filteredInvoices.length} records`}
+              meta={overdueCount > 0
+                ? `${filteredInvoices.length} records · ${overdueCount} overdue`
+                : `${filteredInvoices.length} records`}
             />
             {filteredInvoices.length === 0 ? (
-              <EmptyState icon="🧾" message={invoiceSearch ? 'No invoices match search' : 'No invoices found'} />
+              <EmptyState icon="file-text" message={invoiceSearch ? 'No invoices match search' : 'No invoices found'} />
             ) : (
               <View style={styles.cardList}>
                 {filteredInvoices.map((inv) => (
@@ -241,6 +223,7 @@ export default function AccountsReceivableScreen() {
         {activeTab === 'customers' && (
           <>
             <View style={styles.searchContainer}>
+              <Feather name="search" size={14} color={Colors.textMuted} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search customers…"
@@ -248,10 +231,15 @@ export default function AccountsReceivableScreen() {
                 value={customerSearch}
                 onChangeText={setCustomerSearch}
               />
+              {customerSearch.length > 0 && (
+                <TouchableOpacity onPress={() => setCustomerSearch('')}>
+                  <Feather name="x" size={14} color={Colors.textMuted} />
+                </TouchableOpacity>
+              )}
             </View>
             <SectionHeader title="Customers" meta={`${filteredCustomers.length} records`} />
             {filteredCustomers.length === 0 ? (
-              <EmptyState icon="👥" message={customerSearch ? 'No customers match search' : 'No customers found'} />
+              <EmptyState icon="users" message={customerSearch ? 'No customers match search' : 'No customers found'} />
             ) : (
               <View style={styles.cardList}>
                 {filteredCustomers.map((c) => (
@@ -268,41 +256,43 @@ export default function AccountsReceivableScreen() {
   );
 }
 
-function KPICard({ label, value, color }: { label: string; value: string; color: string }) {
+function KPICard({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.kpiCard}>
-      <Text style={[styles.kpiValue, { color }]}>{value}</Text>
+      <Text style={styles.kpiValue}>{value}</Text>
       <Text style={styles.kpiLabel}>{label}</Text>
     </View>
   );
 }
 
-function AgingBar({ label, amount, total, color }: {
-  label: string; amount: number; total: number; color: string;
+function AgingBar({ label, amount, total, fill }: {
+  label: string; amount: number; total: number; fill: string;
 }) {
   const pct = total > 0 ? Math.min((amount / total) * 100, 100) : 0;
   return (
     <View style={styles.agingRow}>
       <Text style={styles.agingLabel}>{label}</Text>
       <View style={styles.agingBarContainer}>
-        <View style={[styles.agingBarFill, { width: `${pct}%` as any, backgroundColor: color }]} />
+        <View style={[styles.agingBarFill, { width: `${pct}%` as any, backgroundColor: fill }]} />
       </View>
-      <Text style={[styles.agingAmount, { color }]}>{formatCurrency(amount)}</Text>
+      <Text style={styles.agingAmount}>{formatCurrency(amount)}</Text>
     </View>
   );
 }
 
 function InvoiceCard({ invoice: inv, overdueDays }: { invoice: ARInvoice; overdueDays: number }) {
-  const statusKey = (inv.status ?? '').toUpperCase();
-  const colors = INVOICE_STATUS_COLORS[statusKey] ?? { bg: Colors.borderLight, fg: Colors.textSecondary };
   const outstanding = inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0);
   const isOverdue = overdueDays > 0;
+  const isPaid = (inv.status ?? '').toUpperCase() === 'PAID';
 
   return (
-    <View style={[styles.card, isOverdue && styles.cardOverdue]}>
+    <View style={styles.card}>
       {isOverdue && (
         <View style={styles.overdueBanner}>
-          <Text style={styles.overdueBannerText}>⚠ {overdueDays} day{overdueDays !== 1 ? 's' : ''} overdue</Text>
+          <Feather name="alert-circle" size={12} color={Colors.text} />
+          <Text style={styles.overdueBannerText}>
+            {overdueDays} day{overdueDays !== 1 ? 's' : ''} overdue
+          </Text>
         </View>
       )}
       <View style={styles.cardHeader}>
@@ -310,16 +300,24 @@ function InvoiceCard({ invoice: inv, overdueDays }: { invoice: ARInvoice; overdu
           <Text style={styles.cardTitle}>{inv.invoice_number ?? `INV-${inv.id}`}</Text>
           <Text style={styles.cardSub}>{inv.customer ?? 'Unknown Customer'}</Text>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: colors.bg }]}>
-          <Text style={[styles.statusText, { color: colors.fg }]}>{inv.status ?? '—'}</Text>
+        <View style={[styles.statusBadge, isPaid && styles.statusBadgeMuted]}>
+          <Text style={[styles.statusText, isPaid && styles.statusTextMuted]}>{inv.status ?? '—'}</Text>
         </View>
       </View>
       <View style={styles.cardMeta}>
-        {inv.dt && <Text style={styles.metaText}>📅 {formatShortDate(inv.dt)}</Text>}
+        {inv.dt && (
+          <View style={styles.metaItem}>
+            <Feather name="calendar" size={11} color={Colors.textMuted} />
+            <Text style={styles.metaText}>{formatShortDate(inv.dt)}</Text>
+          </View>
+        )}
         {inv.due_date && (
-          <Text style={[styles.metaText, isOverdue && styles.metaTextOverdue]}>
-            ⏰ Due {formatShortDate(inv.due_date)}
-          </Text>
+          <View style={styles.metaItem}>
+            <Feather name="clock" size={11} color={isOverdue ? Colors.text : Colors.textMuted} />
+            <Text style={[styles.metaText, isOverdue && styles.metaTextOverdue]}>
+              Due {formatShortDate(inv.due_date)}
+            </Text>
+          </View>
         )}
       </View>
       <View style={styles.amountRow}>
@@ -329,7 +327,7 @@ function InvoiceCard({ invoice: inv, overdueDays }: { invoice: ARInvoice; overdu
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={styles.amtLabel}>Outstanding</Text>
-          <Text style={[styles.amtValue, { color: outstanding > 0 ? Colors.primary : Colors.success }]}>
+          <Text style={[styles.amtValue, outstanding <= 0 && styles.amtValueMuted]}>
             {formatCurrency(outstanding)}
           </Text>
         </View>
@@ -350,16 +348,12 @@ function CustomerCard({ customer: c }: { customer: ARCustomer }) {
       <View style={styles.amountRow}>
         <View>
           <Text style={styles.amtLabel}>Outstanding</Text>
-          <Text style={[styles.amtValue, { color: Colors.primary }]}>
-            {formatCurrency(c.outstanding ?? 0)}
-          </Text>
+          <Text style={styles.amtValue}>{formatCurrency(c.outstanding ?? 0)}</Text>
         </View>
         {c.overdue != null && c.overdue > 0 && (
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={styles.amtLabel}>Overdue</Text>
-            <Text style={[styles.amtValue, { color: Colors.danger }]}>
-              {formatCurrency(c.overdue)}
-            </Text>
+            <Text style={[styles.amtValue, styles.amtValueBold]}>{formatCurrency(c.overdue)}</Text>
           </View>
         )}
       </View>
@@ -370,7 +364,7 @@ function CustomerCard({ customer: c }: { customer: ARCustomer }) {
 function EmptyState({ icon, message }: { icon: string; message: string }) {
   return (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyIcon}>{icon}</Text>
+      <Feather name={icon as any} size={32} color={Colors.textMuted} />
       <Text style={styles.emptyText}>{message}</Text>
     </View>
   );
@@ -383,18 +377,18 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 4,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  headerTitle: { ...Typography.h2 },
+  headerTitle: { ...Typography.h2, flex: 1 },
 
   tabBar: {
     flexDirection: 'row',
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
   tab: {
@@ -404,9 +398,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabActive: { borderBottomColor: Colors.primary },
+  tabActive: { borderBottomColor: Colors.text },
   tabText: { fontSize: 13, fontWeight: '500', color: Colors.textSecondary },
-  tabTextActive: { color: Colors.primary, fontWeight: '700' },
+  tabTextActive: { color: Colors.text, fontWeight: '700' },
+  tabLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  overdueTabBadge: {
+    borderRadius: Radius.full,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+    backgroundColor: Colors.text,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.text,
+  },
+  overdueTabBadgeText: { fontSize: 10, fontWeight: '700', color: '#fff' },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },
@@ -425,9 +432,10 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.md,
     gap: 4,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  kpiValue: { fontSize: 18, fontWeight: '700' },
+  kpiValue: { fontSize: 18, fontWeight: '700', color: Colors.text },
   kpiLabel: { ...Typography.bodySmall, color: Colors.textSecondary },
 
   agingCard: {
@@ -436,37 +444,39 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.md,
     gap: Spacing.sm,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
   agingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   agingLabel: { fontSize: 12, color: Colors.textSecondary, width: 90 },
   agingBarContainer: {
     flex: 1,
-    height: 6,
+    height: 4,
     backgroundColor: Colors.borderLight,
     borderRadius: Radius.full,
     overflow: 'hidden',
   },
   agingBarFill: { height: '100%', borderRadius: Radius.full },
-  agingAmount: { fontSize: 12, fontWeight: '600', minWidth: 80, textAlign: 'right' },
+  agingAmount: { fontSize: 12, fontWeight: '600', color: Colors.text, minWidth: 80, textAlign: 'right' },
 
   miniList: {
     marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     overflow: 'hidden',
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
   miniRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: Spacing.md,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.borderLight,
   },
   miniName: { flex: 1, ...Typography.body },
-  miniAmount: { fontSize: 14, fontWeight: '700' },
+  miniAmount: { fontSize: 14, fontWeight: '700', color: Colors.text },
 
   cardList: { marginHorizontal: Spacing.md, gap: Spacing.sm },
 
@@ -475,47 +485,44 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.md,
     gap: Spacing.sm,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   cardInfo: { flex: 1 },
   cardTitle: { ...Typography.h4 },
   cardSub: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 2 },
 
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: Radius.full },
-  statusText: { fontSize: 11, fontWeight: '700' },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  statusBadgeMuted: { opacity: 0.5 },
+  statusText: { fontSize: 11, fontWeight: '700', color: Colors.text },
+  statusTextMuted: { color: Colors.textSecondary },
 
   cardMeta: { flexDirection: 'row', gap: Spacing.md },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: 12, color: Colors.textSecondary },
+  metaTextOverdue: { color: Colors.text, fontWeight: '700' },
 
   amountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   amtLabel: { ...Typography.label },
   amtValue: { fontSize: 15, fontWeight: '700', color: Colors.text },
+  amtValueMuted: { color: Colors.textMuted },
+  amtValueBold: { fontWeight: '700' },
 
   countBadge: {
     fontSize: 11,
     color: Colors.textMuted,
-    backgroundColor: Colors.borderLight,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: Radius.full,
-  },
-
-  searchContainer: {
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.xs,
-    backgroundColor: Colors.background,
-  },
-  searchInput: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    fontSize: 14,
-    color: Colors.text,
   },
 
   emptyState: {
@@ -525,32 +532,36 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     alignItems: 'center',
     gap: Spacing.sm,
-    ...Shadow.subtle,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  emptyIcon: { fontSize: 36 },
   emptyText: { ...Typography.body, color: Colors.textMuted },
 
-  tabLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  overdueTabBadge: {
-    backgroundColor: Colors.danger,
-    borderRadius: Radius.full,
-    minWidth: 18,
-    height: 18,
+  searchContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 5,
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xs,
+    backgroundColor: Colors.background,
   },
-  overdueTabBadgeText: { fontSize: 10, fontWeight: '700', color: '#fff' },
-  cardOverdue: {
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.danger,
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
   },
+
   overdueBanner: {
-    backgroundColor: Colors.dangerBg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: Colors.surfaceHover,
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: 5,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
-  overdueBannerText: { fontSize: 12, fontWeight: '700', color: Colors.danger },
-  metaTextOverdue: { color: Colors.danger, fontWeight: '600' },
+  overdueBannerText: { fontSize: 12, fontWeight: '700', color: Colors.text },
 });
