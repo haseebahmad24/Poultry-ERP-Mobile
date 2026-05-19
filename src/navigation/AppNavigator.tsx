@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigatorScreenParams } from '@react-navigation/native';
-import { Text } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import DashboardScreen from '@/screens/dashboard/DashboardScreen';
 import InventoryNavigator from '@/navigation/InventoryNavigator';
 import MoreNavigator from '@/navigation/MoreNavigator';
@@ -20,33 +20,35 @@ export type AppTabParamList = {
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 
+const TAB_ICONS: Record<string, string> = {
+  Dashboard: 'home',
+  Inventory: 'box',
+  Finance: 'dollar-sign',
+  More: 'menu',
+};
+
 export default function AppNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: Colors.primary,
+        tabBarActiveTintColor: Colors.text,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: {
+          borderTopWidth: 1,
           borderTopColor: Colors.border,
           backgroundColor: Colors.surface,
-          elevation: 8,
-          shadowColor: '#000',
-          shadowOpacity: 0.06,
-          shadowRadius: 8,
+          elevation: 0,
+          shadowOpacity: 0,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
-        tabBarIcon: ({ size }) => {
-          const icons: Record<string, string> = {
-            Dashboard: '📊',
-            Inventory: '🏭',
-            Finance: '💰',
-            More: '⋯',
-          };
-          return (
-            <Text style={{ fontSize: size - 4 }}>{icons[route.name] ?? '•'}</Text>
-          );
-        },
+        tabBarIcon: ({ color, size }) => (
+          <Feather
+            name={(TAB_ICONS[route.name] ?? 'circle') as any}
+            size={size - 2}
+            color={color}
+          />
+        ),
       })}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />

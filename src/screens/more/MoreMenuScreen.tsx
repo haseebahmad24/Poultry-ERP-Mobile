@@ -8,10 +8,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
 import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
@@ -26,25 +27,25 @@ const OPERATIONS_ITEMS: {
   screen: keyof MoreStackParamList;
 }[] = [
   {
-    icon: '🔬',
+    icon: 'layers',
     label: 'Materials',
     subtitle: 'Material master list with types and status',
     screen: 'Materials',
   },
   {
-    icon: '🛒',
+    icon: 'shopping-cart',
     label: 'Purchase Orders',
     subtitle: 'PO list with status and receipt progress',
     screen: 'PurchaseOrders',
   },
   {
-    icon: '📦',
+    icon: 'package',
     label: 'Sales Orders',
     subtitle: 'Sales order list and details',
     screen: 'SalesOrders',
   },
   {
-    icon: '🚚',
+    icon: 'truck',
     label: 'Goods Receipt',
     subtitle: 'PO receipt progress and GRN details',
     screen: 'GRN',
@@ -58,31 +59,31 @@ const FINANCE_ITEMS: {
   screen: keyof FinanceStackParamList;
 }[] = [
   {
-    icon: '💸',
+    icon: 'credit-card',
     label: 'Accounts Payable',
     subtitle: 'Vendor bills, aging analysis, and balances',
     screen: 'AccountsPayable',
   },
   {
-    icon: '💰',
+    icon: 'dollar-sign',
     label: 'Accounts Receivable',
     subtitle: 'Customer invoices, aging analysis, and balances',
     screen: 'AccountsReceivable',
   },
   {
-    icon: '📒',
+    icon: 'book-open',
     label: 'Journal Entries',
     subtitle: 'Voucher list filtered by type or account',
     screen: 'JournalEntries',
   },
   {
-    icon: '⚖️',
+    icon: 'bar-chart-2',
     label: 'Trial Balance',
     subtitle: 'Account balances as of selected date',
     screen: 'TrialBalance',
   },
   {
-    icon: '📊',
+    icon: 'pie-chart',
     label: 'Financial Reports',
     subtitle: 'P&L and Balance Sheet',
     screen: 'FinancialReports',
@@ -96,18 +97,49 @@ const ADMIN_ITEMS: {
   screen: keyof MoreStackParamList;
 }[] = [
   {
-    icon: '🤝',
+    icon: 'users',
     label: 'Business Partners',
     subtitle: 'Customers and vendors with role badges',
     screen: 'Partners',
   },
   {
-    icon: '🏢',
+    icon: 'briefcase',
     label: 'Companies',
     subtitle: 'Company profiles and fiscal settings',
     screen: 'Companies',
   },
 ];
+
+function MenuRow({
+  icon,
+  label,
+  subtitle,
+  onPress,
+  hasBorder,
+}: {
+  icon: string;
+  label: string;
+  subtitle: string;
+  onPress: () => void;
+  hasBorder: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.menuItem, hasBorder && styles.menuItemBorder]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={styles.menuIconWrap}>
+        <Feather name={icon as any} size={18} color={Colors.text} />
+      </View>
+      <View style={styles.menuInfo}>
+        <Text style={styles.menuLabel}>{label}</Text>
+        <Text style={styles.menuSubtitle}>{subtitle}</Text>
+      </View>
+      <Feather name="chevron-right" size={16} color={Colors.textMuted} />
+    </TouchableOpacity>
+  );
+}
 
 export default function MoreMenuScreen() {
   const moreNav = useNavigation<MoreNav>();
@@ -127,65 +159,45 @@ export default function MoreMenuScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Operations */}
         <Text style={styles.sectionTitle}>OPERATIONS</Text>
         <View style={styles.sectionCard}>
           {OPERATIONS_ITEMS.map((item, idx) => (
-            <TouchableOpacity
+            <MenuRow
               key={item.label}
-              style={[styles.menuItem, idx < OPERATIONS_ITEMS.length - 1 && styles.menuItemBorder]}
+              icon={item.icon}
+              label={item.label}
+              subtitle={item.subtitle}
               onPress={() => moreNav.navigate(item.screen as any)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.menuIcon}>{item.icon}</Text>
-              <View style={styles.menuInfo}>
-                <Text style={styles.menuLabel}>{item.label}</Text>
-                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
-              </View>
-              <Text style={styles.menuChevron}>›</Text>
-            </TouchableOpacity>
+              hasBorder={idx < OPERATIONS_ITEMS.length - 1}
+            />
           ))}
         </View>
 
-        {/* Finance — navigates into Finance tab stack */}
         <Text style={styles.sectionTitle}>FINANCE</Text>
         <View style={styles.sectionCard}>
           {FINANCE_ITEMS.map((item, idx) => (
-            <TouchableOpacity
+            <MenuRow
               key={item.label}
-              style={[styles.menuItem, idx < FINANCE_ITEMS.length - 1 && styles.menuItemBorder]}
-              onPress={() =>
-                tabNav?.navigate('Finance', { screen: item.screen })
-              }
-              activeOpacity={0.7}
-            >
-              <Text style={styles.menuIcon}>{item.icon}</Text>
-              <View style={styles.menuInfo}>
-                <Text style={styles.menuLabel}>{item.label}</Text>
-                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
-              </View>
-              <Text style={styles.menuChevron}>›</Text>
-            </TouchableOpacity>
+              icon={item.icon}
+              label={item.label}
+              subtitle={item.subtitle}
+              onPress={() => tabNav?.navigate('Finance', { screen: item.screen })}
+              hasBorder={idx < FINANCE_ITEMS.length - 1}
+            />
           ))}
         </View>
 
-        {/* Admin */}
         <Text style={styles.sectionTitle}>ADMIN</Text>
         <View style={styles.sectionCard}>
           {ADMIN_ITEMS.map((item, idx) => (
-            <TouchableOpacity
+            <MenuRow
               key={item.label}
-              style={[styles.menuItem, idx < ADMIN_ITEMS.length - 1 && styles.menuItemBorder]}
+              icon={item.icon}
+              label={item.label}
+              subtitle={item.subtitle}
               onPress={() => moreNav.navigate(item.screen as any)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.menuIcon}>{item.icon}</Text>
-              <View style={styles.menuInfo}>
-                <Text style={styles.menuLabel}>{item.label}</Text>
-                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
-              </View>
-              <Text style={styles.menuChevron}>›</Text>
-            </TouchableOpacity>
+              hasBorder={idx < ADMIN_ITEMS.length - 1}
+            />
           ))}
         </View>
 
@@ -202,7 +214,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 4,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -224,7 +236,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     overflow: 'hidden',
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     marginBottom: Spacing.xs,
   },
 
@@ -235,13 +248,20 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   menuItemBorder: {
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.borderLight,
   },
-
-  menuIcon: { fontSize: 24 },
+  menuIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface,
+  },
   menuInfo: { flex: 1 },
   menuLabel: { ...Typography.h4 },
   menuSubtitle: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
-  menuChevron: { fontSize: 20, color: Colors.textMuted },
 });

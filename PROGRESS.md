@@ -309,3 +309,7 @@ All primary roadmap items are complete. Remaining polish options:
 | 2026-05-19 | `src/components/CompanySelector.tsx` (new) | Built shared monochrome company selector: compact pill trigger with Feather chevron-down, opens bottom-sheet modal with bold active / gray inactive company list. |
 | 2026-05-19 | `src/screens/dashboard/DashboardScreen.tsx` | Full monochrome polish: white top bar replacing blue, Feather icons (book-open/shopping-cart/package/truck/bar-chart-2/box) replacing all emojis, hairline borders replacing shadows on all cards, voucher type chips now outline-only, KPI values all black, status differentiated by weight not color. Migrated CompanyPicker → CompanySelector. |
 | 2026-05-19 | `src/components/KPICard.tsx` | Replaced Shadow.card with hairline border. |
+| 2026-05-19 | `src/components/ErrorView.tsx` | Replaced ⚠️ emoji with Feather alert-circle; button is now outline-style instead of colored fill. |
+| 2026-05-19 | `src/navigation/AppNavigator.tsx` | Replaced emoji tab bar icons with Feather (home/box/dollar-sign/menu); dropped tab bar shadow; active tint = black, inactive = gray. |
+| 2026-05-19 | `src/screens/more/MoreMenuScreen.tsx` | All emojis → Feather icons; Shadow.card → hairline border; `›` chevron → Feather chevron-right; icon wrapped in bordered square. |
+| 2026-05-19 | `src/screens/financeMenu/FinanceMenuScreen.tsx` | Same as MoreMenuScreen: Feather icons, hairline borders, lock icon replaces 🔒. |

@@ -8,9 +8,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Feather } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { FinanceStackParamList } from '@/navigation/FinanceNavigator';
 
 type Nav = NativeStackNavigationProp<FinanceStackParamList, 'FinanceMenu'>;
@@ -25,35 +26,35 @@ interface MenuItem {
 
 const MENU_ITEMS: MenuItem[] = [
   {
-    icon: '💸',
+    icon: 'credit-card',
     label: 'Accounts Payable',
     subtitle: 'Vendor bills, aging analysis, and balances',
     screen: 'AccountsPayable',
     available: true,
   },
   {
-    icon: '💰',
+    icon: 'dollar-sign',
     label: 'Accounts Receivable',
     subtitle: 'Customer invoices, aging analysis, and balances',
     screen: 'AccountsReceivable',
     available: true,
   },
   {
-    icon: '📒',
+    icon: 'book-open',
     label: 'Journal Entries',
     subtitle: 'Voucher list filtered by type or account',
     screen: 'JournalEntries',
     available: true,
   },
   {
-    icon: '⚖️',
+    icon: 'bar-chart-2',
     label: 'Trial Balance',
     subtitle: 'Account balances as of selected date',
     screen: 'TrialBalance',
     available: true,
   },
   {
-    icon: '📊',
+    icon: 'pie-chart',
     label: 'Financial Reports',
     subtitle: 'P&L and Balance Sheet computed from trial balance',
     screen: 'FinancialReports',
@@ -94,14 +95,24 @@ export default function FinanceMenuScreen() {
               }}
               activeOpacity={item.available ? 0.7 : 1}
             >
-              <Text style={styles.menuIcon}>{item.icon}</Text>
+              <View style={styles.menuIconWrap}>
+                <Feather
+                  name={item.icon as any}
+                  size={18}
+                  color={item.available ? Colors.text : Colors.textMuted}
+                />
+              </View>
               <View style={styles.menuInfo}>
                 <Text style={[styles.menuLabel, !item.available && styles.menuLabelDisabled]}>
                   {item.label}
                 </Text>
                 <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
               </View>
-              <Text style={styles.menuChevron}>{item.available ? '›' : '🔒'}</Text>
+              {item.available ? (
+                <Feather name="chevron-right" size={16} color={Colors.textMuted} />
+              ) : (
+                <Feather name="lock" size={14} color={Colors.textMuted} />
+              )}
             </TouchableOpacity>
           ))}
         </View>
@@ -119,7 +130,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 4,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -135,7 +146,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     overflow: 'hidden',
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
 
   menuItem: {
@@ -144,13 +156,23 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     gap: Spacing.md,
   },
-  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
-  menuItemDisabled: { opacity: 0.5 },
-
-  menuIcon: { fontSize: 24 },
+  menuItemBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  menuItemDisabled: { opacity: 0.45 },
+  menuIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface,
+  },
   menuInfo: { flex: 1 },
   menuLabel: { ...Typography.h4 },
   menuLabelDisabled: { color: Colors.textSecondary },
   menuSubtitle: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
-  menuChevron: { fontSize: 20, color: Colors.textMuted },
 });
