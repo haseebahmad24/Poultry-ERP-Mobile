@@ -13,7 +13,6 @@
     "@react-navigation/bottom-tabs": "^6.6.1",
     "@react-navigation/native": "^6.1.18",
     "@react-navigation/native-stack": "^6.11.0",
-    "docx": "^9.6.1",
     "expo": "~51.0.0",
     "expo-secure-store": "~13.0.2",
     "expo-status-bar": "~1.12.1",
@@ -26,6 +25,7 @@
     "@babel/core": "^7.25.2",
     "@types/react": "~18.2.79",
     "babel-plugin-module-resolver": "^5.0.2",
+    "docx": "^9.6.1",
     "typescript": "^5.3.3"
   },
   "private": true

@@ -1,5 +1,36 @@
 # Mobile App Progress
 
+## Session 8 — 2026-05-20
+
+### Completed This Session
+
+**Settings Screen** (`src/screens/settings/SettingsScreen.tsx`)
+- New screen accessible from MoreMenu → Admin section → Settings
+- **Low-stock threshold**: text input to configure the qty below which items are flagged as "low stock" on Inventory screen; stored in AsyncStorage via `src/utils/settings.ts`; default 100 units
+- **Clear cached data**: destructive action with confirmation alert; calls `clearCache()` to wipe all `cache:*` AsyncStorage keys; shows "Cache cleared" feedback for 2s
+- **About** section: app name + version
+- `SettingsScreen` added to `MoreNavigator` and `MoreMenuScreen` admin section
+
+**Partner Detail Screen** (`src/screens/partners/PartnerDetailScreen.tsx`)
+- `PartnersScreen` cards are now tappable — chevron-right affordance, navigates to `PartnerDetailScreen`
+- `PartnerDetailScreen` receives `partnerId`, `partnerName`, `isVendor`, `isCustomer` params
+- Fetches all POs (`fetchPurchaseOrders('all')`) and filters client-side by `vendor_id` / vendor name; same for SOs
+- Summary tiles: Total POs value + count / Total SOs value + count
+- Dual-role tab bar (POs | SOs) shown only when partner has both roles
+- PO cards navigate to `PurchaseOrderDetail`; SO cards navigate to `SalesOrderDetail`
+- Pull-to-refresh, loading state, empty states per section
+
+**Offline Caching extended**
+- `PurchaseOrdersScreen`: caches per tab key (`purchase-orders:all/open/progress`, 24h TTL); shows `OfflineBanner` on stale+error
+- `SalesOrdersScreen`: caches per tab+company combo; shows `OfflineBanner` on stale+error
+- `PartnersScreen`: caches per company (`partners:all/companyId`); shows `OfflineBanner` on stale+error
+
+**Low-stock threshold wired end-to-end**
+- `src/utils/settings.ts`: `getLowStockThreshold()` / `setLowStockThreshold()` via AsyncStorage key `setting:lowStockThreshold`
+- `InventoryScreen`: replaced hardcoded `LOW_STOCK_THRESHOLD = 100` with state loaded from `getLowStockThreshold()` on mount; threshold now respects user setting in real time
+
+---
+
 ## Session 7 — 2026-05-20
 
 ### Completed This Session
@@ -286,14 +317,15 @@
 
 ---
 
-## What's Next (Session 8)
+## What's Next (Session 9)
 
-All primary roadmap items are complete. Remaining polish options:
+All primary roadmap items + session 8 polish are complete. Remaining options:
 
-1. **Low-stock threshold setting** — Let user configure the low-stock qty threshold (store in AsyncStorage)
-2. **Extend offline caching further** — Add caching to Partners, PO list, SO list screens
-3. **Notifications** — Local push notifications for overdue AP/AR items
-4. **Partners detail** — Tap a partner row to see their purchase/sales order history
+1. **Notifications** — Local push notifications for overdue AP/AR items (requires expo-notifications install)
+2. **Deep link navigation** — Universal links / custom URL scheme for sharing screen URLs
+3. **GRN caching** — Add offline cache to GRN screen
+4. **Companies caching** — Add offline cache to Companies screen
+5. **PO Detail caching** — Cache individual PO detail pages
 
 ---
 
@@ -304,12 +336,12 @@ All primary roadmap items are complete. Remaining polish options:
 | Login (user selector) | ✅ Done |
 | Dashboard / Home | ✅ Done |
 | Inventory (Stock + Ledger + Warehouses tabs) | ✅ Done |
-| Inventory Low-Stock Filter | ✅ Done |
+| Inventory Low-Stock Filter (configurable threshold) | ✅ Done |
 | Inventory Ledger Date Filter | ✅ Done |
 | Inventory Item Detail (tap stock row → item ledger) | ✅ Done |
 | Materials (with offline cache) | ✅ Done |
-| Purchase Orders + Detail | ✅ Done |
-| Sales Orders + Detail | ✅ Done |
+| Purchase Orders + Detail (with offline cache) | ✅ Done |
+| Sales Orders + Detail (with offline cache) | ✅ Done |
 | GRN (with PO detail nav) | ✅ Done |
 | Accounts Payable (with search + overdue alerts + offline cache) | ✅ Done |
 | Vendor Detail (tap vendor → bill history) | ✅ Done |
@@ -318,8 +350,10 @@ All primary roadmap items are complete. Remaining polish options:
 | Journal Entries (with date filter + presets + Export) | ✅ Done |
 | Trial Balance (with Export) | ✅ Done |
 | Financial Reports (P&L, BS, with Export) | ✅ Done |
-| Business Partners | ✅ Done |
+| Business Partners (with offline cache + tappable) | ✅ Done |
+| Partner Detail (tap partner → PO/SO history) | ✅ Done |
 | Companies | ✅ Done |
+| Settings (low-stock threshold + cache management) | ✅ Done |
 | Dashboard Quick Actions wired | ✅ Done |
 | Global Company Filter (all screens) | ✅ Done |
 | Pull-to-refresh (all screens) | ✅ Done |
@@ -329,7 +363,7 @@ All primary roadmap items are complete. Remaining polish options:
 | Back buttons (all non-root screens) | ✅ Done |
 | Search (PO, SO, AP, AR) | ✅ Done |
 | Date range filter + presets (JE) | ✅ Done |
-| Offline caching (Dashboard, Inventory, AP, AR, Materials) | ✅ Done |
+| Offline caching (Dashboard, Inventory, AP, AR, Materials, PO, SO, Partners) | ✅ Done |
 | OfflineBanner component | ✅ Done |
 
 ---
