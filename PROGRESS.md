@@ -1,5 +1,36 @@
 # Mobile App Progress
 
+## Session 7 — 2026-05-20
+
+### Completed This Session
+
+**Vendor Detail Screen** (`src/screens/finance/VendorDetailScreen.tsx`)
+- Tappable vendor cards and top-vendor mini-list rows in `AccountsPayableScreen` → navigate to `VendorDetailScreen`
+- Chevron-right affordance on all tappable vendor rows
+- `VendorDetailScreen`: shows full bill history for a single vendor
+  - Header: vendor name + "Vendor · Accounts Payable" subtitle
+  - Summary tiles: Outstanding, Overdue (highlighted when > 0), Total Billed, Bill count
+  - Bill list sorted overdue-first; each overdue bill has alert banner with days count
+  - Search bar to filter by bill number or status
+  - Pull-to-refresh, loading and empty states
+
+**Customer Detail Screen** (`src/screens/finance/CustomerDetailScreen.tsx`)
+- Tappable customer cards and top-customer mini-list rows in `AccountsReceivableScreen` → navigate to `CustomerDetailScreen`
+- `CustomerDetailScreen`: same pattern as Vendor Detail but for AR invoices
+  - Summary tiles: Outstanding, Overdue, Total Billed, Invoice count
+  - Invoice list sorted overdue-first with overdue alert banners
+  - Search by invoice number or status, pull-to-refresh
+
+**FinanceNavigator updates**
+- Added `VendorDetail` and `CustomerDetail` routes with typed params (`vendorId`, `vendorName`, `outstanding`, `overdue`)
+
+**Extended Offline Caching**
+- `AccountsPayableScreen`: caches summary/bills/vendors bundle per company (24h TTL); OfflineBanner on stale+error
+- `AccountsReceivableScreen`: caches summary/invoices/customers bundle per company
+- `MaterialsScreen`: caches materials+types per company+typeFilter combo
+
+---
+
 ## Session 6 — 2026-05-19
 
 ### Completed This Session
@@ -255,14 +286,14 @@
 
 ---
 
-## What's Next (Session 7)
+## What's Next (Session 8)
 
 All primary roadmap items are complete. Remaining polish options:
 
 1. **Low-stock threshold setting** — Let user configure the low-stock qty threshold (store in AsyncStorage)
-2. **Extend offline caching** — Add caching to AP, AR, Materials, Partners, PO list screens
+2. **Extend offline caching further** — Add caching to Partners, PO list, SO list screens
 3. **Notifications** — Local push notifications for overdue AP/AR items
-4. **AP/AR vendor/customer detail** — Tap a vendor/customer row to see their full bill/invoice history
+4. **Partners detail** — Tap a partner row to see their purchase/sales order history
 
 ---
 
@@ -276,12 +307,14 @@ All primary roadmap items are complete. Remaining polish options:
 | Inventory Low-Stock Filter | ✅ Done |
 | Inventory Ledger Date Filter | ✅ Done |
 | Inventory Item Detail (tap stock row → item ledger) | ✅ Done |
-| Materials | ✅ Done |
+| Materials (with offline cache) | ✅ Done |
 | Purchase Orders + Detail | ✅ Done |
 | Sales Orders + Detail | ✅ Done |
 | GRN (with PO detail nav) | ✅ Done |
-| Accounts Payable (with search + overdue alerts) | ✅ Done |
-| Accounts Receivable (with search + overdue alerts) | ✅ Done |
+| Accounts Payable (with search + overdue alerts + offline cache) | ✅ Done |
+| Vendor Detail (tap vendor → bill history) | ✅ Done |
+| Accounts Receivable (with search + overdue alerts + offline cache) | ✅ Done |
+| Customer Detail (tap customer → invoice history) | ✅ Done |
 | Journal Entries (with date filter + presets + Export) | ✅ Done |
 | Trial Balance (with Export) | ✅ Done |
 | Financial Reports (P&L, BS, with Export) | ✅ Done |
@@ -296,7 +329,7 @@ All primary roadmap items are complete. Remaining polish options:
 | Back buttons (all non-root screens) | ✅ Done |
 | Search (PO, SO, AP, AR) | ✅ Done |
 | Date range filter + presets (JE) | ✅ Done |
-| Offline caching (Dashboard + Inventory stock) | ✅ Done |
+| Offline caching (Dashboard, Inventory, AP, AR, Materials) | ✅ Done |
 | OfflineBanner component | ✅ Done |
 
 ---
