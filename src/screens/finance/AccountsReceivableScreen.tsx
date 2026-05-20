@@ -11,6 +11,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { FinanceStackParamList } from '@/navigation/FinanceNavigator';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
 import {
@@ -27,6 +30,10 @@ import SectionHeader from '@/components/SectionHeader';
 import CompanySelector from '@/components/CompanySelector';
 import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
+import { getCached, setCached } from '@/utils/cache';
+import OfflineBanner from '@/components/OfflineBanner';
+
+type ARNavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
 type Tab = 'summary' | 'invoices' | 'customers';
 
@@ -45,6 +52,7 @@ function daysOverdue(dueDate: string | undefined, status: string | undefined): n
 
 export default function AccountsReceivableScreen() {
   const { companyId } = useCompany();
+  const navigation = useNavigation<ARNavProp>();
   const [activeTab, setActiveTab] = useState<Tab>('summary');
   const [summary, setSummary] = useState<ARSummary>({});
   const [invoices, setInvoices] = useState<ARInvoice[]>([]);
@@ -52,10 +60,24 @@ export default function AccountsReceivableScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
   const [invoiceSearch, setInvoiceSearch] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
 
+  const cacheKey = `ar:${companyId ?? 'all'}`;
+
   const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) {
+      const cached = await getCached<{ summary: ARSummary; invoices: ARInvoice[]; customers: ARCustomer[] }>(cacheKey);
+      if (cached) {
+        setSummary(cached.data.summary);
+        setInvoices(cached.data.invoices);
+        setCustomers(cached.data.customers);
+        setStale(cached.stale);
+        setLoading(false);
+        if (!cached.stale) return;
+      }
+    }
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
@@ -68,13 +90,15 @@ export default function AccountsReceivableScreen() {
       setSummary(sum);
       setInvoices(invs);
       setCustomers(custs);
+      setStale(false);
+      await setCached(cacheKey, { summary: sum, invoices: invs, customers: custs });
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [companyId]);
+  }, [companyId, cacheKey]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -139,6 +163,8 @@ export default function AccountsReceivableScreen() {
         ))}
       </View>
 
+      {stale && error && <OfflineBanner />}
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -174,10 +200,22 @@ export default function AccountsReceivableScreen() {
                 <SectionHeader title="Top Customers" meta="By outstanding" />
                 <View style={styles.miniList}>
                   {customers.slice(0, 5).map((c) => (
-                    <View key={c.id} style={styles.miniRow}>
+                    <TouchableOpacity
+                      key={c.id}
+                      style={styles.miniRow}
+                      onPress={() => navigation.navigate('CustomerDetail', {
+                        customerId: c.id,
+                        customerName: c.name ?? `Customer ${c.id}`,
+                        outstanding: c.outstanding,
+                        overdue: c.overdue,
+                      })}
+                    >
                       <Text style={styles.miniName} numberOfLines={1}>{c.name ?? `Customer ${c.id}`}</Text>
-                      <Text style={styles.miniAmount}>{formatCurrency(c.outstanding ?? 0)}</Text>
-                    </View>
+                      <View style={styles.miniRowRight}>
+                        <Text style={styles.miniAmount}>{formatCurrency(c.outstanding ?? 0)}</Text>
+                        <Feather name="chevron-right" size={14} color={Colors.textMuted} />
+                      </View>
+                    </TouchableOpacity>
                   ))}
                 </View>
               </>
@@ -243,7 +281,16 @@ export default function AccountsReceivableScreen() {
             ) : (
               <View style={styles.cardList}>
                 {filteredCustomers.map((c) => (
-                  <CustomerCard key={c.id} customer={c} />
+                  <CustomerCard
+                    key={c.id}
+                    customer={c}
+                    onPress={() => navigation.navigate('CustomerDetail', {
+                      customerId: c.id,
+                      customerName: c.name ?? `Customer ${c.id}`,
+                      outstanding: c.outstanding,
+                      overdue: c.overdue,
+                    })}
+                  />
                 ))}
               </View>
             )}
@@ -336,14 +383,15 @@ function InvoiceCard({ invoice: inv, overdueDays }: { invoice: ARInvoice; overdu
   );
 }
 
-function CustomerCard({ customer: c }: { customer: ARCustomer }) {
+function CustomerCard({ customer: c, onPress }: { customer: ARCustomer; onPress?: () => void }) {
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.cardHeader}>
         <Text style={[styles.cardTitle, { flex: 1 }]}>{c.name ?? `Customer ${c.id}`}</Text>
         {c.invoices_count != null && (
           <Text style={styles.countBadge}>{c.invoices_count} invoices</Text>
         )}
+        <Feather name="chevron-right" size={16} color={Colors.textMuted} />
       </View>
       <View style={styles.amountRow}>
         <View>
@@ -357,7 +405,7 @@ function CustomerCard({ customer: c }: { customer: ARCustomer }) {
           </View>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -476,6 +524,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.borderLight,
   },
   miniName: { flex: 1, ...Typography.body },
+  miniRowRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   miniAmount: { fontSize: 14, fontWeight: '700', color: Colors.text },
 
   cardList: { marginHorizontal: Spacing.md, gap: Spacing.sm },

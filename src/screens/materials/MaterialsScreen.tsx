@@ -18,7 +18,9 @@ import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import CompanySelector from '@/components/CompanySelector';
 import BackButton from '@/components/BackButton';
+import OfflineBanner from '@/components/OfflineBanner';
 import { useCompany } from '@/context/CompanyContext';
+import { getCached, setCached } from '@/utils/cache';
 
 export default function MaterialsScreen() {
   const { companyId } = useCompany();
@@ -27,10 +29,23 @@ export default function MaterialsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState<number | null>(null);
 
+  const cacheKey = `materials:${companyId ?? 'all'}:${selectedType ?? 'all'}`;
+
   const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) {
+      const cached = await getCached<{ materials: Material[]; types: MaterialType[] }>(cacheKey);
+      if (cached) {
+        setMaterials(cached.data.materials);
+        setTypes(cached.data.types);
+        setStale(cached.stale);
+        setLoading(false);
+        if (!cached.stale) return;
+      }
+    }
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
@@ -41,13 +56,15 @@ export default function MaterialsScreen() {
       ]);
       setMaterials(mats);
       setTypes(typs);
+      setStale(false);
+      await setCached(cacheKey, { materials: mats, types: typs });
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedType, companyId]);
+  }, [selectedType, companyId, cacheKey]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -76,6 +93,8 @@ export default function MaterialsScreen() {
       </View>
 
       <CompanySelector showAll />
+
+      {stale && error && <OfflineBanner />}
 
       <View style={styles.searchContainer}>
         <View style={styles.searchRow}>

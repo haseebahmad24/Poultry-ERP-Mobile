@@ -11,6 +11,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { FinanceStackParamList } from '@/navigation/FinanceNavigator';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
 import {
@@ -27,6 +30,10 @@ import SectionHeader from '@/components/SectionHeader';
 import CompanySelector from '@/components/CompanySelector';
 import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
+import { getCached, setCached } from '@/utils/cache';
+import OfflineBanner from '@/components/OfflineBanner';
+
+type APNavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
 type Tab = 'summary' | 'bills' | 'vendors';
 
@@ -46,6 +53,7 @@ function daysOverdue(dueDate: string | undefined, status: string | undefined): n
 
 export default function AccountsPayableScreen() {
   const { companyId } = useCompany();
+  const navigation = useNavigation<APNavProp>();
   const [activeTab, setActiveTab] = useState<Tab>('summary');
   const [summary, setSummary] = useState<APSummary>({});
   const [bills, setBills] = useState<APBill[]>([]);
@@ -53,10 +61,24 @@ export default function AccountsPayableScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
   const [billSearch, setBillSearch] = useState('');
   const [vendorSearch, setVendorSearch] = useState('');
 
+  const cacheKey = `ap:${companyId ?? 'all'}`;
+
   const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) {
+      const cached = await getCached<{ summary: APSummary; bills: APBill[]; vendors: APVendor[] }>(cacheKey);
+      if (cached) {
+        setSummary(cached.data.summary);
+        setBills(cached.data.bills);
+        setVendors(cached.data.vendors);
+        setStale(cached.stale);
+        setLoading(false);
+        if (!cached.stale) return;
+      }
+    }
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
@@ -69,13 +91,15 @@ export default function AccountsPayableScreen() {
       setSummary(sum);
       setBills(bls);
       setVendors(vend);
+      setStale(false);
+      await setCached(cacheKey, { summary: sum, bills: bls, vendors: vend });
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [companyId]);
+  }, [companyId, cacheKey]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -140,6 +164,8 @@ export default function AccountsPayableScreen() {
         ))}
       </View>
 
+      {stale && error && <OfflineBanner />}
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -175,10 +201,22 @@ export default function AccountsPayableScreen() {
                 <SectionHeader title="Top Vendors" meta="By outstanding" />
                 <View style={styles.miniList}>
                   {vendors.slice(0, 5).map((v) => (
-                    <View key={v.id} style={styles.miniRow}>
+                    <TouchableOpacity
+                      key={v.id}
+                      style={styles.miniRow}
+                      onPress={() => navigation.navigate('VendorDetail', {
+                        vendorId: v.id,
+                        vendorName: v.name ?? `Vendor ${v.id}`,
+                        outstanding: v.outstanding,
+                        overdue: v.overdue,
+                      })}
+                    >
                       <Text style={styles.miniName} numberOfLines={1}>{v.name ?? `Vendor ${v.id}`}</Text>
-                      <Text style={styles.miniAmount}>{formatCurrency(v.outstanding ?? 0)}</Text>
-                    </View>
+                      <View style={styles.miniRowRight}>
+                        <Text style={styles.miniAmount}>{formatCurrency(v.outstanding ?? 0)}</Text>
+                        <Feather name="chevron-right" size={14} color={Colors.textMuted} />
+                      </View>
+                    </TouchableOpacity>
                   ))}
                 </View>
               </>
@@ -244,7 +282,16 @@ export default function AccountsPayableScreen() {
             ) : (
               <View style={styles.cardList}>
                 {filteredVendors.map((v) => (
-                  <VendorCard key={v.id} vendor={v} />
+                  <VendorCard
+                    key={v.id}
+                    vendor={v}
+                    onPress={() => navigation.navigate('VendorDetail', {
+                      vendorId: v.id,
+                      vendorName: v.name ?? `Vendor ${v.id}`,
+                      outstanding: v.outstanding,
+                      overdue: v.overdue,
+                    })}
+                  />
                 ))}
               </View>
             )}
@@ -337,14 +384,15 @@ function BillCard({ bill, overdueDays }: { bill: APBill; overdueDays: number }) 
   );
 }
 
-function VendorCard({ vendor: v }: { vendor: APVendor }) {
+function VendorCard({ vendor: v, onPress }: { vendor: APVendor; onPress?: () => void }) {
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.cardHeader}>
         <Text style={[styles.cardTitle, { flex: 1 }]}>{v.name ?? `Vendor ${v.id}`}</Text>
         {v.bills_count != null && (
           <Text style={styles.countBadge}>{v.bills_count} bills</Text>
         )}
+        <Feather name="chevron-right" size={16} color={Colors.textMuted} />
       </View>
       <View style={styles.amountRow}>
         <View>
@@ -358,7 +406,7 @@ function VendorCard({ vendor: v }: { vendor: APVendor }) {
           </View>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -477,6 +525,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.borderLight,
   },
   miniName: { flex: 1, ...Typography.body },
+  miniRowRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   miniAmount: { fontSize: 14, fontWeight: '700', color: Colors.text },
 
   cardList: { marginHorizontal: Spacing.md, gap: Spacing.sm },
