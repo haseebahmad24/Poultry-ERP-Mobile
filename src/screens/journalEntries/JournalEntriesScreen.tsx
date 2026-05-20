@@ -18,53 +18,10 @@ import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import CompanySelector from '@/components/CompanySelector';
+import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 import { useCompany } from '@/context/CompanyContext';
 import BackButton from '@/components/BackButton';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
-
-function toISO(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-
-const DATE_PRESETS = [
-  {
-    label: 'Today',
-    from: () => toISO(new Date()),
-    to: () => toISO(new Date()),
-  },
-  {
-    label: 'This Week',
-    from: () => {
-      const d = new Date();
-      d.setDate(d.getDate() - d.getDay());
-      return toISO(d);
-    },
-    to: () => toISO(new Date()),
-  },
-  {
-    label: 'This Month',
-    from: () => {
-      const d = new Date();
-      d.setDate(1);
-      return toISO(d);
-    },
-    to: () => toISO(new Date()),
-  },
-  {
-    label: 'Last Month',
-    from: () => {
-      const d = new Date();
-      d.setDate(1);
-      d.setMonth(d.getMonth() - 1);
-      return toISO(d);
-    },
-    to: () => {
-      const d = new Date();
-      d.setDate(0);
-      return toISO(d);
-    },
-  },
-];
 
 const VOUCHER_TYPES = ['All', 'JV', 'GRN', 'PAY', 'REC', 'INV', 'SO', 'PO', 'DN'];
 
@@ -79,13 +36,10 @@ export default function JournalEntriesScreen() {
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('All');
   const [expanded, setExpanded] = useState<number | null>(null);
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRangeValue>({ from: '', to: '' });
 
-  const validFrom = DATE_RE.test(fromDate) ? fromDate : undefined;
-  const validTo = DATE_RE.test(toDate) ? toDate : undefined;
-  const hasDateFilter = !!(validFrom || validTo);
+  const validFrom = DATE_RE.test(dateRange.from) ? dateRange.from : undefined;
+  const validTo = DATE_RE.test(dateRange.to) ? dateRange.to : undefined;
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -105,7 +59,7 @@ export default function JournalEntriesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedType, companyId, validFrom, validTo]);
+  }, [selectedType, companyId, dateRange.from, dateRange.to]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -143,16 +97,6 @@ export default function JournalEntriesScreen() {
         <BackButton />
         <Text style={styles.headerTitle}>Journal Entries</Text>
         <Text style={styles.headerSub}>{filtered.length} entries</Text>
-        <TouchableOpacity
-          style={[styles.iconBtn, hasDateFilter && styles.iconBtnActive]}
-          onPress={() => setShowDateFilter((v) => !v)}
-        >
-          <Feather
-            name="calendar"
-            size={14}
-            color={hasDateFilter ? '#ffffff' : Colors.textSecondary}
-          />
-        </TouchableOpacity>
         {filtered.length > 0 && (
           <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
             <Feather name="share" size={13} color={Colors.textSecondary} />
@@ -162,61 +106,7 @@ export default function JournalEntriesScreen() {
       </View>
 
       <CompanySelector showAll />
-
-      {showDateFilter && (
-        <>
-          <View style={styles.datePresetRow}>
-            {DATE_PRESETS.map((p) => {
-              const isActive = fromDate === p.from() && toDate === p.to();
-              return (
-                <TouchableOpacity
-                  key={p.label}
-                  style={[styles.datePreset, isActive && styles.datePresetActive]}
-                  onPress={() => { setFromDate(p.from()); setToDate(p.to()); }}
-                >
-                  <Text style={[styles.datePresetText, isActive && styles.datePresetTextActive]}>
-                    {p.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          <View style={styles.dateFilterRow}>
-            <View style={styles.dateInputWrap}>
-              <Text style={styles.dateLabel}>From</Text>
-              <TextInput
-                style={styles.dateInput}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={Colors.textMuted}
-                value={fromDate}
-                onChangeText={setFromDate}
-                keyboardType="numbers-and-punctuation"
-                maxLength={10}
-              />
-            </View>
-            <View style={styles.dateInputWrap}>
-              <Text style={styles.dateLabel}>To</Text>
-              <TextInput
-                style={styles.dateInput}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={Colors.textMuted}
-                value={toDate}
-                onChangeText={setToDate}
-                keyboardType="numbers-and-punctuation"
-                maxLength={10}
-              />
-            </View>
-            {(fromDate || toDate) && (
-              <TouchableOpacity
-                style={styles.clearDateBtn}
-                onPress={() => { setFromDate(''); setToDate(''); }}
-              >
-                <Text style={styles.clearDateText}>Clear</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </>
-      )}
+      <DateRangeBar value={dateRange} onChange={setDateRange} />
 
       <View style={styles.searchContainer}>
         <Feather name="search" size={14} color={Colors.textMuted} />
@@ -384,17 +274,6 @@ const styles = StyleSheet.create({
   headerTitle: { ...Typography.h2 },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted, flex: 1 },
 
-  iconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: Radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconBtnActive: { backgroundColor: Colors.text, borderColor: Colors.text },
-
   exportBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -514,55 +393,4 @@ const styles = StyleSheet.create({
   },
   emptyText: { ...Typography.body, color: Colors.textMuted },
 
-  datePresetRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.xs,
-    backgroundColor: Colors.surface,
-    flexWrap: 'wrap',
-  },
-  datePreset: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: Radius.full,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-  },
-  datePresetActive: { backgroundColor: Colors.text, borderColor: Colors.text },
-  datePresetText: { fontSize: 11, color: Colors.textSecondary, fontWeight: '500' },
-  datePresetTextActive: { color: '#ffffff', fontWeight: '600' },
-
-  dateFilterRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.borderLight,
-  },
-  dateInputWrap: { flex: 1, gap: 2 },
-  dateLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '600', textTransform: 'uppercase' },
-  dateInput: {
-    borderRadius: Radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 7,
-    fontSize: 13,
-    color: Colors.text,
-    backgroundColor: Colors.background,
-  },
-  clearDateBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: Radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-  },
-  clearDateText: { fontSize: 12, color: Colors.textSecondary, fontWeight: '500' },
 });
