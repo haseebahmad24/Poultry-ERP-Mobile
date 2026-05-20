@@ -30,6 +30,7 @@ import { useCompany } from '@/context/CompanyContext';
 import { formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import OfflineBanner from '@/components/OfflineBanner';
+import { getLowStockThreshold } from '@/utils/settings';
 import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 
 type Tab = 'stock' | 'ledger' | 'warehouses';
@@ -73,6 +74,11 @@ export default function InventoryScreen() {
   const [isStale, setIsStale] = useState(false);
   const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
+  const [lowStockThreshold, setLowStockThreshold] = useState(100);
+
+  useEffect(() => {
+    getLowStockThreshold().then(setLowStockThreshold);
+  }, []);
 
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [fromInput, setFromInput] = useState('');
@@ -167,8 +173,6 @@ export default function InventoryScreen() {
 
   const hasDateFilter = !!(fromDate || toDate);
 
-  const LOW_STOCK_THRESHOLD = 100;
-
   const filteredStock = stockData.filter((s) => {
     const q = search.toLowerCase();
     const matchesSearch = !search ||
@@ -178,12 +182,12 @@ export default function InventoryScreen() {
     const matchesStockFilter =
       stockFilter === 'all' ||
       (stockFilter === 'out' && qty <= 0) ||
-      (stockFilter === 'low' && qty > 0 && qty < LOW_STOCK_THRESHOLD);
+      (stockFilter === 'low' && qty > 0 && qty < lowStockThreshold);
     return matchesSearch && matchesStockFilter;
   });
 
   const outOfStockCount = stockData.filter((s) => (s.qty ?? 0) <= 0).length;
-  const lowStockCount = stockData.filter((s) => { const q = s.qty ?? 0; return q > 0 && q < LOW_STOCK_THRESHOLD; }).length;
+  const lowStockCount = stockData.filter((s) => { const q = s.qty ?? 0; return q > 0 && q < lowStockThreshold; }).length;
 
   const filteredLedger = ledgerData.filter((e) =>
     !search || e.item_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -375,7 +379,7 @@ export default function InventoryScreen() {
                   <StockCard
                     key={`${item.item_id ?? item.item_name}-${idx}`}
                     item={item}
-                    lowThreshold={LOW_STOCK_THRESHOLD}
+                    lowThreshold={lowStockThreshold}
                     onPress={item.item_id != null ? () => navigation.navigate('ItemLedger', {
                       item_id: item.item_id!,
                       item_name: item.item_name,

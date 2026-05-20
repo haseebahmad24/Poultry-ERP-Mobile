@@ -19,7 +19,9 @@ import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import BackButton from '@/components/BackButton';
+import OfflineBanner from '@/components/OfflineBanner';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
+import { getCached, setCached } from '@/utils/cache';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'PurchaseOrders'>;
@@ -40,23 +42,37 @@ export default function PurchaseOrdersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isStale, setIsStale] = useState(false);
+
+  const cacheKey = `purchase-orders:${activeTab}`;
 
   const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) {
+      const cached = await getCached<PurchaseOrder[]>(cacheKey);
+      if (cached) {
+        setOrders(cached.data);
+        setIsStale(cached.stale);
+        setLoading(false);
+        if (!cached.stale) return;
+      }
+    }
     if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+    else if (orders.length === 0) setLoading(true);
     setError(null);
     try {
       const data = await fetchPurchaseOrders(
         activeTab === 'progress' ? 'progress' : activeTab === 'open' ? 'open' : 'all'
       );
       setOrders(data);
+      setIsStale(false);
+      await setCached(cacheKey, data);
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeTab]);
+  }, [activeTab, cacheKey]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -83,6 +99,8 @@ export default function PurchaseOrdersScreen() {
         <Text style={styles.headerTitle}>Purchase Orders</Text>
         <Text style={styles.headerSub}>{filtered.length} records</Text>
       </View>
+
+      {isStale && error && <OfflineBanner />}
 
       <View style={styles.searchContainer}>
         <Feather name="search" size={14} color={Colors.textMuted} />

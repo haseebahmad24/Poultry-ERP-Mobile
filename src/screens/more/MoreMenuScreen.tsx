@@ -108,6 +108,12 @@ const ADMIN_ITEMS: {
     subtitle: 'Company profiles and fiscal settings',
     screen: 'Companies',
   },
+  {
+    icon: 'settings',
+    label: 'Settings',
+    subtitle: 'Low-stock threshold, cache, and preferences',
+    screen: 'Settings',
+  },
 ];
 
 function MenuRow({

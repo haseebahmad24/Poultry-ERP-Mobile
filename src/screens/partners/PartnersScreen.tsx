@@ -11,6 +11,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchPartners, Partner } from '@/api/partners';
 import LoadingView from '@/components/LoadingView';
@@ -18,33 +20,52 @@ import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import CompanySelector from '@/components/CompanySelector';
 import BackButton from '@/components/BackButton';
+import OfflineBanner from '@/components/OfflineBanner';
 import { useCompany } from '@/context/CompanyContext';
+import { getCached, setCached } from '@/utils/cache';
+import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
+type Nav = NativeStackNavigationProp<MoreStackParamList, 'Partners'>;
 type RoleFilter = 'all' | 'customer' | 'vendor';
 
 export default function PartnersScreen() {
+  const navigation = useNavigation<Nav>();
   const { companyId } = useCompany();
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isStale, setIsStale] = useState(false);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
 
+  const cacheKey = `partners:${companyId ?? 'all'}`;
+
   const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) {
+      const cached = await getCached<Partner[]>(cacheKey);
+      if (cached) {
+        setPartners(cached.data);
+        setIsStale(cached.stale);
+        setLoading(false);
+        if (!cached.stale) return;
+      }
+    }
     if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+    else if (partners.length === 0) setLoading(true);
     setError(null);
     try {
       const data = await fetchPartners(companyId);
       setPartners(data);
+      setIsStale(false);
+      await setCached(cacheKey, data);
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [companyId]);
+  }, [companyId, cacheKey]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -75,6 +96,8 @@ export default function PartnersScreen() {
         <Text style={styles.headerTitle}>Business Partners</Text>
         <Text style={styles.headerSub}>{filtered.length} records</Text>
       </View>
+
+      {isStale && error && <OfflineBanner />}
 
       <CompanySelector showAll />
 
@@ -130,7 +153,20 @@ export default function PartnersScreen() {
         ) : (
           <View style={styles.cardList}>
             {filtered.map((p) => (
-              <PartnerCard key={p.id} partner={p} />
+              <PartnerCard
+                key={p.id}
+                partner={p}
+                onPress={() => {
+                  const isVendor = !!(p.is_vendor || p.type === 'vendor' || p.roles?.includes('vendor'));
+                  const isCustomer = !!(p.is_customer || p.type === 'customer' || p.roles?.includes('customer'));
+                  navigation.navigate('PartnerDetail', {
+                    partnerId: p.id,
+                    partnerName: p.name,
+                    isVendor,
+                    isCustomer: isCustomer || (!isVendor && !isCustomer),
+                  });
+                }}
+              />
             ))}
           </View>
         )}
@@ -141,14 +177,14 @@ export default function PartnersScreen() {
   );
 }
 
-function PartnerCard({ partner: p }: { partner: Partner }) {
+function PartnerCard({ partner: p, onPress }: { partner: Partner; onPress: () => void }) {
   const roles: string[] = [];
   if (p.is_customer || p.type === 'customer' || p.roles?.includes('customer')) roles.push('Customer');
   if (p.is_vendor || p.type === 'vendor' || p.roles?.includes('vendor')) roles.push('Vendor');
   if (roles.length === 0 && p.type) roles.push(p.type);
 
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.cardTop}>
         <View style={styles.avatarCircle}>
           <Text style={styles.avatarText}>
@@ -191,7 +227,11 @@ function PartnerCard({ partner: p }: { partner: Partner }) {
           <Text style={styles.contactText}>{p.company}</Text>
         </View>
       )}
-    </View>
+
+      <View style={styles.cardChevron}>
+        <Feather name="chevron-right" size={13} color={Colors.textMuted} />
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -314,4 +354,6 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   emptyText: { ...Typography.body, color: Colors.textMuted },
+
+  cardChevron: { alignItems: 'flex-end' },
 });

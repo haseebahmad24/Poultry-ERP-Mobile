@@ -21,7 +21,9 @@ import SectionHeader from '@/components/SectionHeader';
 import CompanySelector from '@/components/CompanySelector';
 import { useCompany } from '@/context/CompanyContext';
 import BackButton from '@/components/BackButton';
+import OfflineBanner from '@/components/OfflineBanner';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
+import { getCached, setCached } from '@/utils/cache';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'SalesOrders'>;
@@ -43,22 +45,36 @@ export default function SalesOrdersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isStale, setIsStale] = useState(false);
   const [search, setSearch] = useState('');
 
+  const cacheKey = `sales-orders:${activeTab}:${companyId ?? 'all'}`;
+
   const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) {
+      const cached = await getCached<SalesOrder[]>(cacheKey);
+      if (cached) {
+        setOrders(cached.data);
+        setIsStale(cached.stale);
+        setLoading(false);
+        if (!cached.stale) return;
+      }
+    }
     if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+    else if (orders.length === 0) setLoading(true);
     setError(null);
     try {
       const data = await fetchSalesOrders(activeTab, { companyId });
       setOrders(data);
+      setIsStale(false);
+      await setCached(cacheKey, data);
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeTab, companyId]);
+  }, [activeTab, companyId, cacheKey]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -85,6 +101,8 @@ export default function SalesOrdersScreen() {
         <Text style={styles.headerTitle}>Sales Orders</Text>
         <Text style={styles.headerSub}>{filtered.length} records</Text>
       </View>
+
+      {isStale && error && <OfflineBanner />}
 
       <CompanySelector showAll />
 
