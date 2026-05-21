@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useAuth } from '@/context/AuthContext';
 import { useCompany } from '@/context/CompanyContext';
+import { useOverdue } from '@/context/OverdueContext';
 import { fetchDashboardData, KPIs, RecentVoucher } from '@/api/dashboard';
 import KPICard from '@/components/KPICard';
 import SectionHeader from '@/components/SectionHeader';
@@ -71,6 +72,7 @@ export default function DashboardScreen() {
   const navigation = useNavigation<Nav>();
   const { authState, logout } = useAuth();
   const { selectedCompany } = useCompany();
+  const { totalAlerts } = useOverdue();
   const user = authState.status === 'authenticated' ? authState.user : null;
 
   const [kpis, setKpis] = useState<KPIs | null>(null);
@@ -145,10 +147,24 @@ export default function DashboardScreen() {
             {user?.role ?? 'Poultry ERP'} · Today
           </Text>
         </View>
-        <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-          <Feather name="log-out" size={14} color={Colors.textSecondary} />
-          <Text style={styles.logoutText}>Sign Out</Text>
-        </TouchableOpacity>
+        <View style={styles.topBarRight}>
+          <TouchableOpacity
+            style={styles.alertsBtn}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('More', { screen: 'Alerts' } as any)}
+          >
+            <Feather name="bell" size={18} color={Colors.text} />
+            {totalAlerts > 0 && (
+              <View style={styles.alertsDot}>
+                <Text style={styles.alertsDotText}>{totalAlerts > 9 ? '9+' : totalAlerts}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+            <Feather name="log-out" size={14} color={Colors.textSecondary} />
+            <Text style={styles.logoutText}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <CompanySelector showAll />
@@ -204,12 +220,14 @@ export default function DashboardScreen() {
             <KPICard
               label="Receivables"
               value={formatCurrency(kpis?.totalAR ?? 0)}
-              subtext="Total AR"
+              subtext="Total AR · tap to view"
+              onPress={() => navigation.navigate('Finance', { screen: 'AccountsReceivable' } as any)}
             />
             <KPICard
               label="Payables"
               value={formatCurrency(kpis?.totalAP ?? 0)}
-              subtext="Total AP"
+              subtext="Total AP · tap to view"
+              onPress={() => navigation.navigate('Finance', { screen: 'AccountsPayable' } as any)}
             />
           </View>
         </View>
@@ -318,6 +336,29 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   topBarLeft: { flex: 1 },
+  topBarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  alertsBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertsDot: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: Colors.text,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  alertsDotText: { color: '#fff', fontSize: 9, fontWeight: '700' },
   greeting: { fontSize: 18, fontWeight: '700', color: Colors.text },
   subGreeting: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
   logoutBtn: {

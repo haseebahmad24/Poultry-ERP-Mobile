@@ -16,6 +16,7 @@ import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
 import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
+import { useOverdue } from '@/context/OverdueContext';
 
 type MoreNav = NativeStackNavigationProp<MoreStackParamList, 'MoreMenu'>;
 type TabNav = BottomTabNavigationProp<AppTabParamList>;
@@ -150,6 +151,7 @@ function MenuRow({
 export default function MoreMenuScreen() {
   const moreNav = useNavigation<MoreNav>();
   const tabNav = moreNav.getParent<TabNav>();
+  const { totalAlerts, apOverdue, arOverdue, lowStock } = useOverdue();
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -165,6 +167,41 @@ export default function MoreMenuScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Alerts banner — always shown, prominent when alerts exist */}
+        <TouchableOpacity
+          style={[styles.alertBanner, totalAlerts > 0 && styles.alertBannerActive]}
+          activeOpacity={0.7}
+          onPress={() => moreNav.navigate('Alerts')}
+        >
+          <View style={styles.alertBannerIcon}>
+            <Feather name="bell" size={18} color={Colors.text} />
+            {totalAlerts > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{totalAlerts > 99 ? '99+' : totalAlerts}</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.alertBannerBody}>
+            <Text style={styles.alertBannerTitle}>
+              {totalAlerts > 0 ? `${totalAlerts} Active Alert${totalAlerts !== 1 ? 's' : ''}` : 'Alerts'}
+            </Text>
+            {totalAlerts > 0 ? (
+              <Text style={styles.alertBannerSub}>
+                {[
+                  apOverdue > 0 && `${apOverdue} overdue bill${apOverdue !== 1 ? 's' : ''}`,
+                  arOverdue > 0 && `${arOverdue} overdue invoice${arOverdue !== 1 ? 's' : ''}`,
+                  lowStock > 0 && `${lowStock} low-stock item${lowStock !== 1 ? 's' : ''}`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </Text>
+            ) : (
+              <Text style={styles.alertBannerSub}>Overdue bills, invoices, and low stock</Text>
+            )}
+          </View>
+          <Feather name="chevron-right" size={16} color={Colors.textMuted} />
+        </TouchableOpacity>
+
         <Text style={styles.sectionTitle}>OPERATIONS</Text>
         <View style={styles.sectionCard}>
           {OPERATIONS_ITEMS.map((item, idx) => (
@@ -231,6 +268,47 @@ const styles = StyleSheet.create({
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.md, paddingHorizontal: Spacing.md },
+
+  alertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    gap: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  alertBannerActive: {
+    borderColor: Colors.text,
+  },
+  alertBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 9,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surfaceHover,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: Colors.text,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
+  alertBannerBody: { flex: 1 },
+  alertBannerTitle: { fontSize: 14, fontWeight: '700', color: Colors.text },
+  alertBannerSub: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
 
   sectionTitle: {
     ...Typography.label,

@@ -28,6 +28,7 @@ import SectionHeader from '@/components/SectionHeader';
 import CompanySelector from '@/components/CompanySelector';
 import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 import { useCompany } from '@/context/CompanyContext';
+import { useOverdue } from '@/context/OverdueContext';
 import { formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import OfflineBanner from '@/components/OfflineBanner';
@@ -39,6 +40,7 @@ type StockFilter = 'all' | 'low' | 'out';
 
 export default function InventoryScreen() {
   const { companyId } = useCompany();
+  const { setLowStock } = useOverdue();
   const navigation = useNavigation<NativeStackNavigationProp<InventoryStackParamList>>();
   const [activeTab, setActiveTab] = useState<Tab>('stock');
   const [stockData, setStockData] = useState<StockBalance[]>([]);
@@ -55,6 +57,11 @@ export default function InventoryScreen() {
   useEffect(() => {
     getLowStockThreshold().then(setLowStockThreshold);
   }, []);
+
+  useEffect(() => {
+    const count = stockData.filter((s) => { const q = s.qty ?? 0; return q > 0 && q < lowStockThreshold; }).length;
+    setLowStock(count);
+  }, [stockData, lowStockThreshold, setLowStock]);
 
   const [dateRange, setDateRange] = useState<DateRangeValue>({ from: '', to: '' });
 
