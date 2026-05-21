@@ -12,6 +12,8 @@ import { Feather } from '@expo/vector-icons';
 import { fetchPODetail, PODetail, POLine } from '@/api/purchaseOrders';
 import ErrorView from '@/components/ErrorView';
 import LoadingView from '@/components/LoadingView';
+import OfflineBanner from '@/components/OfflineBanner';
+import { getCached, setCached } from '@/utils/cache';
 import { Colors, Radius, Spacing } from '@/theme';
 import { formatCurrency, formatDate } from '@/utils/currency';
 
@@ -23,19 +25,32 @@ export default function PODetailScreen({ route, navigation }: any) {
   const [po, setPo] = useState<PODetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
+
+  const cacheKey = `po-detail:${id}`;
 
   const load = useCallback(async () => {
-    setLoading(true);
+    const cached = await getCached<PODetail>(cacheKey);
+    if (cached) {
+      setPo(cached.data);
+      setStale(cached.stale);
+      setLoading(false);
+      if (!cached.stale) return;
+    } else {
+      setLoading(true);
+    }
     setError(null);
     try {
       const data = await fetchPODetail(id);
       setPo(data);
+      setStale(false);
+      await setCached(cacheKey, data);
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, cacheKey]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -63,6 +78,8 @@ export default function PODetailScreen({ route, navigation }: any) {
         </Text>
         <View style={{ width: 40 }} />
       </View>
+
+      {stale && error && <OfflineBanner />}
 
       <ScrollView
         style={styles.scroll}
