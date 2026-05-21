@@ -77,7 +77,7 @@ export default function DashboardScreen() {
   const navigation = useNavigation<Nav>();
   const { authState, logout } = useAuth();
   const { selectedCompany } = useCompany();
-  const { totalAlerts } = useOverdue();
+  const { totalAlerts, apOverdue, arOverdue } = useOverdue();
   const user = authState.status === 'authenticated' ? authState.user : null;
 
   const [kpis, setKpis] = useState<KPIs | null>(null);
@@ -254,6 +254,43 @@ export default function DashboardScreen() {
           />
         </View>
 
+        {/* Finance Status — show when there are overdue items */}
+        {(apOverdue > 0 || arOverdue > 0) && (
+          <>
+            <SectionHeader title="Finance Status" />
+            <View style={styles.financeStatusRow}>
+              {apOverdue > 0 && (
+                <TouchableOpacity
+                  style={styles.financeStatusCard}
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('Finance', { screen: 'AccountsPayable' } as any)}
+                >
+                  <View style={styles.financeStatusTop}>
+                    <Feather name="alert-circle" size={14} color={Colors.textSecondary} />
+                    <Text style={styles.financeStatusCount}>{apOverdue}</Text>
+                  </View>
+                  <Text style={styles.financeStatusLabel}>Overdue Bills</Text>
+                  <Text style={styles.financeStatusSub}>Tap to view AP</Text>
+                </TouchableOpacity>
+              )}
+              {arOverdue > 0 && (
+                <TouchableOpacity
+                  style={styles.financeStatusCard}
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('Finance', { screen: 'AccountsReceivable' } as any)}
+                >
+                  <View style={styles.financeStatusTop}>
+                    <Feather name="alert-circle" size={14} color={Colors.textSecondary} />
+                    <Text style={styles.financeStatusCount}>{arOverdue}</Text>
+                  </View>
+                  <Text style={styles.financeStatusLabel}>Overdue Invoices</Text>
+                  <Text style={styles.financeStatusSub}>Tap to view AR</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </>
+        )}
+
         {/* Quick Actions */}
         <SectionHeader title="Quick Actions" />
         <View style={styles.quickGrid}>
@@ -429,6 +466,29 @@ const styles = StyleSheet.create({
   wcValue: { fontSize: 13, fontWeight: '500', color: Colors.text },
   wcValueBold: { fontSize: 15, fontWeight: '700' },
   wcDivider: { height: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
+
+  financeStatusRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.md,
+    gap: 10,
+  },
+  financeStatusCard: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.text,
+    padding: Spacing.md,
+    gap: 4,
+  },
+  financeStatusTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  financeStatusCount: { fontSize: 22, fontWeight: '700', color: Colors.text },
+  financeStatusLabel: { fontSize: 13, fontWeight: '600', color: Colors.text },
+  financeStatusSub: { fontSize: 11, color: Colors.textMuted },
 
   quickGrid: {
     flexDirection: 'row',
