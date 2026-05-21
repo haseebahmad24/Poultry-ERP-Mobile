@@ -4,6 +4,8 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,12 +20,16 @@ import SectionHeader from '@/components/SectionHeader';
 import BackButton from '@/components/BackButton';
 import { getCached, setCached } from '@/utils/cache';
 
+type StatusFilter = 'all' | 'active' | 'inactive';
+
 export default function CompaniesScreen() {
   const [companies, setCompanies] = useState<CompanyDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
   const load = useCallback(async (isRefresh = false) => {
     if (!isRefresh) {
@@ -56,6 +62,28 @@ export default function CompaniesScreen() {
   if (loading) return <LoadingView message="Loading companies…" />;
   if (error && companies.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
+  const q = search.toLowerCase().trim();
+  const filtered = companies.filter((c) => {
+    if (statusFilter === 'active' && c.is_active === false) return false;
+    if (statusFilter === 'inactive' && c.is_active !== false) return false;
+    if (!q) return true;
+    return (
+      c.name?.toLowerCase().includes(q) ||
+      c.code?.toLowerCase().includes(q) ||
+      c.currency?.toLowerCase().includes(q) ||
+      c.email?.toLowerCase().includes(q)
+    );
+  });
+
+  const activeCount = companies.filter((c) => c.is_active !== false).length;
+  const inactiveCount = companies.filter((c) => c.is_active === false).length;
+
+  const STATUS_CHIPS: { key: StatusFilter; label: string }[] = [
+    { key: 'all', label: `All (${companies.length})` },
+    { key: 'active', label: `Active (${activeCount})` },
+    { key: 'inactive', label: `Inactive (${inactiveCount})` },
+  ];
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
@@ -63,10 +91,44 @@ export default function CompaniesScreen() {
       <View style={styles.header}>
         <BackButton />
         <Text style={styles.headerTitle}>Companies</Text>
-        <Text style={styles.headerSub}>{companies.length} companies</Text>
+        <Text style={styles.headerSub}>{filtered.length} of {companies.length}</Text>
       </View>
 
       {stale && error && <OfflineBanner />}
+
+      <View style={styles.searchRow}>
+        <View style={styles.searchBar}>
+          <Feather name="search" size={14} color={Colors.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by name, code, currency…"
+            placeholderTextColor={Colors.textMuted}
+            value={search}
+            onChangeText={setSearch}
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Feather name="x" size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.filterRow}>
+        {STATUS_CHIPS.map((chip) => (
+          <TouchableOpacity
+            key={chip.key}
+            style={[styles.chip, statusFilter === chip.key && styles.chipActive]}
+            onPress={() => setStatusFilter(chip.key)}
+          >
+            <Text style={[styles.chipText, statusFilter === chip.key && styles.chipTextActive]}>
+              {chip.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <ScrollView
         style={styles.scroll}
@@ -76,16 +138,26 @@ export default function CompaniesScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.textMuted} />
         }
       >
-        <SectionHeader title="Company List" meta={`${companies.length} records`} />
+        <SectionHeader title="Company List" meta={`${filtered.length} records`} />
 
-        {companies.length === 0 ? (
+        {filtered.length === 0 ? (
           <View style={styles.emptyState}>
             <Feather name="briefcase" size={36} color={Colors.textMuted} />
-            <Text style={styles.emptyText}>No companies found</Text>
+            <Text style={styles.emptyText}>
+              {q || statusFilter !== 'all' ? 'No companies match your filter' : 'No companies found'}
+            </Text>
+            {(q || statusFilter !== 'all') && (
+              <TouchableOpacity
+                style={styles.clearBtn}
+                onPress={() => { setSearch(''); setStatusFilter('all'); }}
+              >
+                <Text style={styles.clearBtnText}>Clear filter</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <View style={styles.cardList}>
-            {companies.map((c) => (
+            {filtered.map((c) => (
               <CompanyCard key={c.id} company={c} />
             ))}
           </View>
@@ -153,6 +225,52 @@ const styles = StyleSheet.create({
   },
   headerTitle: { ...Typography.h2 },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted },
+
+  searchRow: {
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: Colors.background,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.sm,
+    height: 36,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.text,
+    paddingVertical: 0,
+  },
+
+  filterRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  chipActive: { backgroundColor: Colors.text, borderColor: Colors.text },
+  chipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
+  chipTextActive: { color: '#fff' },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },
@@ -226,5 +344,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  emptyText: { ...Typography.body, color: Colors.textMuted },
+  emptyText: { ...Typography.body, color: Colors.textMuted, textAlign: 'center' },
+  clearBtn: {
+    marginTop: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  clearBtnText: { fontSize: 13, color: Colors.text, fontWeight: '500' },
 });

@@ -13,7 +13,9 @@ import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchSODetail, SalesOrder, SOItem } from '@/api/salesOrders';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
+import OfflineBanner from '@/components/OfflineBanner';
 import SectionHeader from '@/components/SectionHeader';
+import { getCached, setCached } from '@/utils/cache';
 import { formatCurrency, formatDate } from '@/utils/currency';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
@@ -29,21 +31,35 @@ export default function SalesOrderDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
+
+  const cacheKey = `so-detail:${id}`;
 
   const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) {
+      const cached = await getCached<SalesOrder>(cacheKey);
+      if (cached) {
+        setSo(cached.data);
+        setStale(cached.stale);
+        setLoading(false);
+        if (!cached.stale) return;
+      }
+    }
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
     try {
       const data = await fetchSODetail(id);
       setSo(data);
+      setStale(false);
+      await setCached(cacheKey, data);
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [id]);
+  }, [id, cacheKey]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -58,6 +74,8 @@ export default function SalesOrderDetailScreen() {
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
+
+      {stale && error && <OfflineBanner />}
 
       <ScrollView
         style={styles.scroll}
