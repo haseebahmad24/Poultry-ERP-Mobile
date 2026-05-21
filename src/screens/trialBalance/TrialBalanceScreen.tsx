@@ -19,6 +19,8 @@ import BackButton from '@/components/BackButton';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
+import CompanySelector from '@/components/CompanySelector';
+import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 import { formatCurrency } from '@/utils/currency';
 
 function todayISO(): string {
@@ -26,27 +28,20 @@ function todayISO(): string {
 }
 
 export default function TrialBalanceScreen() {
-  const { companies, selectedCompany: globalCompany } = useCompany();
+  const { companyId, selectedCompany: ctxCompany } = useCompany();
   const [result, setResult] = useState<TrialBalanceResult>({ rows: [] });
-  const [selectedCompany, setSelectedCompany] = useState<typeof globalCompany>(null);
   const [asOf, setAsOf] = useState(todayISO());
-  const [asOfInput, setAsOfInput] = useState(todayISO());
+  const [dateRange, setDateRange] = useState<DateRangeValue>({ from: todayISO(), to: '' });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [showCompanyPicker, setShowCompanyPicker] = useState(false);
-
-  useEffect(() => {
-    if (!selectedCompany && globalCompany) setSelectedCompany(globalCompany);
-  }, [globalCompany, selectedCompany]);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
     try {
-      const companyId = selectedCompany?.id;
       const data = await fetchTrialBalance(companyId, asOf);
       setResult(data);
     } catch (e: any) {
@@ -55,9 +50,14 @@ export default function TrialBalanceScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedCompany, asOf]);
+  }, [companyId, asOf]);
 
   useEffect(() => { load(); }, [load]);
+
+  const handleDateChange = (v: DateRangeValue) => {
+    setDateRange(v);
+    setAsOf(v.from || todayISO());
+  };
 
   const filteredRows = result.rows.filter((r) =>
     !search ||
@@ -75,7 +75,7 @@ export default function TrialBalanceScreen() {
     const pad = (s: string, w: number) => s.length >= w ? s.slice(0, w - 1) + '…' : s.padEnd(w);
     const padL = (s: string, w: number) => s.padStart(w);
 
-    const header = `Trial Balance\nCompany: ${selectedCompany?.name ?? 'All'}\nAs of: ${asOf}\n${line}`;
+    const header = `Trial Balance\nCompany: ${ctxCompany?.name ?? 'All'}\nAs of: ${asOf}\n${line}`;
     const col = `${pad('Account', colW)}  ${padL('Debit', amtW)}  ${padL('Credit', amtW)}`;
     const rows = filteredRows.map((r) => {
       const indent = '  '.repeat(r.level ?? 0);
@@ -114,79 +114,9 @@ export default function TrialBalanceScreen() {
         )}
       </View>
 
-      {/* Filters */}
-      <View style={styles.filtersCard}>
-        {companies.length > 0 && (
-          <View style={styles.filterRow}>
-            <Text style={styles.filterLabel}>Company</Text>
-            <TouchableOpacity
-              style={styles.filterSelector}
-              onPress={() => setShowCompanyPicker(!showCompanyPicker)}
-            >
-              <Text style={styles.filterSelectorText} numberOfLines={1}>
-                {selectedCompany?.name ?? 'Select company'}
-              </Text>
-              <Feather name="chevron-down" size={14} color={Colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-        )}
+      <CompanySelector showAll />
+      <DateRangeBar mode="single" value={dateRange} onChange={handleDateChange} />
 
-        {showCompanyPicker && (
-          <View style={styles.companyPicker}>
-            {companies.map((c) => (
-              <TouchableOpacity
-                key={c.id}
-                style={[
-                  styles.companyOption,
-                  selectedCompany?.id === c.id && styles.companyOptionActive,
-                ]}
-                onPress={() => {
-                  setSelectedCompany(c);
-                  setShowCompanyPicker(false);
-                }}
-              >
-                <Text style={[
-                  styles.companyOptionText,
-                  selectedCompany?.id === c.id && styles.companyOptionTextActive,
-                ]}>
-                  {c.name}
-                </Text>
-                {selectedCompany?.id === c.id && (
-                  <Feather name="check" size={14} color={Colors.text} />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* As-of date */}
-        <View style={styles.filterRow}>
-          <Text style={styles.filterLabel}>As of Date</Text>
-          <TextInput
-            style={styles.dateInput}
-            value={asOfInput}
-            onChangeText={setAsOfInput}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={Colors.textMuted}
-            onBlur={() => {
-              if (/^\d{4}-\d{2}-\d{2}$/.test(asOfInput)) {
-                setAsOf(asOfInput);
-              }
-            }}
-            onSubmitEditing={() => {
-              if (/^\d{4}-\d{2}-\d{2}$/.test(asOfInput)) {
-                setAsOf(asOfInput);
-              }
-            }}
-          />
-        </View>
-
-        <TouchableOpacity style={styles.runBtn} onPress={() => load()}>
-          <Text style={styles.runBtnText}>Run Report</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Search */}
       <View style={styles.searchContainer}>
         <View style={styles.searchRow}>
           <Feather name="search" size={15} color={Colors.textMuted} />
@@ -213,7 +143,6 @@ export default function TrialBalanceScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.textMuted} />
         }
       >
-        {/* Totals row */}
         <View style={styles.totalsCard}>
           <View style={styles.totalBlock}>
             <Text style={styles.totalLabel}>Total Debit</Text>
@@ -226,7 +155,6 @@ export default function TrialBalanceScreen() {
           </View>
         </View>
 
-        {/* Out-of-balance warning */}
         {isOutOfBalance && (
           <View style={styles.diffWarning}>
             <Feather name="alert-circle" size={14} color={Colors.textSecondary} />
@@ -337,67 +265,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   exportBtnText: { fontSize: 12, fontWeight: '600', color: Colors.text },
-
-  filtersCard: {
-    backgroundColor: Colors.surface,
-    padding: Spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
-    gap: Spacing.sm,
-  },
-  filterRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  filterLabel: { fontSize: 13, color: Colors.textSecondary, width: 80 },
-  filterSelector: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: Colors.background,
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs + 2,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-  },
-  filterSelectorText: { flex: 1, fontSize: 13, color: Colors.text },
-
-  companyPicker: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-    overflow: 'hidden',
-  },
-  companyOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.sm + 2,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
-  },
-  companyOptionActive: { backgroundColor: Colors.surfaceHover },
-  companyOptionText: { flex: 1, fontSize: 13, color: Colors.text },
-  companyOptionTextActive: { fontWeight: '700' },
-
-  dateInput: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs + 2,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-    fontSize: 13,
-    color: Colors.text,
-  },
-
-  runBtn: {
-    backgroundColor: Colors.text,
-    borderRadius: Radius.md,
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
-  },
-  runBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
   searchContainer: {
     paddingHorizontal: Spacing.md,

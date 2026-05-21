@@ -5,7 +5,6 @@ import {
   Share,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -19,10 +18,11 @@ import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import BackButton from '@/components/BackButton';
+import CompanySelector from '@/components/CompanySelector';
+import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 import { formatCurrency } from '@/utils/currency';
 
 type ReportTab = 'pl' | 'bs';
-type Company = { id: string; name: string; code: string | null };
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -74,27 +74,20 @@ function computeBS(rows: TrialBalanceRow[]): BSData {
 }
 
 export default function FinancialReportsScreen() {
-  const { companies, selectedCompany: globalCompany } = useCompany();
+  const { companyId, selectedCompany: ctxCompany } = useCompany();
   const [activeTab, setActiveTab] = useState<ReportTab>('pl');
   const [rows, setRows] = useState<TrialBalanceRow[]>([]);
-  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [asOf, setAsOf] = useState(todayISO());
-  const [asOfInput, setAsOfInput] = useState(todayISO());
+  const [dateRange, setDateRange] = useState<DateRangeValue>({ from: todayISO(), to: '' });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showCompanyPicker, setShowCompanyPicker] = useState(false);
-
-  useEffect(() => {
-    if (!selectedCompany && globalCompany) setSelectedCompany(globalCompany);
-  }, [globalCompany, selectedCompany]);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
     try {
-      const companyId = selectedCompany?.id;
       const result = await fetchTrialBalance(companyId, asOf);
       setRows(result.rows);
     } catch (e: any) {
@@ -103,16 +96,21 @@ export default function FinancialReportsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedCompany, asOf]);
+  }, [companyId, asOf]);
 
   useEffect(() => { load(); }, [load]);
+
+  const handleDateChange = (v: DateRangeValue) => {
+    setDateRange(v);
+    setAsOf(v.from || todayISO());
+  };
 
   const pl = computePL(rows);
   const bs = computeBS(rows);
 
   const handleExport = async () => {
     const line = '─'.repeat(50);
-    const company = selectedCompany?.name ?? 'All Companies';
+    const company = ctxCompany?.name ?? 'All Companies';
 
     let text = '';
     if (activeTab === 'pl') {
@@ -177,59 +175,8 @@ export default function FinancialReportsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Filters */}
-      <View style={styles.filtersCard}>
-        {companies.length > 0 && (
-          <View style={styles.filterRow}>
-            <Text style={styles.filterLabel}>Company</Text>
-            <TouchableOpacity
-              style={styles.filterSelector}
-              onPress={() => setShowCompanyPicker(!showCompanyPicker)}
-            >
-              <Text style={styles.filterSelectorText} numberOfLines={1}>
-                {selectedCompany?.name ?? 'Select company'}
-              </Text>
-              <Feather name="chevron-down" size={14} color={Colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {showCompanyPicker && (
-          <View style={styles.companyPicker}>
-            {companies.map((c) => (
-              <TouchableOpacity
-                key={c.id}
-                style={[styles.companyOption, selectedCompany?.id === c.id && styles.companyOptionActive]}
-                onPress={() => { setSelectedCompany(c); setShowCompanyPicker(false); }}
-              >
-                <Text style={[styles.companyOptionText, selectedCompany?.id === c.id && styles.companyOptionTextActive]}>
-                  {c.name}
-                </Text>
-                {selectedCompany?.id === c.id && (
-                  <Feather name="check" size={14} color={Colors.text} />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        <View style={styles.filterRow}>
-          <Text style={styles.filterLabel}>As of Date</Text>
-          <TextInput
-            style={styles.dateInput}
-            value={asOfInput}
-            onChangeText={setAsOfInput}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={Colors.textMuted}
-            onBlur={() => { if (/^\d{4}-\d{2}-\d{2}$/.test(asOfInput)) setAsOf(asOfInput); }}
-            onSubmitEditing={() => { if (/^\d{4}-\d{2}-\d{2}$/.test(asOfInput)) setAsOf(asOfInput); }}
-          />
-        </View>
-
-        <TouchableOpacity style={styles.runBtn} onPress={() => load()}>
-          <Text style={styles.runBtnText}>Run Report</Text>
-        </TouchableOpacity>
-      </View>
+      <CompanySelector showAll />
+      <DateRangeBar mode="single" value={dateRange} onChange={handleDateChange} />
 
       <ScrollView
         style={styles.scroll}
@@ -420,67 +367,6 @@ const styles = StyleSheet.create({
   tabActive: { borderBottomColor: Colors.text },
   tabText: { fontSize: 13, fontWeight: '500', color: Colors.textSecondary },
   tabTextActive: { color: Colors.text, fontWeight: '700' },
-
-  filtersCard: {
-    backgroundColor: Colors.surface,
-    padding: Spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
-    gap: Spacing.sm,
-  },
-  filterRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  filterLabel: { fontSize: 13, color: Colors.textSecondary, width: 80 },
-  filterSelector: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: Colors.background,
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs + 2,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-  },
-  filterSelectorText: { flex: 1, fontSize: 13, color: Colors.text },
-
-  companyPicker: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-    overflow: 'hidden',
-  },
-  companyOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.sm + 2,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
-  },
-  companyOptionActive: { backgroundColor: Colors.surfaceHover },
-  companyOptionText: { flex: 1, fontSize: 13, color: Colors.text },
-  companyOptionTextActive: { fontWeight: '700' },
-
-  dateInput: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs + 2,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-    fontSize: 13,
-    color: Colors.text,
-  },
-
-  runBtn: {
-    backgroundColor: Colors.text,
-    borderRadius: Radius.md,
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
-  },
-  runBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },
