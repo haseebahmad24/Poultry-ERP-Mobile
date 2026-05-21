@@ -13,6 +13,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { FinanceStackParamList } from '@/navigation/FinanceNavigator';
+import { useOverdue } from '@/context/OverdueContext';
 
 type Nav = NativeStackNavigationProp<FinanceStackParamList, 'FinanceMenu'>;
 
@@ -64,6 +65,12 @@ const MENU_ITEMS: MenuItem[] = [
 
 export default function FinanceMenuScreen() {
   const navigation = useNavigation<Nav>();
+  const { apOverdue, arOverdue } = useOverdue();
+
+  const alertCounts: Record<string, number> = {
+    'Accounts Payable': apOverdue,
+    'Accounts Receivable': arOverdue,
+  };
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -80,41 +87,49 @@ export default function FinanceMenuScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.sectionCard}>
-          {MENU_ITEMS.map((item, idx) => (
-            <TouchableOpacity
-              key={item.label}
-              style={[
-                styles.menuItem,
-                idx < MENU_ITEMS.length - 1 && styles.menuItemBorder,
-                !item.available && styles.menuItemDisabled,
-              ]}
-              onPress={() => {
-                if (item.available && item.screen) {
-                  navigation.navigate(item.screen as any);
-                }
-              }}
-              activeOpacity={item.available ? 0.7 : 1}
-            >
-              <View style={styles.menuIconWrap}>
-                <Feather
-                  name={item.icon as any}
-                  size={18}
-                  color={item.available ? Colors.text : Colors.textMuted}
-                />
-              </View>
-              <View style={styles.menuInfo}>
-                <Text style={[styles.menuLabel, !item.available && styles.menuLabelDisabled]}>
-                  {item.label}
-                </Text>
-                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
-              </View>
-              {item.available ? (
-                <Feather name="chevron-right" size={16} color={Colors.textMuted} />
-              ) : (
-                <Feather name="lock" size={14} color={Colors.textMuted} />
-              )}
-            </TouchableOpacity>
-          ))}
+          {MENU_ITEMS.map((item, idx) => {
+            const alertCount = alertCounts[item.label] ?? 0;
+            return (
+              <TouchableOpacity
+                key={item.label}
+                style={[
+                  styles.menuItem,
+                  idx < MENU_ITEMS.length - 1 && styles.menuItemBorder,
+                  !item.available && styles.menuItemDisabled,
+                ]}
+                onPress={() => {
+                  if (item.available && item.screen) {
+                    navigation.navigate(item.screen as any);
+                  }
+                }}
+                activeOpacity={item.available ? 0.7 : 1}
+              >
+                <View style={styles.menuIconWrap}>
+                  <Feather
+                    name={item.icon as any}
+                    size={18}
+                    color={item.available ? Colors.text : Colors.textMuted}
+                  />
+                </View>
+                <View style={styles.menuInfo}>
+                  <Text style={[styles.menuLabel, !item.available && styles.menuLabelDisabled]}>
+                    {item.label}
+                  </Text>
+                  <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                </View>
+                {alertCount > 0 && (
+                  <View style={styles.alertBadge}>
+                    <Text style={styles.alertBadgeText}>{alertCount}</Text>
+                  </View>
+                )}
+                {item.available ? (
+                  <Feather name="chevron-right" size={16} color={Colors.textMuted} />
+                ) : (
+                  <Feather name="lock" size={14} color={Colors.textMuted} />
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <View style={{ height: Spacing.xxl }} />
@@ -175,4 +190,15 @@ const styles = StyleSheet.create({
   menuLabel: { ...Typography.h4 },
   menuLabelDisabled: { color: Colors.textSecondary },
   menuSubtitle: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
+  alertBadge: {
+    backgroundColor: Colors.text,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    marginRight: 6,
+  },
+  alertBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 });
