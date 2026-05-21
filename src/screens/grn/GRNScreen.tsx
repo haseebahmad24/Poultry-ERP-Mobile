@@ -16,8 +16,10 @@ import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchPurchaseOrders, PurchaseOrder } from '@/api/purchaseOrders';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
+import OfflineBanner from '@/components/OfflineBanner';
 import SectionHeader from '@/components/SectionHeader';
 import BackButton from '@/components/BackButton';
+import { getCached, setCached } from '@/utils/cache';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import type { MoreStackParamList } from '@/navigation/MoreNavigator';
 
@@ -29,14 +31,26 @@ export default function GRNScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) {
+      const cached = await getCached<PurchaseOrder[]>('grn:progress');
+      if (cached) {
+        setOrders(cached.data);
+        setStale(cached.stale);
+        setLoading(false);
+        if (!cached.stale) return;
+      }
+    }
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
     try {
       const data = await fetchPurchaseOrders('progress');
       setOrders(data);
+      setStale(false);
+      await setCached('grn:progress', data);
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
@@ -65,6 +79,8 @@ export default function GRNScreen() {
         <Text style={styles.headerTitle}>Goods Receipt</Text>
         <Text style={styles.headerSub}>{orders.length} POs</Text>
       </View>
+
+      {stale && error && <OfflineBanner />}
 
       <ScrollView
         style={styles.scroll}

@@ -13,22 +13,36 @@ import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchCompanies, CompanyDetail } from '@/api/companies';
 import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
+import OfflineBanner from '@/components/OfflineBanner';
 import SectionHeader from '@/components/SectionHeader';
 import BackButton from '@/components/BackButton';
+import { getCached, setCached } from '@/utils/cache';
 
 export default function CompaniesScreen() {
   const [companies, setCompanies] = useState<CompanyDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) {
+      const cached = await getCached<CompanyDetail[]>('companies:all');
+      if (cached) {
+        setCompanies(cached.data);
+        setStale(cached.stale);
+        setLoading(false);
+        if (!cached.stale) return;
+      }
+    }
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
     try {
       const data = await fetchCompanies();
       setCompanies(data);
+      setStale(false);
+      await setCached('companies:all', data);
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
@@ -51,6 +65,8 @@ export default function CompaniesScreen() {
         <Text style={styles.headerTitle}>Companies</Text>
         <Text style={styles.headerSub}>{companies.length} companies</Text>
       </View>
+
+      {stale && error && <OfflineBanner />}
 
       <ScrollView
         style={styles.scroll}

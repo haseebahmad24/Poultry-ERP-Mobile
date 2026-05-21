@@ -32,6 +32,7 @@ import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import OfflineBanner from '@/components/OfflineBanner';
+import { useOverdue } from '@/context/OverdueContext';
 
 type ARNavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
@@ -52,6 +53,7 @@ function daysOverdue(dueDate: string | undefined, status: string | undefined): n
 
 export default function AccountsReceivableScreen() {
   const { companyId } = useCompany();
+  const { setAROverdue } = useOverdue();
   const navigation = useNavigation<ARNavProp>();
   const [activeTab, setActiveTab] = useState<Tab>('summary');
   const [summary, setSummary] = useState<ARSummary>({});
@@ -75,6 +77,7 @@ export default function AccountsReceivableScreen() {
         setCustomers(cached.data.customers);
         setStale(cached.stale);
         setLoading(false);
+        setAROverdue(cached.data.invoices.filter((inv) => daysOverdue(inv.due_date, inv.status) > 0).length);
         if (!cached.stale) return;
       }
     }
@@ -91,6 +94,7 @@ export default function AccountsReceivableScreen() {
       setInvoices(invs);
       setCustomers(custs);
       setStale(false);
+      setAROverdue(invs.filter((inv) => daysOverdue(inv.due_date, inv.status) > 0).length);
       await setCached(cacheKey, { summary: sum, invoices: invs, customers: custs });
     } catch (e: any) {
       setError(String(e?.message ?? e));

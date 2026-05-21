@@ -32,6 +32,7 @@ import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import OfflineBanner from '@/components/OfflineBanner';
+import { useOverdue } from '@/context/OverdueContext';
 
 type APNavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
@@ -53,6 +54,7 @@ function daysOverdue(dueDate: string | undefined, status: string | undefined): n
 
 export default function AccountsPayableScreen() {
   const { companyId } = useCompany();
+  const { setAPOverdue } = useOverdue();
   const navigation = useNavigation<APNavProp>();
   const [activeTab, setActiveTab] = useState<Tab>('summary');
   const [summary, setSummary] = useState<APSummary>({});
@@ -76,6 +78,7 @@ export default function AccountsPayableScreen() {
         setVendors(cached.data.vendors);
         setStale(cached.stale);
         setLoading(false);
+        setAPOverdue(cached.data.bills.filter((b) => daysOverdue(b.due_date, b.status) > 0).length);
         if (!cached.stale) return;
       }
     }
@@ -92,6 +95,7 @@ export default function AccountsPayableScreen() {
       setBills(bls);
       setVendors(vend);
       setStale(false);
+      setAPOverdue(bls.filter((b) => daysOverdue(b.due_date, b.status) > 0).length);
       await setCached(cacheKey, { summary: sum, bills: bls, vendors: vend });
     } catch (e: any) {
       setError(String(e?.message ?? e));

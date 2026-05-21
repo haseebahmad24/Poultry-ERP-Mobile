@@ -7,6 +7,7 @@ import InventoryNavigator from '@/navigation/InventoryNavigator';
 import MoreNavigator from '@/navigation/MoreNavigator';
 import FinanceNavigator from '@/navigation/FinanceNavigator';
 import { Colors } from '@/theme';
+import { useOverdue } from '@/context/OverdueContext';
 import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
 import type { MoreStackParamList } from '@/navigation/MoreNavigator';
@@ -28,6 +29,8 @@ const TAB_ICONS: Record<string, string> = {
 };
 
 export default function AppNavigator() {
+  const { totalOverdue } = useOverdue();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -53,7 +56,21 @@ export default function AppNavigator() {
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Inventory" component={InventoryNavigator} />
-      <Tab.Screen name="Finance" component={FinanceNavigator} />
+      <Tab.Screen
+        name="Finance"
+        component={FinanceNavigator}
+        options={{
+          tabBarBadge: totalOverdue > 0 ? totalOverdue : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: Colors.text,
+            color: '#fff',
+            fontSize: 10,
+            minWidth: 16,
+            height: 16,
+            lineHeight: 16,
+          },
+        }}
+      />
       <Tab.Screen name="More" component={MoreNavigator} />
     </Tab.Navigator>
   );
