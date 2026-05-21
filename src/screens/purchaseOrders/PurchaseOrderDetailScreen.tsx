@@ -81,7 +81,7 @@ export default function PurchaseOrderDetailScreen() {
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
 
-      {stale && error && <OfflineBanner />}
+      <OfflineBanner visible={!!(stale && error)} />
 
       <ScrollView
         style={styles.scroll}

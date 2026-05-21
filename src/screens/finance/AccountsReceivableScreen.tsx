@@ -167,7 +167,7 @@ export default function AccountsReceivableScreen() {
         ))}
       </View>
 
-      {stale && error && <OfflineBanner />}
+      <OfflineBanner visible={!!(stale && error)} />
 
       <ScrollView
         style={styles.scroll}

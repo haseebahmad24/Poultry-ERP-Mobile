@@ -94,7 +94,7 @@ export default function CompaniesScreen() {
         <Text style={styles.headerSub}>{filtered.length} of {companies.length}</Text>
       </View>
 
-      {stale && error && <OfflineBanner />}
+      <OfflineBanner visible={!!(stale && error)} />
 
       <View style={styles.searchRow}>
         <View style={styles.searchBar}>

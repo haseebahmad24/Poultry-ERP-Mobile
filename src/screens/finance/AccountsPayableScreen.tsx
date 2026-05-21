@@ -168,7 +168,7 @@ export default function AccountsPayableScreen() {
         ))}
       </View>
 
-      {stale && error && <OfflineBanner />}
+      <OfflineBanner visible={!!(stale && error)} />
 
       <ScrollView
         style={styles.scroll}

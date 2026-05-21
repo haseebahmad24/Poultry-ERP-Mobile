@@ -4,7 +4,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -18,33 +17,12 @@ import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import BackButton from '@/components/BackButton';
+import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 import { useCompany } from '@/context/CompanyContext';
 import { formatShortDate } from '@/utils/currency';
 import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 
 type RouteType = RouteProp<InventoryStackParamList, 'ItemLedger'>;
-
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-function monthStartISO(): string {
-  const d = new Date();
-  d.setDate(1);
-  return d.toISOString().slice(0, 10);
-}
-function lastMonthRange(): { from: string; to: string } {
-  const d = new Date();
-  d.setDate(0);
-  const to = d.toISOString().slice(0, 10);
-  d.setDate(1);
-  const from = d.toISOString().slice(0, 10);
-  return { from, to };
-}
-function thisWeekStart(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - d.getDay());
-  return d.toISOString().slice(0, 10);
-}
 
 export default function ItemLedgerScreen() {
   const route = useRoute<RouteType>();
@@ -55,12 +33,7 @@ export default function ItemLedgerScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [showDateFilter, setShowDateFilter] = useState(false);
-  const [fromInput, setFromInput] = useState('');
-  const [toInput, setToInput] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [dateRange, setDateRange] = useState<DateRangeValue>({ from: '', to: '' });
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -70,8 +43,8 @@ export default function ItemLedgerScreen() {
       const data = await fetchStockLedger({
         companyId,
         itemId: item_id,
-        from: fromDate || undefined,
-        to: toDate || undefined,
+        from: dateRange.from || undefined,
+        to: dateRange.to || undefined,
       });
       setEntries(data);
     } catch (e: any) {
@@ -80,45 +53,11 @@ export default function ItemLedgerScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [companyId, item_id, fromDate, toDate]);
+  }, [companyId, item_id, dateRange.from, dateRange.to]);
 
   useEffect(() => { load(); }, [load]);
 
-  const applyDates = () => {
-    const validFrom = /^\d{4}-\d{2}-\d{2}$/.test(fromInput) ? fromInput : '';
-    const validTo = /^\d{4}-\d{2}-\d{2}$/.test(toInput) ? toInput : '';
-    setFromDate(validFrom);
-    setToDate(validTo);
-  };
-
-  const clearDates = () => {
-    setFromInput('');
-    setToInput('');
-    setFromDate('');
-    setToDate('');
-  };
-
-  const applyPreset = (preset: 'today' | 'week' | 'month' | 'lastMonth') => {
-    let from = '';
-    let to = todayISO();
-    if (preset === 'today') {
-      from = todayISO();
-    } else if (preset === 'week') {
-      from = thisWeekStart();
-    } else if (preset === 'month') {
-      from = monthStartISO();
-    } else {
-      const r = lastMonthRange();
-      from = r.from;
-      to = r.to;
-    }
-    setFromInput(from);
-    setToInput(to);
-    setFromDate(from);
-    setToDate(to);
-  };
-
-  const hasDateFilter = !!(fromDate || toDate);
+  const hasDateFilter = !!(dateRange.from || dateRange.to);
 
   const totalIn = entries.reduce((s, e) => s + (e.qty_in ?? 0), 0);
   const totalOut = entries.reduce((s, e) => s + (e.qty_out ?? 0), 0);
@@ -137,16 +76,6 @@ export default function ItemLedgerScreen() {
           <Text style={styles.headerTitle} numberOfLines={1}>{item_name}</Text>
           {item_code && <Text style={styles.headerSub}>{item_code}</Text>}
         </View>
-        <TouchableOpacity
-          style={[styles.filterToggle, hasDateFilter && styles.filterToggleActive]}
-          onPress={() => setShowDateFilter((v) => !v)}
-        >
-          <Feather
-            name="calendar"
-            size={14}
-            color={hasDateFilter ? '#ffffff' : Colors.textSecondary}
-          />
-        </TouchableOpacity>
       </View>
 
       <View style={styles.summaryBar}>
@@ -172,66 +101,7 @@ export default function ItemLedgerScreen() {
         )}
       </View>
 
-      {showDateFilter && (
-        <View style={styles.datePanel}>
-          <View style={styles.datePresets}>
-            {([
-              { label: 'Today', preset: 'today' },
-              { label: 'This Week', preset: 'week' },
-              { label: 'This Month', preset: 'month' },
-              { label: 'Last Month', preset: 'lastMonth' },
-            ] as const).map(({ label, preset }) => {
-              const isActive =
-                (preset === 'today' && fromDate === todayISO() && toDate === todayISO()) ||
-                (preset === 'week' && fromDate === thisWeekStart() && toDate === todayISO()) ||
-                (preset === 'month' && fromDate === monthStartISO() && toDate === todayISO()) ||
-                (preset === 'lastMonth' && fromDate === lastMonthRange().from && toDate === lastMonthRange().to);
-              return (
-                <TouchableOpacity
-                  key={preset}
-                  style={[styles.presetChip, isActive && styles.presetChipActive]}
-                  onPress={() => applyPreset(preset)}
-                >
-                  <Text style={[styles.presetChipText, isActive && styles.presetChipTextActive]}>
-                    {label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          <View style={styles.dateInputRow}>
-            <View style={styles.dateInputWrap}>
-              <Text style={styles.dateLabel}>From</Text>
-              <TextInput
-                style={styles.dateInput}
-                value={fromInput}
-                onChangeText={setFromInput}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={Colors.textMuted}
-                onSubmitEditing={applyDates}
-                onBlur={applyDates}
-              />
-            </View>
-            <View style={styles.dateInputWrap}>
-              <Text style={styles.dateLabel}>To</Text>
-              <TextInput
-                style={styles.dateInput}
-                value={toInput}
-                onChangeText={setToInput}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={Colors.textMuted}
-                onSubmitEditing={applyDates}
-                onBlur={applyDates}
-              />
-            </View>
-            {hasDateFilter && (
-              <TouchableOpacity style={styles.clearBtn} onPress={clearDates}>
-                <Text style={styles.clearBtnText}>Clear</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      )}
+      <DateRangeBar value={dateRange} onChange={setDateRange} />
 
       <ScrollView
         style={styles.scroll}
@@ -255,7 +125,7 @@ export default function ItemLedgerScreen() {
             <Feather name="box" size={36} color={Colors.textMuted} />
             <Text style={styles.emptyText}>No ledger entries found</Text>
             {hasDateFilter && (
-              <TouchableOpacity onPress={clearDates}>
+              <TouchableOpacity onPress={() => setDateRange({ from: '', to: '' })}>
                 <Text style={styles.emptyLink}>Clear date filter</Text>
               </TouchableOpacity>
             )}
@@ -334,18 +204,6 @@ const styles = StyleSheet.create({
   headerText: { flex: 1 },
   headerTitle: { ...Typography.h3, color: Colors.text },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
-  filterToggle: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: Radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-  },
-  filterToggleActive: {
-    backgroundColor: Colors.text,
-    borderColor: Colors.text,
-  },
 
   summaryBar: {
     flexDirection: 'row',
@@ -361,47 +219,6 @@ const styles = StyleSheet.create({
   summaryValue: { ...Typography.h4, fontWeight: '700', marginTop: 2, color: Colors.text },
   summaryValueMuted: { color: Colors.textSecondary },
   summarySep: { width: StyleSheet.hairlineWidth, height: 32, backgroundColor: Colors.border },
-
-  datePanel: {
-    backgroundColor: Colors.surface,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
-    gap: Spacing.sm,
-  },
-  datePresets: { flexDirection: 'row', gap: Spacing.xs, flexWrap: 'wrap' },
-  presetChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: Radius.full,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-  },
-  presetChipActive: { backgroundColor: Colors.text, borderColor: Colors.text },
-  presetChipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
-  presetChipTextActive: { color: '#ffffff', fontWeight: '600' },
-  dateInputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm },
-  dateInputWrap: { flex: 1 },
-  dateLabel: { ...Typography.bodySmall, color: Colors.textMuted, marginBottom: 4 },
-  dateInput: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 7,
-    ...Typography.body,
-    color: Colors.text,
-  },
-  clearBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: Radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-  },
-  clearBtnText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
 
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },

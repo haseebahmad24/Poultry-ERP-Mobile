@@ -100,7 +100,7 @@ export default function PurchaseOrdersScreen() {
         <Text style={styles.headerSub}>{filtered.length} records</Text>
       </View>
 
-      {isStale && error && <OfflineBanner />}
+      <OfflineBanner visible={!!(isStale && error)} />
 
       <View style={styles.searchContainer}>
         <Feather name="search" size={14} color={Colors.textMuted} />

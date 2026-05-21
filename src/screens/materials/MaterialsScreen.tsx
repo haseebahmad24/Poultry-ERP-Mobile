@@ -94,7 +94,7 @@ export default function MaterialsScreen() {
 
       <CompanySelector showAll />
 
-      {stale && error && <OfflineBanner />}
+      <OfflineBanner visible={!!(stale && error)} />
 
       <View style={styles.searchContainer}>
         <View style={styles.searchRow}>

@@ -79,7 +79,7 @@ export default function PODetailScreen({ route, navigation }: any) {
         <View style={{ width: 40 }} />
       </View>
 
-      {stale && error && <OfflineBanner />}
+      <OfflineBanner visible={!!(stale && error)} />
 
       <ScrollView
         style={styles.scroll}

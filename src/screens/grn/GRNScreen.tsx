@@ -80,7 +80,7 @@ export default function GRNScreen() {
         <Text style={styles.headerSub}>{orders.length} POs</Text>
       </View>
 
-      {stale && error && <OfflineBanner />}
+      <OfflineBanner visible={!!(stale && error)} />
 
       <ScrollView
         style={styles.scroll}
