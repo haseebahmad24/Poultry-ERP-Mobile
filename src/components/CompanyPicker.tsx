@@ -57,7 +57,7 @@ export default function CompanyPicker({ showAll = false }: Props) {
 const styles = StyleSheet.create({
   root: {
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.borderLight,
   },
   container: {
@@ -72,12 +72,12 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: Radius.full,
     backgroundColor: Colors.background,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
   },
   chipActive: {
-    backgroundColor: Colors.primaryBg,
-    borderColor: Colors.primary,
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
   },
   chipText: {
     fontSize: 12,
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     maxWidth: 120,
   },
   chipTextActive: {
-    color: Colors.primary,
+    color: Colors.surface,
     fontWeight: '700',
   },
 });

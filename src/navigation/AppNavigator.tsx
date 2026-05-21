@@ -1,4 +1,5 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigatorScreenParams } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -38,7 +39,7 @@ export default function AppNavigator() {
         tabBarActiveTintColor: Colors.text,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: {
-          borderTopWidth: 1,
+          borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: Colors.border,
           backgroundColor: Colors.surface,
           elevation: 0,

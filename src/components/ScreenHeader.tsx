@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing } from '@/theme';
 
@@ -19,10 +20,10 @@ export default function ScreenHeader({ title, subtitle, showBack = true, right }
       <View style={styles.left}>
         {showBack && canGoBack && (
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Text style={styles.backIcon}>‹</Text>
+            <Feather name="chevron-left" size={22} color={Colors.text} />
           </TouchableOpacity>
         )}
-        <View>
+        <View style={styles.titleWrap}>
           <Text style={styles.title}>{title}</Text>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
@@ -41,7 +42,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
   left: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },
@@ -52,7 +53,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 4,
   },
-  backIcon: { fontSize: 28, color: Colors.primary, fontWeight: '300', lineHeight: 32 },
+  titleWrap: { flex: 1 },
   title: { fontSize: 22, fontWeight: '700', color: Colors.text },
   subtitle: { fontSize: 12, color: Colors.textMuted, marginTop: 1 },
   right: {},
