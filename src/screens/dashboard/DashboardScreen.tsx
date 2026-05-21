@@ -66,6 +66,11 @@ const QUICK_ACTIONS: QuickAction[] = [
     icon: 'box',
     navigate: (nav) => nav.navigate('Inventory'),
   },
+  {
+    label: 'Alerts',
+    icon: 'bell',
+    navigate: (nav) => nav.navigate('More', { screen: 'Alerts' } as any),
+  },
 ];
 
 export default function DashboardScreen() {
@@ -196,19 +201,22 @@ export default function DashboardScreen() {
             <KPICard
               label="Revenue"
               value={formatCurrency(kpis?.revenue ?? 0)}
-              subtext="Month to date"
+              subtext="Month to date · tap"
+              onPress={() => navigation.navigate('Finance', { screen: 'FinancialReports' } as any)}
             />
             <KPICard
               label="Expenses"
               value={formatCurrency(kpis?.expenses ?? 0)}
-              subtext="Month to date"
+              subtext="Month to date · tap"
+              onPress={() => navigation.navigate('Finance', { screen: 'JournalEntries' } as any)}
             />
           </View>
           <View style={styles.kpiRow}>
             <KPICard
               label="Net Income"
               value={formatCurrency(netIncome)}
-              subtext={netIncome >= 0 ? 'Profit' : 'Loss'}
+              subtext={(netIncome >= 0 ? 'Profit' : 'Loss') + ' · tap'}
+              onPress={() => navigation.navigate('Finance', { screen: 'FinancialReports' } as any)}
             />
             <KPICard
               label="Cash & Bank"
@@ -249,17 +257,27 @@ export default function DashboardScreen() {
         {/* Quick Actions */}
         <SectionHeader title="Quick Actions" />
         <View style={styles.quickGrid}>
-          {QUICK_ACTIONS.map((qa) => (
-            <TouchableOpacity
-              key={qa.label}
-              style={styles.quickCard}
-              activeOpacity={0.7}
-              onPress={() => qa.navigate(navigation)}
-            >
-              <Feather name={qa.icon as any} size={22} color={Colors.text} />
-              <Text style={styles.quickLabel}>{qa.label}</Text>
-            </TouchableOpacity>
-          ))}
+          {QUICK_ACTIONS.map((qa) => {
+            const isAlerts = qa.label === 'Alerts';
+            return (
+              <TouchableOpacity
+                key={qa.label}
+                style={styles.quickCard}
+                activeOpacity={0.7}
+                onPress={() => qa.navigate(navigation)}
+              >
+                <View style={styles.quickIconWrap}>
+                  <Feather name={qa.icon as any} size={22} color={Colors.text} />
+                  {isAlerts && totalAlerts > 0 && (
+                    <View style={styles.quickBadge}>
+                      <Text style={styles.quickBadgeText}>{totalAlerts > 9 ? '9+' : totalAlerts}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.quickLabel}>{qa.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Recent Vouchers */}
@@ -429,6 +447,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  quickIconWrap: {
+    position: 'relative',
+  },
+  quickBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -8,
+    backgroundColor: Colors.text,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  quickBadgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
   quickLabel: {
     fontSize: 11,
     fontWeight: '500',
