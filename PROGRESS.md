@@ -1,5 +1,68 @@
 # Mobile App Progress
 
+## Session 10 — 2026-05-21
+
+### Completed This Session
+
+**Alerts/Notifications Screen** (`src/screens/alerts/AlertsScreen.tsx`)
+- New screen showing all active alerts in one place: overdue AP bills, overdue AR invoices, low-stock inventory items
+- Loads data from cache first (fast, no spinner delay); falls back to API if no cache
+- Overdue bills/invoices sorted most-overdue first with "Xd overdue" badge
+- Low-stock items sorted by qty ascending (most critical first); threshold from settings
+- Tapping bills/invoices navigates cross-tab to Finance → AP/AR; tapping stock → Inventory
+- Pull-to-refresh; "All clear" empty state with check-circle icon
+- Updates `OverdueContext` counts on every load
+
+**OverdueContext extended**
+- Added `lowStock: number` and `setLowStock` to `OverdueContext`
+- Added `totalAlerts = apOverdue + arOverdue + lowStock` field
+- `InventoryScreen` now publishes low-stock count via `useEffect` on `[stockData, lowStockThreshold]`
+
+**Dashboard improvements**
+- Bell icon button in top bar showing `totalAlerts` badge (disappears when zero)
+- Alerts quick-action tile added to the 6-tile grid with badge overlay
+- Finance Status panel (new section below Working Capital): shows overdue bill/invoice counts as tappable cards — only rendered when alerts exist, no visual noise when clean
+- All KPI cards now tappable:
+  - Revenue → Financial Reports
+  - Expenses → Journal Entries
+  - Net Income → Financial Reports
+  - Receivables → Accounts Receivable
+  - Payables → Accounts Payable
+
+**KPICard component**
+- Tappable cards now show a Feather `chevron-right` in the label row to indicate interactivity
+
+**FinanceMenu overdue badges**
+- Accounts Payable and Accounts Receivable rows in FinanceMenuScreen show black pill badges with overdue counts from `OverdueContext`
+
+**MoreMenu Alerts banner**
+- Prominent `Alerts` banner at top of More menu showing total alert count and breakdown (overdue bills · overdue invoices · low-stock items)
+- Active (dark border) when alerts > 0; neutral state when all clear
+
+---
+
+## Session 9 — 2026-05-21
+
+### Completed This Session
+
+**Offline Caching extended further**
+- `GRNScreen`: caches GRN progress data per company (24h TTL), OfflineBanner on stale+error
+- `CompaniesScreen`: caches companies list with search+filter preserved
+- `PODetailScreen` + `PurchaseOrderDetailScreen`: both cache individual PO detail by ID
+
+**Finance tab overdue badge**
+- `OverdueContext` + `useOverdue` hook created to share `apOverdue` / `arOverdue` counts
+- `AccountsPayableScreen` and `AccountsReceivableScreen` call `setAPOverdue` / `setAROverdue`
+- `AppNavigator` Finance tab shows black badge with `totalOverdue` count
+
+**SO Detail caching**
+- `SalesOrderDetailScreen`: caches detail per SO id (24h TTL)
+
+**Companies screen search/filter**
+- Added real-time search by name/code; active-only toggle chip
+
+---
+
 ## Session 8 — 2026-05-20
 
 ### Completed This Session
@@ -317,15 +380,15 @@
 
 ---
 
-## What's Next (Session 9)
+## What's Next (Session 11)
 
-All primary roadmap items + session 8 polish are complete. Remaining options:
+All primary roadmap items + Sessions 1-10 polish are complete. Remaining enhancement options:
 
-1. **Notifications** — Local push notifications for overdue AP/AR items (requires expo-notifications install)
+1. **Local push notifications** — expo-notifications for overdue AP/AR items (requires install + permissions flow)
 2. **Deep link navigation** — Universal links / custom URL scheme for sharing screen URLs
-3. **GRN caching** — Add offline cache to GRN screen
-4. **Companies caching** — Add offline cache to Companies screen
-5. **PO Detail caching** — Cache individual PO detail pages
+3. **Charts in AP/AR aging** — Replace custom bars with proper chart library (victory-native or react-native-chart-kit)
+4. **Global search screen** — Search across POs, SOs, partners, companies from a single search screen
+5. **Biometric lock** — expo-local-authentication for PIN/fingerprint on app open
 
 ---
 
@@ -335,6 +398,9 @@ All primary roadmap items + session 8 polish are complete. Remaining options:
 |---|---|
 | Login (user selector) | ✅ Done |
 | Dashboard / Home | ✅ Done |
+| Dashboard KPI card navigation (tap to drill down) | ✅ Done |
+| Dashboard Finance Status panel (overdue bill/invoice count cards) | ✅ Done |
+| Dashboard Alerts bell + quick action tile | ✅ Done |
 | Inventory (Stock + Ledger + Warehouses tabs) | ✅ Done |
 | Inventory Low-Stock Filter (configurable threshold) | ✅ Done |
 | Inventory Ledger Date Filter | ✅ Done |
@@ -342,7 +408,7 @@ All primary roadmap items + session 8 polish are complete. Remaining options:
 | Materials (with offline cache) | ✅ Done |
 | Purchase Orders + Detail (with offline cache) | ✅ Done |
 | Sales Orders + Detail (with offline cache) | ✅ Done |
-| GRN (with PO detail nav) | ✅ Done |
+| GRN (with PO detail nav + offline cache) | ✅ Done |
 | Accounts Payable (with search + overdue alerts + offline cache) | ✅ Done |
 | Vendor Detail (tap vendor → bill history) | ✅ Done |
 | Accounts Receivable (with search + overdue alerts + offline cache) | ✅ Done |
@@ -352,19 +418,24 @@ All primary roadmap items + session 8 polish are complete. Remaining options:
 | Financial Reports (P&L, BS, with Export) | ✅ Done |
 | Business Partners (with offline cache + tappable) | ✅ Done |
 | Partner Detail (tap partner → PO/SO history) | ✅ Done |
-| Companies | ✅ Done |
+| Companies (with search/filter + offline cache) | ✅ Done |
 | Settings (low-stock threshold + cache management) | ✅ Done |
+| Alerts / Notifications Center | ✅ Done |
 | Dashboard Quick Actions wired | ✅ Done |
 | Global Company Filter (all screens) | ✅ Done |
 | Pull-to-refresh (all screens) | ✅ Done |
 | Empty States | ✅ Done |
 | API retry logic | ✅ Done |
 | MoreMenu Finance deep links | ✅ Done |
+| MoreMenu Alerts banner with count breakdown | ✅ Done |
+| FinanceMenu overdue badges on AP/AR rows | ✅ Done |
 | Back buttons (all non-root screens) | ✅ Done |
 | Search (PO, SO, AP, AR) | ✅ Done |
-| Date range filter + presets (JE) | ✅ Done |
-| Offline caching (Dashboard, Inventory, AP, AR, Materials, PO, SO, Partners) | ✅ Done |
+| Date range filter + presets (JE, Inventory Ledger) | ✅ Done |
+| Offline caching (all major screens) | ✅ Done |
 | OfflineBanner component | ✅ Done |
+| Finance tab badge (overdue count) | ✅ Done |
+| KPICard tappable chevron indicator | ✅ Done |
 
 ---
 
