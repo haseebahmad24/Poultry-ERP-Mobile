@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   avatarCircle: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: Radius.full,
     backgroundColor: Colors.surfaceHover,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,

@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   logoCircle: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: Radius.full,
     backgroundColor: Colors.surfaceHover,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,

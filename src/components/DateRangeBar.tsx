@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
   clearBtn: {
     width: 26,
     height: 26,
-    borderRadius: 13,
+    borderRadius: Radius.full,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     alignItems: 'center',

@@ -125,8 +125,8 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: Colors.surface,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
     paddingBottom: 32,
     maxHeight: '60%',
   },

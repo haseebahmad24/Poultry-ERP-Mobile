@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   logoWrap: {
     width: 72,
     height: 72,
-    borderRadius: 36,
+    borderRadius: Radius.full,
     backgroundColor: 'rgba(255,255,255,0.12)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: Radius.full,
     backgroundColor: Colors.surfaceHover,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,

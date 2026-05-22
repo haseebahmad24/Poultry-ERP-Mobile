@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
   iconBtn: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     alignItems: 'center',
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
   alertsBtn: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     alignItems: 'center',
