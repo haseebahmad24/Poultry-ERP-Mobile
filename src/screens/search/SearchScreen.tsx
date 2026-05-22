@@ -13,18 +13,23 @@ import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
+import type { AppTabParamList } from '@/navigation/AppNavigator';
+import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchPurchaseOrders, PurchaseOrder } from '@/api/purchaseOrders';
 import { fetchSalesOrders, SalesOrder } from '@/api/salesOrders';
 import { fetchMaterials, Material } from '@/api/materials';
 import { fetchPartners, Partner } from '@/api/partners';
+import { fetchStockBalances, StockBalance } from '@/api/inventory';
 import { getCached, setCached } from '@/utils/cache';
-import { formatCurrency, formatShortDate } from '@/utils/currency';
+import { formatCurrency } from '@/utils/currency';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList>;
+type TabNav = BottomTabNavigationProp<AppTabParamList>;
 
-type ResultType = 'po' | 'so' | 'material' | 'partner';
+type ResultType = 'po' | 'so' | 'material' | 'partner' | 'stock';
 
 interface SearchResult {
   type: ResultType;
@@ -38,6 +43,11 @@ interface SearchResult {
     partnerName: string;
     isVendor: boolean;
     isCustomer: boolean;
+  };
+  stockMeta?: {
+    item_id?: number;
+    item_name: string;
+    item_code?: string;
   };
 }
 
@@ -54,6 +64,7 @@ const TYPE_ICONS: Record<ResultType, string> = {
   so: 'package',
   material: 'layers',
   partner: 'users',
+  stock: 'box',
 };
 
 const TYPE_LABELS: Record<ResultType, string> = {
@@ -61,6 +72,7 @@ const TYPE_LABELS: Record<ResultType, string> = {
   so: 'Sales Orders',
   material: 'Materials',
   partner: 'Business Partners',
+  stock: 'Stock Balances',
 };
 
 function matches(query: string, ...fields: (string | undefined)[]): boolean {
@@ -121,6 +133,22 @@ function partnerToResult(p: Partner): SearchResult {
   };
 }
 
+function stockToResult(s: StockBalance, idx: number): SearchResult {
+  return {
+    type: 'stock',
+    id: `stock-${s.item_id ?? idx}-${s.warehouse_id ?? 0}`,
+    rawId: s.item_id ?? idx,
+    title: s.item_name,
+    subtitle: s.warehouse_name ?? 'All warehouses',
+    meta: `${s.qty}${s.unit ? ` ${s.unit}` : ''}`,
+    stockMeta: {
+      item_id: s.item_id,
+      item_name: s.item_name,
+      item_code: s.item_code,
+    },
+  };
+}
+
 export default function SearchScreen() {
   const navigation = useNavigation<Nav>();
   const inputRef = useRef<TextInput>(null);
@@ -132,45 +160,52 @@ export default function SearchScreen() {
   const [allSOs, setAllSOs] = useState<SalesOrder[]>([]);
   const [allMaterials, setAllMaterials] = useState<Material[]>([]);
   const [allPartners, setAllPartners] = useState<Partner[]>([]);
+  const [allStock, setAllStock] = useState<StockBalance[]>([]);
 
   // Load all data sources (cache-first)
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [cachedPOs, cachedSOs, cachedMats, cachedPartners] = await Promise.all([
+      const [cachedPOs, cachedSOs, cachedMats, cachedPartners, cachedStock] = await Promise.all([
         getCached<PurchaseOrder[]>('search:pos'),
         getCached<SalesOrder[]>('search:sos'),
         getCached<Material[]>('search:materials'),
         getCached<Partner[]>('search:partners'),
+        getCached<StockBalance[]>('search:stock'),
       ]);
 
       if (cachedPOs) setAllPOs(cachedPOs.data);
       if (cachedSOs) setAllSOs(cachedSOs.data);
       if (cachedMats) setAllMaterials(cachedMats.data);
       if (cachedPartners) setAllPartners(cachedPartners.data);
+      if (cachedStock) setAllStock(cachedStock.data);
 
       const needsRefresh =
         !cachedPOs || cachedPOs.stale ||
         !cachedSOs || cachedSOs.stale ||
         !cachedMats || cachedMats.stale ||
-        !cachedPartners || cachedPartners.stale;
+        !cachedPartners || cachedPartners.stale ||
+        !cachedStock || cachedStock.stale;
 
       if (needsRefresh) {
-        const [pos, sos, mats, parts] = await Promise.all([
+        const [pos, sos, mats, parts, stock] = await Promise.all([
           fetchPurchaseOrders('all').catch(() => [] as PurchaseOrder[]),
           fetchSalesOrders('register').catch(() => [] as SalesOrder[]),
           fetchMaterials().catch(() => [] as Material[]),
           fetchPartners().catch(() => [] as Partner[]),
+          fetchStockBalances().catch(() => [] as StockBalance[]),
         ]);
         setAllPOs(pos);
         setAllSOs(sos);
         setAllMaterials(mats);
         setAllPartners(parts);
+        setAllStock(stock);
         await Promise.all([
           setCached('search:pos', pos),
           setCached('search:sos', sos),
           setCached('search:materials', mats),
           setCached('search:partners', parts),
+          setCached('search:stock', stock),
         ]);
       }
     } catch {
@@ -209,13 +244,19 @@ export default function SearchScreen() {
       .slice(0, 10)
       .map(partnerToResult);
 
+    const stockResults = allStock
+      .filter((s) => matches(q, s.item_name, s.item_code, s.warehouse_name))
+      .slice(0, 10)
+      .map((s, i) => stockToResult(s, i));
+
     return ([
       { key: 'po' as ResultType, label: TYPE_LABELS.po, icon: TYPE_ICONS.po, count: poResults.length, items: poResults },
       { key: 'so' as ResultType, label: TYPE_LABELS.so, icon: TYPE_ICONS.so, count: soResults.length, items: soResults },
+      { key: 'stock' as ResultType, label: TYPE_LABELS.stock, icon: TYPE_ICONS.stock, count: stockResults.length, items: stockResults },
       { key: 'material' as ResultType, label: TYPE_LABELS.material, icon: TYPE_ICONS.material, count: matResults.length, items: matResults },
       { key: 'partner' as ResultType, label: TYPE_LABELS.partner, icon: TYPE_ICONS.partner, count: partnerResults.length, items: partnerResults },
     ] as SectionData[]).filter((s) => s.count > 0);
-  }, [q, hasQuery, allPOs, allSOs, allMaterials, allPartners]);
+  }, [q, hasQuery, allPOs, allSOs, allMaterials, allPartners, allStock]);
 
   const totalResults = sections.reduce((acc, s) => acc + s.count, 0);
 
@@ -240,6 +281,23 @@ export default function SearchScreen() {
           });
         }
         break;
+      case 'stock': {
+        // Cross-tab navigation: switch to Inventory tab then open ItemLedger
+        const tabNav = navigation.getParent<TabNav>();
+        if (result.stockMeta?.item_id != null) {
+          tabNav?.navigate('Inventory', {
+            screen: 'ItemLedger',
+            params: {
+              item_id: result.stockMeta.item_id,
+              item_name: result.stockMeta.item_name,
+              item_code: result.stockMeta.item_code,
+            },
+          } as any);
+        } else {
+          tabNav?.navigate('Inventory');
+        }
+        break;
+      }
     }
   }
 
@@ -315,7 +373,7 @@ export default function SearchScreen() {
           <TextInput
             ref={inputRef}
             style={styles.searchInput}
-            placeholder="Search POs, SOs, materials, partners…"
+            placeholder="Search POs, SOs, stock, materials, partners…"
             placeholderTextColor={Colors.textMuted}
             value={query}
             onChangeText={setQuery}
@@ -342,7 +400,7 @@ export default function SearchScreen() {
           <Feather name="search" size={36} color={Colors.border} />
           <Text style={styles.stateTitle}>Search everything</Text>
           <Text style={styles.stateText}>
-            Type at least 2 characters to search across purchase orders, sales orders, materials, and partners.
+            Type at least 2 characters to search across purchase orders, sales orders, stock balances, materials, and partners.
           </Text>
         </View>
       ) : totalResults === 0 ? (

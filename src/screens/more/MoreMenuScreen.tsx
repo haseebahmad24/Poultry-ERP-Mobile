@@ -171,7 +171,7 @@ export default function MoreMenuScreen() {
         onPress={() => moreNav.navigate('Search')}
       >
         <Feather name="search" size={15} color={Colors.textMuted} />
-        <Text style={styles.searchShortcutText}>Search POs, SOs, materials, partners…</Text>
+        <Text style={styles.searchShortcutText}>Search POs, SOs, stock, materials, partners…</Text>
       </TouchableOpacity>
 
       <ScrollView
