@@ -4,7 +4,9 @@
 
 **2026-05-22** — Replaced all hardcoded `borderRadius` literals with Radius theme tokens across 5 screens: `AlertsScreen` (totalBadge→Radius.full, alertIcon→Radius.md, daysBadge→Radius.sm), `MoreMenuScreen` (alertBannerIcon→Radius.md, bellBadge→Radius.full, menuIconWrap→Radius.md), `FinanceMenuScreen` (menuIconWrap→Radius.md, alertBadge→Radius.full), `SearchScreen` (resultIconWrap→Radius.md), `SettingsScreen` (actionIconWrap→Radius.md). Zero hardcoded numeric borderRadius values remain in any screen or component.
 
-**2026-05-22** — Second borderRadius pass: replaced remaining numeric literals for circular avatar/badge elements and icon buttons. `CompaniesScreen` logoCircle (22→Radius.full), `LoginScreen` logoWrap (36→Radius.full) and avatar (24→Radius.full), `PartnersScreen` avatarCircle (20→Radius.full), `DashboardScreen` iconBtn/alertsBtn (10→Radius.md), `DateRangeBar` clearBtn (13→Radius.full), `CompanySelector` bottom-sheet corners (16→Radius.xl). Zero hardcoded numeric borderRadius values now remain across all screens and components.
+**2026-05-22** — Third borderRadius pass (final): fixed 4 remaining hardcoded pixel values missed by prior passes. `DashboardScreen` alertsDot (8→Radius.full) and quickBadge (8→Radius.full), `AgingChart` legend dot (4→Radius.full), `CompanySelector` sheet handle (2→Radius.full). Confirmed zero hardcoded numeric `borderRadius` values remain across all screens and components.
+
+**2026-05-22** — Second borderRadius pass: replaced remaining numeric literals for circular avatar/badge elements and icon buttons. `CompaniesScreen` logoCircle (22→Radius.full), `LoginScreen` logoWrap (36→Radius.full) and avatar (24→Radius.full), `PartnersScreen` avatarCircle (20→Radius.full), `DashboardScreen` iconBtn/alertsBtn (10→Radius.md), `DateRangeBar` clearBtn (13→Radius.full), `CompanySelector` bottom-sheet corners (16→Radius.xl).
 
 ---
 

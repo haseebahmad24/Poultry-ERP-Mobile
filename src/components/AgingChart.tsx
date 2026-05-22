@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   dot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: Radius.full,
     marginTop: 3,
   },
   legendText: { flex: 1 },

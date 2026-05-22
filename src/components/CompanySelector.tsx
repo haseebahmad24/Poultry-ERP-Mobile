@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   sheetHandle: {
     width: 36,
     height: 4,
-    borderRadius: 2,
+    borderRadius: Radius.full,
     backgroundColor: Colors.border,
     alignSelf: 'center',
     marginTop: 10,
