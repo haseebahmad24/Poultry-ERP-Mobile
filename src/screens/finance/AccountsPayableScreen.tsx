@@ -28,6 +28,7 @@ import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import CompanySelector from '@/components/CompanySelector';
+import AgingChart, { AgingBucket } from '@/components/AgingChart';
 import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
@@ -38,7 +39,7 @@ type APNavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
 type Tab = 'summary' | 'bills' | 'vendors';
 
-// Grayscale aging fills — conveys severity without semantic color
+// Grayscale aging fills — light (current) → dark (most overdue)
 const AGING_FILLS = ['#d1d5db', '#9ca3af', '#6b7280', '#374151', '#111827'];
 
 function daysOverdue(dueDate: string | undefined, status: string | undefined): number {
@@ -133,8 +134,13 @@ export default function AccountsPayableScreen() {
     : vendors;
 
   const aging = summary.aging ?? {};
-  const totalAging = (aging.current ?? 0) + (aging.days_30 ?? 0) +
-    (aging.days_60 ?? 0) + (aging.days_90 ?? 0) + (aging.over_90 ?? 0);
+  const apAgingBuckets: AgingBucket[] = [
+    { label: 'Current',      shortLabel: 'Current',  amount: aging.current  ?? 0, fill: AGING_FILLS[0] },
+    { label: '1–30 days',    shortLabel: '1–30d',    amount: aging.days_30  ?? 0, fill: AGING_FILLS[1] },
+    { label: '31–60 days',   shortLabel: '31–60d',   amount: aging.days_60  ?? 0, fill: AGING_FILLS[2] },
+    { label: '61–90 days',   shortLabel: '61–90d',   amount: aging.days_90  ?? 0, fill: AGING_FILLS[3] },
+    { label: 'Over 90 days', shortLabel: '90d+',     amount: aging.over_90  ?? 0, fill: AGING_FILLS[4] },
+  ];
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -193,11 +199,7 @@ export default function AccountsPayableScreen() {
 
             <SectionHeader title="Aging Analysis" />
             <View style={styles.agingCard}>
-              <AgingBar label="Current"     amount={aging.current ?? 0} total={totalAging} fill={AGING_FILLS[0]} />
-              <AgingBar label="1–30 days"   amount={aging.days_30 ?? 0} total={totalAging} fill={AGING_FILLS[1]} />
-              <AgingBar label="31–60 days"  amount={aging.days_60 ?? 0} total={totalAging} fill={AGING_FILLS[2]} />
-              <AgingBar label="61–90 days"  amount={aging.days_90 ?? 0} total={totalAging} fill={AGING_FILLS[3]} />
-              <AgingBar label="Over 90 days" amount={aging.over_90 ?? 0} total={totalAging} fill={AGING_FILLS[4]} />
+              <AgingChart buckets={apAgingBuckets} />
             </View>
 
             {vendors.length > 0 && (
@@ -313,21 +315,6 @@ function KPICard({ label, value }: { label: string; value: string }) {
     <View style={styles.kpiCard}>
       <Text style={styles.kpiValue}>{value}</Text>
       <Text style={styles.kpiLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function AgingBar({ label, amount, total, fill }: {
-  label: string; amount: number; total: number; fill: string;
-}) {
-  const pct = total > 0 ? Math.min((amount / total) * 100, 100) : 0;
-  return (
-    <View style={styles.agingRow}>
-      <Text style={styles.agingLabel}>{label}</Text>
-      <View style={styles.agingBarContainer}>
-        <View style={[styles.agingBarFill, { width: `${pct}%` as any, backgroundColor: fill }]} />
-      </View>
-      <Text style={styles.agingAmount}>{formatCurrency(amount)}</Text>
     </View>
   );
 }
@@ -500,18 +487,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
   },
-  agingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  agingLabel: { fontSize: 12, color: Colors.textSecondary, width: 90 },
-  agingBarContainer: {
-    flex: 1,
-    height: 4,
-    backgroundColor: Colors.borderLight,
-    borderRadius: Radius.full,
-    overflow: 'hidden',
-  },
-  agingBarFill: { height: '100%', borderRadius: Radius.full },
-  agingAmount: { fontSize: 12, fontWeight: '600', color: Colors.text, minWidth: 80, textAlign: 'right' },
-
   miniList: {
     marginHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
