@@ -1,5 +1,35 @@
 # Mobile App Progress
 
+## Session 11 — 2026-05-22
+
+### Completed This Session
+
+**Global Search Screen** (`src/screens/search/SearchScreen.tsx`)
+- Unified search across 5 data types: Purchase Orders, Sales Orders, Stock Balances, Materials, Business Partners
+- Cache-first data loading — pre-loads all sources on mount; background refresh when stale
+- Instant client-side filtering (minimum 2 chars), no API call on keystroke
+- Results grouped by type with section headers (icon + label + count)
+- Each result shows title, subtitle, optional amount/qty/badge metadata
+- Navigation: PO→PODetail, SO→SODetail, Partner→PartnerDetail, Stock→cross-tab Inventory>ItemLedger, Material→MaterialsScreen
+- Loading, empty-query, and zero-results states with Feather icons
+- Auto-focuses input on mount; × clear button; keyboard-aware FlatList
+
+**Navigation wiring for Search**
+- Added `Search` route to `MoreStackParamList` and `MoreNavigator`
+- `MoreMenuScreen`: tappable search shortcut bar at top (above scroll) navigates to SearchScreen
+- `DashboardScreen`: search icon button (Feather `search`) added to top bar between bell and sign-out
+
+**AgingChart component** (`src/components/AgingChart.tsx`)
+- New reusable stacked horizontal aging bar component
+- Full-width proportional bar: each segment's width = bucket_amount / total
+- 5 grayscale fills (light → dark): Current, 1–30d, 31–60d, 61–90d, 90d+
+- Legend grid below bar: dot + short label + formatted amount + percentage
+- Graceful zero-total case (shows empty gray bar)
+- `AccountsPayableScreen`: replaced 5 separate `AgingBar` rows with `<AgingChart>`; removed old function + styles
+- `AccountsReceivableScreen`: same migration
+
+---
+
 ## Session 10 — 2026-05-21
 
 ### Completed This Session
@@ -380,15 +410,15 @@
 
 ---
 
-## What's Next (Session 11)
+## What's Next (Session 12)
 
-All primary roadmap items + Sessions 1-10 polish are complete. Remaining enhancement options:
+Sessions 1–11 are complete. All roadmap screens + polish are done. Remaining enhancement options:
 
 1. **Local push notifications** — expo-notifications for overdue AP/AR items (requires install + permissions flow)
 2. **Deep link navigation** — Universal links / custom URL scheme for sharing screen URLs
-3. **Charts in AP/AR aging** — Replace custom bars with proper chart library (victory-native or react-native-chart-kit)
-4. **Global search screen** — Search across POs, SOs, partners, companies from a single search screen
-5. **Biometric lock** — expo-local-authentication for PIN/fingerprint on app open
+3. **Biometric lock** — expo-local-authentication for PIN/fingerprint on app open
+4. **Purchase Order creation** — Draft PO form with item line entry (requires POST API)
+5. **Dashboard real-time refresh** — Background polling or WebSocket updates for live KPI changes
 
 ---
 
@@ -431,6 +461,10 @@ All primary roadmap items + Sessions 1-10 polish are complete. Remaining enhance
 | FinanceMenu overdue badges on AP/AR rows | ✅ Done |
 | Back buttons (all non-root screens) | ✅ Done |
 | Search (PO, SO, AP, AR) | ✅ Done |
+| Global Search Screen (POs, SOs, Stock, Materials, Partners) | ✅ Done |
+| AgingChart stacked bar in AP/AR Summary tabs | ✅ Done |
+| Dashboard search icon button | ✅ Done |
+| MoreMenu search shortcut bar | ✅ Done |
 | Date range filter + presets (JE, Inventory Ledger) | ✅ Done |
 | Offline caching (all major screens) | ✅ Done |
 | OfflineBanner component | ✅ Done |
