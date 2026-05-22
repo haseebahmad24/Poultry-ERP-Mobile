@@ -13,9 +13,11 @@ import PartnerDetailScreen from '@/screens/partners/PartnerDetailScreen';
 import CompaniesScreen from '@/screens/companies/CompaniesScreen';
 import SettingsScreen from '@/screens/settings/SettingsScreen';
 import AlertsScreen from '@/screens/alerts/AlertsScreen';
+import SearchScreen from '@/screens/search/SearchScreen';
 
 export type MoreStackParamList = {
   MoreMenu: undefined;
+  Search: undefined;
   Materials: undefined;
   PurchaseOrders: undefined;
   PurchaseOrderDetail: { id: number };
@@ -49,6 +51,11 @@ export default function MoreNavigator() {
       <Stack.Screen
         name="MoreMenu"
         component={MoreMenuScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Search"
+        component={SearchScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen

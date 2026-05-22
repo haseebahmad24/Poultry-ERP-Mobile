@@ -154,6 +154,13 @@ export default function DashboardScreen() {
         </View>
         <View style={styles.topBarRight}>
           <TouchableOpacity
+            style={styles.iconBtn}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('More', { screen: 'Search' } as any)}
+          >
+            <Feather name="search" size={18} color={Colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
             style={styles.alertsBtn}
             activeOpacity={0.7}
             onPress={() => navigation.navigate('More', { screen: 'Alerts' } as any)}
@@ -392,6 +399,15 @@ const styles = StyleSheet.create({
   },
   topBarLeft: { flex: 1 },
   topBarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   alertsBtn: {
     width: 36,
     height: 36,

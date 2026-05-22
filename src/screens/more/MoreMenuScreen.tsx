@@ -158,9 +158,21 @@ export default function MoreMenuScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>More</Text>
-        <Text style={styles.headerSub}>All modules</Text>
+        <View style={styles.headerTextBlock}>
+          <Text style={styles.headerTitle}>More</Text>
+          <Text style={styles.headerSub}>All modules</Text>
+        </View>
       </View>
+
+      {/* Search shortcut — tapping opens the full search screen */}
+      <TouchableOpacity
+        style={styles.searchShortcut}
+        activeOpacity={0.7}
+        onPress={() => moreNav.navigate('Search')}
+      >
+        <Feather name="search" size={15} color={Colors.textMuted} />
+        <Text style={styles.searchShortcutText}>Search POs, SOs, materials, partners…</Text>
+      </TouchableOpacity>
 
       <ScrollView
         style={styles.scroll}
@@ -263,8 +275,24 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     gap: Spacing.sm,
   },
+  headerTextBlock: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.sm },
   headerTitle: { ...Typography.h2 },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted },
+
+  searchShortcut: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    height: 40,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surfaceHover,
+  },
+  searchShortcutText: { fontSize: 13, color: Colors.textMuted },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.md, paddingHorizontal: Spacing.md },
