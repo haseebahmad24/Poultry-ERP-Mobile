@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 17, fontWeight: '700', color: Colors.text },
   totalBadge: {
     backgroundColor: Colors.text,
-    borderRadius: 10,
+    borderRadius: Radius.full,
     minWidth: 20,
     height: 20,
     alignItems: 'center',
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   alertIcon: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     backgroundColor: Colors.surfaceHover,
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   alertAmount: { fontSize: 13, fontWeight: '600', color: Colors.text },
   alertAmountSub: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
   daysBadge: {
-    borderRadius: 4,
+    borderRadius: Radius.sm,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     paddingHorizontal: 5,

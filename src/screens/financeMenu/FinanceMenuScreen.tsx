@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   menuIconWrap: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     alignItems: 'center',
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   menuSubtitle: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
   alertBadge: {
     backgroundColor: Colors.text,
-    borderRadius: 10,
+    borderRadius: Radius.full,
     minWidth: 20,
     height: 20,
     alignItems: 'center',

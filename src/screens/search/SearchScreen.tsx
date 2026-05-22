@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
   resultIconWrap: {
     width: 30,
     height: 30,
-    borderRadius: 8,
+    borderRadius: Radius.md,
     backgroundColor: Colors.surfaceHover,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,

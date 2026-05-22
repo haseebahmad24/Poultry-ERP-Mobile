@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   actionIconWrap: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     alignItems: 'center',

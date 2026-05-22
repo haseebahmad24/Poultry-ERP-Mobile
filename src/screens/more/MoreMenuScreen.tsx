@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
   alertBannerIcon: {
     width: 36,
     height: 36,
-    borderRadius: 9,
+    borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     backgroundColor: Colors.surfaceHover,
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     top: -4,
     right: -4,
     backgroundColor: Colors.text,
-    borderRadius: 8,
+    borderRadius: Radius.full,
     minWidth: 16,
     height: 16,
     alignItems: 'center',
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   menuIconWrap: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     alignItems: 'center',
