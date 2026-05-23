@@ -14,8 +14,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchPurchaseOrders, PurchaseOrder } from '@/api/purchaseOrders';
-import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
+import ListScreenSkeleton from '@/components/ListScreenSkeleton';
 import OfflineBanner from '@/components/OfflineBanner';
 import SectionHeader from '@/components/SectionHeader';
 import BackButton from '@/components/BackButton';
@@ -67,7 +67,6 @@ export default function GRNScreen() {
     ? Math.min((totalReceived / totalOrdered) * 100, 100)
     : 0;
 
-  if (loading) return <LoadingView message="Loading goods receipts…" />;
   if (error && orders.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (
@@ -77,12 +76,12 @@ export default function GRNScreen() {
       <View style={styles.header}>
         <BackButton />
         <Text style={styles.headerTitle}>Goods Receipt</Text>
-        <Text style={styles.headerSub}>{orders.length} POs</Text>
+        {!loading && <Text style={styles.headerSub}>{orders.length} POs</Text>}
       </View>
 
       <OfflineBanner visible={!!(stale && error)} />
 
-      <ScrollView
+      {loading ? <ListScreenSkeleton count={5} showTabs={false} showSearch={false} /> : <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -133,7 +132,7 @@ export default function GRNScreen() {
         )}
 
         <View style={{ height: Spacing.xxl }} />
-      </ScrollView>
+      </ScrollView>}
     </SafeAreaView>
   );
 }

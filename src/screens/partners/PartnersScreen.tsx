@@ -15,8 +15,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchPartners, Partner } from '@/api/partners';
-import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
+import ListScreenSkeleton from '@/components/ListScreenSkeleton';
 import SectionHeader from '@/components/SectionHeader';
 import CompanySelector from '@/components/CompanySelector';
 import BackButton from '@/components/BackButton';
@@ -84,7 +84,6 @@ export default function PartnersScreen() {
     return matchesSearch && matchesRole;
   });
 
-  if (loading) return <LoadingView message="Loading partners…" />;
   if (error && partners.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (
@@ -94,85 +93,90 @@ export default function PartnersScreen() {
       <View style={styles.header}>
         <BackButton />
         <Text style={styles.headerTitle}>Business Partners</Text>
-        <Text style={styles.headerSub}>{filtered.length} records</Text>
+        {!loading && <Text style={styles.headerSub}>{filtered.length} records</Text>}
       </View>
 
       <OfflineBanner visible={!!(isStale && error)} />
-
       <CompanySelector showAll />
 
-      <View style={styles.searchContainer}>
-        <View style={styles.searchRow}>
-          <Feather name="search" size={15} color={Colors.textMuted} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by name, code, email…"
-            placeholderTextColor={Colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Feather name="x" size={15} color={Colors.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.filterBar}>
-        {(['all', 'customer', 'vendor'] as RoleFilter[]).map((role) => (
-          <TouchableOpacity
-            key={role}
-            style={[styles.filterChip, roleFilter === role && styles.filterChipActive]}
-            onPress={() => setRoleFilter(role)}
-          >
-            <Text style={[styles.filterChipText, roleFilter === role && styles.filterChipTextActive]}>
-              {role === 'all' ? 'All' : role.charAt(0).toUpperCase() + role.slice(1) + 's'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.textMuted} />
-        }
-      >
-        <SectionHeader title="Partners" meta={`${filtered.length} records`} />
-
-        {filtered.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Feather name="users" size={36} color={Colors.textMuted} />
-            <Text style={styles.emptyText}>
-              {search || roleFilter !== 'all' ? 'No partners match your filter' : 'No partners found'}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.cardList}>
-            {filtered.map((p) => (
-              <PartnerCard
-                key={p.id}
-                partner={p}
-                onPress={() => {
-                  const isVendor = !!(p.is_vendor || p.type === 'vendor' || p.roles?.includes('vendor'));
-                  const isCustomer = !!(p.is_customer || p.type === 'customer' || p.roles?.includes('customer'));
-                  navigation.navigate('PartnerDetail', {
-                    partnerId: p.id,
-                    partnerName: p.name,
-                    isVendor,
-                    isCustomer: isCustomer || (!isVendor && !isCustomer),
-                  });
-                }}
+      {loading ? (
+        <ListScreenSkeleton count={7} showTabs={false} showSearch />
+      ) : (
+        <>
+          <View style={styles.searchContainer}>
+            <View style={styles.searchRow}>
+              <Feather name="search" size={15} color={Colors.textMuted} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search by name, code, email…"
+                placeholderTextColor={Colors.textMuted}
+                value={search}
+                onChangeText={setSearch}
               />
+              {search.length > 0 && (
+                <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Feather name="x" size={15} color={Colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.filterBar}>
+            {(['all', 'customer', 'vendor'] as RoleFilter[]).map((role) => (
+              <TouchableOpacity
+                key={role}
+                style={[styles.filterChip, roleFilter === role && styles.filterChipActive]}
+                onPress={() => setRoleFilter(role)}
+              >
+                <Text style={[styles.filterChipText, roleFilter === role && styles.filterChipTextActive]}>
+                  {role === 'all' ? 'All' : role.charAt(0).toUpperCase() + role.slice(1) + 's'}
+                </Text>
+              </TouchableOpacity>
             ))}
           </View>
-        )}
 
-        <View style={{ height: Spacing.xxl }} />
-      </ScrollView>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.textMuted} />
+            }
+          >
+            <SectionHeader title="Partners" meta={`${filtered.length} records`} />
+
+            {filtered.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Feather name="users" size={36} color={Colors.textMuted} />
+                <Text style={styles.emptyText}>
+                  {search || roleFilter !== 'all' ? 'No partners match your filter' : 'No partners found'}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.cardList}>
+                {filtered.map((p) => (
+                  <PartnerCard
+                    key={p.id}
+                    partner={p}
+                    onPress={() => {
+                      const isVendor = !!(p.is_vendor || p.type === 'vendor' || p.roles?.includes('vendor'));
+                      const isCustomer = !!(p.is_customer || p.type === 'customer' || p.roles?.includes('customer'));
+                      navigation.navigate('PartnerDetail', {
+                        partnerId: p.id,
+                        partnerName: p.name,
+                        isVendor,
+                        isCustomer: isCustomer || (!isVendor && !isCustomer),
+                      });
+                    }}
+                  />
+                ))}
+              </View>
+            )}
+
+            <View style={{ height: Spacing.xxl }} />
+          </ScrollView>
+        </>
+      )}
     </SafeAreaView>
   );
 }

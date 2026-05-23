@@ -13,8 +13,8 @@ import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchCompanies, CompanyDetail } from '@/api/companies';
-import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
+import ListScreenSkeleton from '@/components/ListScreenSkeleton';
 import OfflineBanner from '@/components/OfflineBanner';
 import SectionHeader from '@/components/SectionHeader';
 import BackButton from '@/components/BackButton';
@@ -59,7 +59,6 @@ export default function CompaniesScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <LoadingView message="Loading companies…" />;
   if (error && companies.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   const q = search.toLowerCase().trim();
@@ -91,11 +90,15 @@ export default function CompaniesScreen() {
       <View style={styles.header}>
         <BackButton />
         <Text style={styles.headerTitle}>Companies</Text>
-        <Text style={styles.headerSub}>{filtered.length} of {companies.length}</Text>
+        {!loading && <Text style={styles.headerSub}>{filtered.length} of {companies.length}</Text>}
       </View>
 
       <OfflineBanner visible={!!(stale && error)} />
 
+      {loading ? (
+        <ListScreenSkeleton count={5} showTabs={false} showSearch />
+      ) : (
+      <>
       <View style={styles.searchRow}>
         <View style={styles.searchBar}>
           <Feather name="search" size={14} color={Colors.textMuted} />
@@ -165,6 +168,8 @@ export default function CompaniesScreen() {
 
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
+      </>
+      )}
     </SafeAreaView>
   );
 }

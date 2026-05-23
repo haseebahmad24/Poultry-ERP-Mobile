@@ -16,7 +16,7 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Colors, Radius, Spacing } from '@/theme';
 import BackButton from '@/components/BackButton';
 import SectionHeader from '@/components/SectionHeader';
-import LoadingView from '@/components/LoadingView';
+import ListScreenSkeleton from '@/components/ListScreenSkeleton';
 import { useCompany } from '@/context/CompanyContext';
 import { useOverdue } from '@/context/OverdueContext';
 import { fetchAPBills, APBill } from '@/api/accountsPayable';
@@ -105,8 +105,6 @@ export default function AlertsScreen() {
 
   const totalAlerts = overdueBills.length + overdueInvoices.length + lowStockItems.length;
 
-  if (loading) return <LoadingView message="Loading alerts…" />;
-
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
@@ -115,7 +113,7 @@ export default function AlertsScreen() {
         <BackButton />
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Alerts</Text>
-          {totalAlerts > 0 && (
+          {!loading && totalAlerts > 0 && (
             <View style={styles.totalBadge}>
               <Text style={styles.totalBadgeText}>{totalAlerts}</Text>
             </View>
@@ -124,7 +122,9 @@ export default function AlertsScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      {totalAlerts === 0 && !loading ? (
+      {loading ? (
+        <ListScreenSkeleton count={5} showTabs={false} showSearch={false} showBadge />
+      ) : totalAlerts === 0 ? (
         <View style={styles.allClear}>
           <Feather name="check-circle" size={48} color={Colors.textMuted} />
           <Text style={styles.allClearTitle}>All clear</Text>

@@ -14,8 +14,8 @@ import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchJournalEntries, JournalEntry } from '@/api/journalEntries';
-import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
+import ListScreenSkeleton from '@/components/ListScreenSkeleton';
 import SectionHeader from '@/components/SectionHeader';
 import CompanySelector from '@/components/CompanySelector';
 import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
@@ -86,7 +86,6 @@ export default function JournalEntriesScreen() {
     await Share.share({ message: text, title: 'Journal Entries' });
   };
 
-  if (loading) return <LoadingView message="Loading journal entries…" />;
   if (error && entries.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (
@@ -96,8 +95,8 @@ export default function JournalEntriesScreen() {
       <View style={styles.header}>
         <BackButton />
         <Text style={styles.headerTitle}>Journal Entries</Text>
-        <Text style={styles.headerSub}>{filtered.length} entries</Text>
-        {filtered.length > 0 && (
+        {!loading && <Text style={styles.headerSub}>{filtered.length} entries</Text>}
+        {!loading && filtered.length > 0 && (
           <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
             <Feather name="share" size={13} color={Colors.textSecondary} />
             <Text style={styles.exportBtnText}>Export</Text>
@@ -106,77 +105,83 @@ export default function JournalEntriesScreen() {
       </View>
 
       <CompanySelector showAll />
-      <DateRangeBar value={dateRange} onChange={setDateRange} />
+      {loading ? (
+        <ListScreenSkeleton count={6} showTabs={false} showSearch />
+      ) : (
+        <>
+          <DateRangeBar value={dateRange} onChange={setDateRange} />
 
-      <View style={styles.searchContainer}>
-        <Feather name="search" size={14} color={Colors.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search voucher, narration…"
-          placeholderTextColor={Colors.textMuted}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Feather name="x" size={14} color={Colors.textMuted} />
-          </TouchableOpacity>
-        )}
-      </View>
+          <View style={styles.searchContainer}>
+            <Feather name="search" size={14} color={Colors.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search voucher, narration…"
+              placeholderTextColor={Colors.textMuted}
+              value={search}
+              onChangeText={setSearch}
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <Feather name="x" size={14} color={Colors.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.chipScroll}
-        contentContainerStyle={styles.chipContainer}
-      >
-        {VOUCHER_TYPES.map((t) => (
-          <TouchableOpacity
-            key={t}
-            style={[styles.chip, selectedType === t && styles.chipActive]}
-            onPress={() => setSelectedType(t)}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chipScroll}
+            contentContainerStyle={styles.chipContainer}
           >
-            <Text style={[styles.chipText, selectedType === t && styles.chipTextActive]}>
-              {t}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => load(true)}
-            tintColor={Colors.textMuted}
-          />
-        }
-      >
-        <SectionHeader title="Vouchers" meta={`${filtered.length} records`} />
-
-        {filtered.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Feather name="book-open" size={32} color={Colors.textMuted} />
-            <Text style={styles.emptyText}>No journal entries found</Text>
-          </View>
-        ) : (
-          <View style={styles.cardList}>
-            {filtered.map((entry) => (
-              <JECard
-                key={entry.id}
-                entry={entry}
-                isExpanded={expanded === entry.id}
-                onToggle={() => setExpanded(expanded === entry.id ? null : entry.id)}
-              />
+            {VOUCHER_TYPES.map((t) => (
+              <TouchableOpacity
+                key={t}
+                style={[styles.chip, selectedType === t && styles.chipActive]}
+                onPress={() => setSelectedType(t)}
+              >
+                <Text style={[styles.chipText, selectedType === t && styles.chipTextActive]}>
+                  {t}
+                </Text>
+              </TouchableOpacity>
             ))}
-          </View>
-        )}
+          </ScrollView>
 
-        <View style={{ height: Spacing.xxl }} />
-      </ScrollView>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => load(true)}
+                tintColor={Colors.textMuted}
+              />
+            }
+          >
+            <SectionHeader title="Vouchers" meta={`${filtered.length} records`} />
+
+            {filtered.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Feather name="book-open" size={32} color={Colors.textMuted} />
+                <Text style={styles.emptyText}>No journal entries found</Text>
+              </View>
+            ) : (
+              <View style={styles.cardList}>
+                {filtered.map((entry) => (
+                  <JECard
+                    key={entry.id}
+                    entry={entry}
+                    isExpanded={expanded === entry.id}
+                    onToggle={() => setExpanded(expanded === entry.id ? null : entry.id)}
+                  />
+                ))}
+              </View>
+            )}
+
+            <View style={{ height: Spacing.xxl }} />
+          </ScrollView>
+        </>
+      )}
     </SafeAreaView>
   );
 }
