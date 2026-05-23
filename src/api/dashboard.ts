@@ -64,9 +64,12 @@ function startOfMonthISO(): string {
   return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
 }
 
+export type VoucherTypeStat = { type: string; count: number; amount: number };
+
 export async function fetchDashboardData(companyId?: string): Promise<{
   kpis: KPIs;
   recentVouchers: RecentVoucher[];
+  voucherTypeStats: VoucherTypeStat[];
 }> {
   const cq = companyId ? `&company_id=${encodeURIComponent(companyId)}` : '';
   const cqOnly = companyId ? `?company_id=${encodeURIComponent(companyId)}` : '';
@@ -121,6 +124,18 @@ export async function fetchDashboardData(companyId?: string): Promise<{
       amount: Number(e.total_debit) || 0,
     }));
 
+  // Aggregate by type for the activity chart
+  const typeMap: Record<string, { count: number; amount: number }> = {};
+  for (const e of entries) {
+    const t = e.type ?? 'OTHER';
+    if (!typeMap[t]) typeMap[t] = { count: 0, amount: 0 };
+    typeMap[t].count += 1;
+    typeMap[t].amount += Number(e.total_debit) || 0;
+  }
+  const voucherTypeStats: VoucherTypeStat[] = Object.entries(typeMap)
+    .map(([type, v]) => ({ type, count: v.count, amount: v.amount }))
+    .sort((a, b) => b.count - a.count);
+
   return {
     kpis: {
       revenue: revenueMTD,
@@ -132,5 +147,6 @@ export async function fetchDashboardData(companyId?: string): Promise<{
       totalAP: Number(apRes.totals?.total_ap) || 0,
     },
     recentVouchers,
+    voucherTypeStats,
   };
 }

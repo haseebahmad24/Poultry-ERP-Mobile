@@ -15,13 +15,14 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useAuth } from '@/context/AuthContext';
 import { useCompany } from '@/context/CompanyContext';
 import { useOverdue } from '@/context/OverdueContext';
-import { fetchDashboardData, KPIs, RecentVoucher } from '@/api/dashboard';
+import { fetchDashboardData, KPIs, RecentVoucher, VoucherTypeStat } from '@/api/dashboard';
 import KPICard from '@/components/KPICard';
 import SectionHeader from '@/components/SectionHeader';
 import ErrorView from '@/components/ErrorView';
 import DashboardSkeleton from '@/components/DashboardSkeleton';
 import CompanySelector from '@/components/CompanySelector';
 import OfflineBanner from '@/components/OfflineBanner';
+import VoucherActivityChart from '@/components/VoucherActivityChart';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
@@ -82,6 +83,7 @@ export default function DashboardScreen() {
 
   const [kpis, setKpis] = useState<KPIs | null>(null);
   const [vouchers, setVouchers] = useState<RecentVoucher[]>([]);
+  const [voucherTypeStats, setVoucherTypeStats] = useState<VoucherTypeStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,11 +96,12 @@ export default function DashboardScreen() {
     if (isRefresh) {
       setRefreshing(true);
     } else {
-      const cached = await getCached<{ kpis: KPIs; recentVouchers: RecentVoucher[] }>(cacheKey);
+      const cached = await getCached<{ kpis: KPIs; recentVouchers: RecentVoucher[]; voucherTypeStats?: VoucherTypeStat[] }>(cacheKey);
       if (cached) {
         hadCachedData = true;
         setKpis(cached.data.kpis);
         setVouchers(cached.data.recentVouchers);
+        setVoucherTypeStats(cached.data.voucherTypeStats ?? []);
         setIsStale(cached.stale);
         setLoading(false);
       } else {
@@ -110,8 +113,9 @@ export default function DashboardScreen() {
       const data = await fetchDashboardData(selectedCompany?.id ?? undefined);
       setKpis(data.kpis);
       setVouchers(data.recentVouchers);
+      setVoucherTypeStats(data.voucherTypeStats);
       setIsStale(false);
-      await setCached(cacheKey, { kpis: data.kpis, recentVouchers: data.recentVouchers });
+      await setCached(cacheKey, { kpis: data.kpis, recentVouchers: data.recentVouchers, voucherTypeStats: data.voucherTypeStats });
     } catch (e: any) {
       if (hadCachedData) {
         setIsStale(true);
@@ -325,6 +329,17 @@ export default function DashboardScreen() {
             );
           })}
         </View>
+
+        {/* Voucher Activity by Type */}
+        {voucherTypeStats.length > 0 && (
+          <>
+            <SectionHeader
+              title="Activity by Type"
+              meta={`${kpis?.vouchersMonth ?? 0} this month`}
+            />
+            <VoucherActivityChart stats={voucherTypeStats} />
+          </>
+        )}
 
         {/* Recent Vouchers */}
         <SectionHeader
