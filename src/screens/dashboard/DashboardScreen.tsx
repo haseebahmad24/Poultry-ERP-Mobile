@@ -340,7 +340,12 @@ export default function DashboardScreen() {
             {vouchers.map((v) => {
               const isDraft = v.status === 'DRAFT';
               return (
-                <View key={v.id} style={styles.voucherRow}>
+                <TouchableOpacity
+                  key={v.id}
+                  style={styles.voucherRow}
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('Finance', { screen: 'JournalEntries' } as any)}
+                >
                   <View style={styles.typeBadge}>
                     <Text style={styles.typeText}>{v.type}</Text>
                   </View>
@@ -354,9 +359,18 @@ export default function DashboardScreen() {
                       {v.status ?? '—'}
                     </Text>
                   </View>
-                </View>
+                  <Feather name="chevron-right" size={14} color={Colors.textMuted} />
+                </TouchableOpacity>
               );
             })}
+            <TouchableOpacity
+              style={styles.voucherViewAll}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('Finance', { screen: 'JournalEntries' } as any)}
+            >
+              <Text style={styles.voucherViewAllText}>View all journal entries</Text>
+              <Feather name="arrow-right" size={13} color={Colors.textSecondary} />
+            </TouchableOpacity>
           </View>
         )}
 
@@ -583,6 +597,17 @@ const styles = StyleSheet.create({
   voucherAmount: { fontSize: 13, fontWeight: '600', color: Colors.text },
   voucherStatus: { fontSize: 10, fontWeight: '600', marginTop: 1, color: Colors.text },
   voucherStatusDraft: { color: Colors.textMuted, fontWeight: '400' },
+
+  voucherViewAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
+  },
+  voucherViewAllText: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary },
 
   emptyState: {
     marginHorizontal: Spacing.md,
