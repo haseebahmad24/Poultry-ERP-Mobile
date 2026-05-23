@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Colors, Radius, Shadow, Spacing } from '@/theme';
+import { Colors, Radius, Spacing } from '@/theme';
 import SkeletonBox from './SkeletonBox';
 import SkeletonListItem from './SkeletonListItem';
 
@@ -67,7 +67,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     padding: Spacing.md,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
   agingBar: {
     marginHorizontal: Spacing.md,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Colors, Radius, Shadow, Spacing } from '@/theme';
+import { Colors, Radius, Spacing } from '@/theme';
 import SkeletonBox from './SkeletonBox';
 
 type Props = {
@@ -31,14 +31,15 @@ export default function SkeletonListItem({ showMeta = true, showBadge = true }: 
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
     padding: Spacing.md,
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Spacing.sm,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
   left: {
     flex: 1,

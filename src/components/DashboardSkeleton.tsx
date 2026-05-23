@@ -2,7 +2,7 @@ import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Colors, Radius, Shadow, Spacing } from '@/theme';
+import { Colors, Radius, Spacing } from '@/theme';
 import SkeletonBox from './SkeletonBox';
 import SkeletonKPICard from './SkeletonKPICard';
 import SkeletonListItem from './SkeletonListItem';
@@ -118,12 +118,13 @@ const styles = StyleSheet.create({
   },
   quickTile: {
     backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
     padding: Spacing.md,
     width: '30.5%',
     alignItems: 'center',
     gap: 8,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
   tileLabel: {
     marginTop: 0,

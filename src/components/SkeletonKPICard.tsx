@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Colors, Radius, Shadow, Spacing } from '@/theme';
+import { Colors, Radius } from '@/theme';
 import SkeletonBox from './SkeletonBox';
 
 export default function SkeletonKPICard() {
@@ -17,9 +17,10 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
     padding: Spacing.md,
-    ...Shadow.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
   },
   number: {
     marginTop: 10,
