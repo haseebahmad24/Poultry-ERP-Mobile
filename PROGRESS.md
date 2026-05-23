@@ -1,5 +1,45 @@
 # Mobile App Progress
 
+## Session 12 — 2026-05-23
+
+### Completed This Session
+
+**Animated Skeleton Loading System** (Phase 6 — #16 Empty states and loading skeletons)
+- `SkeletonBox`: single animated shimmer box using Animated.loop (opacity 0.4→1.0→0.4, 700ms per leg)
+- `SkeletonListItem`: card-shaped skeleton with left column (title+subtitle+meta) and optional right badge column
+- `SkeletonKPICard`: matches KPI card proportions (label row + number + sub-label)
+- `DashboardSkeleton`: full-page standalone skeleton — top bar + 2×2 KPI grid + 6 quick-action tiles + 4 voucher rows
+- `ListScreenSkeleton`: inline skeleton — optional search bar + optional tab bar + N list item rows
+- `FinanceSummarySkeleton`: inline skeleton — 2×2 summary tiles + aging bar placeholder + tab bar + N rows
+- `DetailSkeleton`: inline skeleton — 2-col summary tiles (configurable count) + section label + N list rows
+
+**Screens migrated from spinner to skeleton:**
+- `DashboardScreen`: full-page DashboardSkeleton (entire chrome)
+- `PurchaseOrdersScreen`: header stays visible, body shows ListScreenSkeleton
+- `SalesOrdersScreen`: same inline pattern with header + skeleton body
+- `MaterialsScreen`: same inline pattern
+- `InventoryScreen`: header stays; ListScreenSkeleton replaces all 3 tabs body while loading
+- `AccountsPayableScreen`: header + CompanySelector stay; FinanceSummarySkeleton for body
+- `AccountsReceivableScreen`: same AP pattern
+- `JournalEntriesScreen`: header stays; skeleton replaces filter+search+list
+- `PartnersScreen`: header stays; skeleton replaces search+filter+list
+- `GRNScreen`: header stays; ListScreenSkeleton replaces ScrollView
+- `AlertsScreen`: chained ternary (loading→skeleton, empty→all-clear, else→list)
+- `CompaniesScreen`: header stays; ListScreenSkeleton for body
+- `PurchaseOrderDetailScreen`: full SafeAreaView wrap with DetailSkeleton
+- `PODetailScreen`: full SafeAreaView wrap with DetailSkeleton
+- `SalesOrderDetailScreen`: full SafeAreaView wrap with DetailSkeleton
+- `VendorDetailScreen`: full SafeAreaView wrap with DetailSkeleton
+- `CustomerDetailScreen`: full SafeAreaView wrap with DetailSkeleton
+- `ItemLedgerScreen`: full SafeAreaView wrap with DetailSkeleton
+- `PartnerDetailScreen`: full SafeAreaView wrap with DetailSkeleton
+- `TrialBalanceScreen`: header + tabs stay; ListScreenSkeleton for data body
+- `FinancialReportsScreen`: header + tabs stay; ListScreenSkeleton for data body
+
+**Result**: Zero full-screen spinner loading states remain. All 20+ screens now show contextually appropriate animated skeleton UI while data loads.
+
+---
+
 ### UI Polish Log (Monochrome)
 
 **2026-05-22** — Replaced all hardcoded `borderRadius` literals with Radius theme tokens across 5 screens: `AlertsScreen` (totalBadge→Radius.full, alertIcon→Radius.md, daysBadge→Radius.sm), `MoreMenuScreen` (alertBannerIcon→Radius.md, bellBadge→Radius.full, menuIconWrap→Radius.md), `FinanceMenuScreen` (menuIconWrap→Radius.md, alertBadge→Radius.full), `SearchScreen` (resultIconWrap→Radius.md), `SettingsScreen` (actionIconWrap→Radius.md). Zero hardcoded numeric borderRadius values remain in any screen or component.
