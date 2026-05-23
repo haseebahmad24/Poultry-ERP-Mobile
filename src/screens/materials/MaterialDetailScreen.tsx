@@ -15,6 +15,7 @@ import BackButton from '@/components/BackButton';
 import DetailSkeleton from '@/components/DetailSkeleton';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
+import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 import { fetchStockBalances, fetchStockLedger, StockBalance, StockLedgerEntry } from '@/api/inventory';
 import { formatShortDate } from '@/utils/currency';
 import { useCompany } from '@/context/CompanyContext';
@@ -51,11 +52,12 @@ export default function MaterialDetailScreen({ route }: Props) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRangeValue>({ from: '', to: '' });
 
   const cacheKey = `material-detail:${materialId}:${companyId ?? 'all'}`;
 
   const load = useCallback(async (isRefresh = false) => {
-    if (!isRefresh) {
+    if (!isRefresh && !dateRange.from && !dateRange.to) {
       const cached = await getCached<{ stock: StockBalance[]; ledger: StockLedgerEntry[] }>(cacheKey);
       if (cached) {
         setStock(cached.data.stock);
@@ -70,21 +72,28 @@ export default function MaterialDetailScreen({ route }: Props) {
     try {
       const [allStock, allLedger] = await Promise.all([
         fetchStockBalances(companyId),
-        fetchStockLedger({ companyId, itemId: materialId }),
+        fetchStockLedger({
+          companyId,
+          itemId: materialId,
+          from: dateRange.from || undefined,
+          to: dateRange.to || undefined,
+        }),
       ]);
       const itemStock = allStock.filter(
         (s) => s.item_id === materialId || s.item_name?.toLowerCase() === materialName.toLowerCase()
       );
       setStock(itemStock);
-      setLedger(allLedger.slice(0, 20));
-      await setCached(cacheKey, { stock: itemStock, ledger: allLedger.slice(0, 20) });
+      setLedger(allLedger.slice(0, 50));
+      if (!dateRange.from && !dateRange.to) {
+        await setCached(cacheKey, { stock: itemStock, ledger: allLedger.slice(0, 50) });
+      }
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [materialId, materialName, companyId, cacheKey]);
+  }, [materialId, materialName, companyId, cacheKey, dateRange.from, dateRange.to]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -228,15 +237,18 @@ export default function MaterialDetailScreen({ route }: Props) {
           </View>
         )}
 
-        {/* Recent transactions */}
+        {/* Transactions date filter */}
         <SectionHeader
-          title="Recent Transactions"
-          meta={ledger.length > 0 ? `last ${ledger.length}` : undefined}
+          title="Transactions"
+          meta={ledger.length > 0 ? `${ledger.length} entries` : undefined}
         />
+        <DateRangeBar value={dateRange} onChange={setDateRange} />
         {ledger.length === 0 ? (
           <View style={styles.emptyBox}>
             <Feather name="list" size={28} color={Colors.textMuted} />
-            <Text style={styles.emptyText}>No recent transactions</Text>
+            <Text style={styles.emptyText}>
+              {dateRange.from || dateRange.to ? 'No transactions in this date range' : 'No transactions found'}
+            </Text>
           </View>
         ) : (
           <View style={styles.cardList}>
