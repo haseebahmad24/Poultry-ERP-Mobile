@@ -49,6 +49,13 @@ interface SearchResult {
     item_name: string;
     item_code?: string;
   };
+  materialMeta?: {
+    code?: string;
+    type?: string;
+    unit?: string;
+    category?: string;
+    status?: string;
+  };
 }
 
 interface SectionData {
@@ -112,6 +119,13 @@ function materialToResult(mat: Material): SearchResult {
     title: mat.name,
     subtitle: [mat.type, mat.code].filter(Boolean).join(' · ') || 'Material',
     badge: mat.status,
+    materialMeta: {
+      code: mat.code,
+      type: mat.type,
+      unit: mat.unit,
+      category: mat.category,
+      status: mat.status,
+    },
   };
 }
 
@@ -269,7 +283,19 @@ export default function SearchScreen() {
         navigation.navigate('SalesOrderDetail', { id: result.rawId });
         break;
       case 'material':
-        navigation.navigate('Materials');
+        if (result.materialMeta) {
+          navigation.navigate('MaterialDetail', {
+            materialId: result.rawId,
+            materialName: result.title,
+            materialCode: result.materialMeta.code,
+            materialType: result.materialMeta.type,
+            materialUnit: result.materialMeta.unit,
+            materialCategory: result.materialMeta.category,
+            materialStatus: result.materialMeta.status,
+          });
+        } else {
+          navigation.navigate('Materials');
+        }
         break;
       case 'partner':
         if (result.partnerMeta) {
