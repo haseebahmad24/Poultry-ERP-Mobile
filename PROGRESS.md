@@ -38,6 +38,12 @@
 
 **Result**: Zero full-screen spinner loading states remain. All 20+ screens now show contextually appropriate animated skeleton UI while data loads.
 
+**Keyboard UX improvements**: Applied `keyboardShouldPersistTaps="handled"` and `keyboardDismissMode="on-drag"` to all list screen ScrollViews.
+
+**Inventory tab badge**: Added `lowStock` count badge to Inventory bottom tab (mirrors Finance tab's `totalOverdue` badge) from OverdueContext.
+
+**Dashboard tappable vouchers**: Recent Activity voucher rows are now `TouchableOpacity` elements navigating to Journal Entries. Chevron affordance added per row. "View all journal entries" footer link added below the list.
+
 ---
 
 ### UI Polish Log (Monochrome)
