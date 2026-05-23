@@ -11,7 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchSODetail, SalesOrder, SOItem } from '@/api/salesOrders';
-import LoadingView from '@/components/LoadingView';
+import DetailSkeleton from '@/components/DetailSkeleton';
 import ErrorView from '@/components/ErrorView';
 import OfflineBanner from '@/components/OfflineBanner';
 import SectionHeader from '@/components/SectionHeader';
@@ -63,7 +63,7 @@ export default function SalesOrderDetailScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <LoadingView message="Loading sales order…" />;
+  if (loading) return <SafeAreaView style={{flex:1,backgroundColor:'#fafafa'}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={4} listCount={5} /></SafeAreaView>;
   if (error && !so) return <ErrorView message={error} onRetry={() => load()} />;
   if (!so) return <ErrorView message="Order not found" />;
 

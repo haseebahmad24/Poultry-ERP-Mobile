@@ -16,8 +16,8 @@ import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchTrialBalance, TrialBalanceRow, TrialBalanceResult } from '@/api/trialBalance';
 import { useCompany } from '@/context/CompanyContext';
 import BackButton from '@/components/BackButton';
-import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
+import ListScreenSkeleton from '@/components/ListScreenSkeleton';
 import SectionHeader from '@/components/SectionHeader';
 import CompanySelector from '@/components/CompanySelector';
 import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
@@ -93,7 +93,6 @@ export default function TrialBalanceScreen() {
     await Share.share({ message: text, title: 'Trial Balance' });
   };
 
-  if (loading) return <LoadingView message="Loading trial balance…" />;
   if (error && result.rows.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   const isOutOfBalance = Math.abs(totalDebit - totalCredit) > 0.01;
@@ -105,8 +104,8 @@ export default function TrialBalanceScreen() {
       <View style={styles.header}>
         <BackButton />
         <Text style={styles.headerTitle}>Trial Balance</Text>
-        <Text style={styles.headerSub}>{filteredRows.length} accounts</Text>
-        {result.rows.length > 0 && (
+        {!loading && <Text style={styles.headerSub}>{filteredRows.length} accounts</Text>}
+        {!loading && result.rows.length > 0 && (
           <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
             <Feather name="share" size={13} color={Colors.text} />
             <Text style={styles.exportBtnText}>Export</Text>
@@ -115,8 +114,9 @@ export default function TrialBalanceScreen() {
       </View>
 
       <CompanySelector showAll />
-      <DateRangeBar mode="single" value={dateRange} onChange={handleDateChange} />
+      {!loading && <DateRangeBar mode="single" value={dateRange} onChange={handleDateChange} />}
 
+      {loading ? <ListScreenSkeleton count={8} showTabs={false} showSearch={false} showBadge={false} /> : <>
       <View style={styles.searchContainer}>
         <View style={styles.searchRow}>
           <Feather name="search" size={15} color={Colors.textMuted} />
@@ -204,6 +204,7 @@ export default function TrialBalanceScreen() {
 
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
+      </>}
     </SafeAreaView>
   );
 }

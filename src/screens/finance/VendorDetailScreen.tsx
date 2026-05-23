@@ -16,7 +16,7 @@ import { FinanceStackParamList } from '@/navigation/FinanceNavigator';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
 import { fetchAPBills, APBill } from '@/api/accountsPayable';
-import LoadingView from '@/components/LoadingView';
+import DetailSkeleton from '@/components/DetailSkeleton';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import { useCompany } from '@/context/CompanyContext';
@@ -61,7 +61,7 @@ export default function VendorDetailScreen({ route }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <LoadingView message="Loading vendor bills…" />;
+  if (loading) return <SafeAreaView style={{flex:1,backgroundColor:'#fafafa'}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={4} listCount={5} /></SafeAreaView>;
   if (error && bills.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   const filtered = (search.trim()

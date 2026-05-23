@@ -13,7 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchStockLedger, StockLedgerEntry } from '@/api/inventory';
-import LoadingView from '@/components/LoadingView';
+import DetailSkeleton from '@/components/DetailSkeleton';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import BackButton from '@/components/BackButton';
@@ -63,7 +63,7 @@ export default function ItemLedgerScreen() {
   const totalOut = entries.reduce((s, e) => s + (e.qty_out ?? 0), 0);
   const latestBalance = entries.length > 0 ? entries[entries.length - 1].balance ?? null : null;
 
-  if (loading) return <LoadingView message="Loading item ledger…" />;
+  if (loading) return <SafeAreaView style={{flex:1,backgroundColor:'#fafafa'}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={3} listCount={6} /></SafeAreaView>;
   if (error && entries.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (

@@ -13,7 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
-import LoadingView from '@/components/LoadingView';
+import DetailSkeleton from '@/components/DetailSkeleton';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import { fetchPurchaseOrders, PurchaseOrder } from '@/api/purchaseOrders';
@@ -86,7 +86,7 @@ export default function PartnerDetailScreen({ route, navigation }: Props) {
 
   const showTabs = isVendor && isCustomer;
 
-  if (loading) return <LoadingView message={`Loading ${partnerName}…`} />;
+  if (loading) return <SafeAreaView style={{flex:1,backgroundColor:'#fafafa'}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={4} listCount={5} /></SafeAreaView>;
   if (error && pos.length === 0 && sos.length === 0)
     return <ErrorView message={error} onRetry={() => load()} />;
 

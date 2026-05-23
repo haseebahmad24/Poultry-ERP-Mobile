@@ -14,8 +14,8 @@ import { Feather } from '@expo/vector-icons';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchTrialBalance, TrialBalanceRow } from '@/api/trialBalance';
 import { useCompany } from '@/context/CompanyContext';
-import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
+import ListScreenSkeleton from '@/components/ListScreenSkeleton';
 import SectionHeader from '@/components/SectionHeader';
 import BackButton from '@/components/BackButton';
 import CompanySelector from '@/components/CompanySelector';
@@ -138,7 +138,6 @@ export default function FinancialReportsScreen() {
     await Share.share({ message: text, title: activeTab === 'pl' ? 'P&L Statement' : 'Balance Sheet' });
   };
 
-  if (loading) return <LoadingView message="Loading financial data…" />;
   if (error && rows.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (
@@ -148,7 +147,7 @@ export default function FinancialReportsScreen() {
       <View style={styles.header}>
         <BackButton />
         <Text style={styles.headerTitle}>Financial Reports</Text>
-        {rows.length > 0 && (
+        {!loading && rows.length > 0 && (
           <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
             <Feather name="share" size={13} color={Colors.text} />
             <Text style={styles.exportBtnText}>Export</Text>
@@ -176,9 +175,9 @@ export default function FinancialReportsScreen() {
       </View>
 
       <CompanySelector showAll />
-      <DateRangeBar mode="single" value={dateRange} onChange={handleDateChange} />
+      {!loading && <DateRangeBar mode="single" value={dateRange} onChange={handleDateChange} />}
 
-      <ScrollView
+      {loading ? <ListScreenSkeleton count={8} showTabs={false} showSearch={false} showBadge={false} /> : <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -193,7 +192,7 @@ export default function FinancialReportsScreen() {
         )}
 
         <View style={{ height: Spacing.xxl }} />
-      </ScrollView>
+      </ScrollView>}
     </SafeAreaView>
   );
 }

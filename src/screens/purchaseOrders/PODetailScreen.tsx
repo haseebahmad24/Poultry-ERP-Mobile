@@ -11,7 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
 import { fetchPODetail, PODetail, POLine } from '@/api/purchaseOrders';
 import ErrorView from '@/components/ErrorView';
-import LoadingView from '@/components/LoadingView';
+import DetailSkeleton from '@/components/DetailSkeleton';
 import OfflineBanner from '@/components/OfflineBanner';
 import { getCached, setCached } from '@/utils/cache';
 import { Colors, Radius, Spacing } from '@/theme';
@@ -54,7 +54,7 @@ export default function PODetailScreen({ route, navigation }: any) {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <LoadingView message="Loading PO details…" />;
+  if (loading) return <SafeAreaView style={{flex:1,backgroundColor:'#fafafa'}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={4} listCount={5} /></SafeAreaView>;
   if (error) return <ErrorView message={error} onRetry={load} />;
   if (!po) return <ErrorView message="Purchase order not found" onRetry={load} />;
 
