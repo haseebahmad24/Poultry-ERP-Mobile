@@ -86,7 +86,7 @@ export default function PartnerDetailScreen({ route, navigation }: Props) {
 
   const showTabs = isVendor && isCustomer;
 
-  if (loading) return <SafeAreaView style={{flex:1,backgroundColor:'#fafafa'}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={4} listCount={5} /></SafeAreaView>;
+  if (loading) return <SafeAreaView style={{flex:1,backgroundColor:Colors.background}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={4} listCount={5} /></SafeAreaView>;
   if (error && pos.length === 0 && sos.length === 0)
     return <ErrorView message={error} onRetry={() => load()} />;
 

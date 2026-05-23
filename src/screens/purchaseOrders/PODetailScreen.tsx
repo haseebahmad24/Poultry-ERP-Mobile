@@ -54,7 +54,7 @@ export default function PODetailScreen({ route, navigation }: any) {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <SafeAreaView style={{flex:1,backgroundColor:'#fafafa'}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={4} listCount={5} /></SafeAreaView>;
+  if (loading) return <SafeAreaView style={{flex:1,backgroundColor:Colors.background}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={4} listCount={5} /></SafeAreaView>;
   if (error) return <ErrorView message={error} onRetry={load} />;
   if (!po) return <ErrorView message="Purchase order not found" onRetry={load} />;
 

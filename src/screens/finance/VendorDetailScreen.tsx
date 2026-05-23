@@ -61,7 +61,7 @@ export default function VendorDetailScreen({ route }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <SafeAreaView style={{flex:1,backgroundColor:'#fafafa'}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={4} listCount={5} /></SafeAreaView>;
+  if (loading) return <SafeAreaView style={{flex:1,backgroundColor:Colors.background}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={4} listCount={5} /></SafeAreaView>;
   if (error && bills.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   const filtered = (search.trim()

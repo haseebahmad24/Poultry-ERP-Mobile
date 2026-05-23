@@ -63,7 +63,7 @@ export default function ItemLedgerScreen() {
   const totalOut = entries.reduce((s, e) => s + (e.qty_out ?? 0), 0);
   const latestBalance = entries.length > 0 ? entries[entries.length - 1].balance ?? null : null;
 
-  if (loading) return <SafeAreaView style={{flex:1,backgroundColor:'#fafafa'}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={3} listCount={6} /></SafeAreaView>;
+  if (loading) return <SafeAreaView style={{flex:1,backgroundColor:Colors.background}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={3} listCount={6} /></SafeAreaView>;
   if (error && entries.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (
