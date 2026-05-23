@@ -22,8 +22,8 @@ import {
   StockLedgerEntry,
   Warehouse,
 } from '@/api/inventory';
-import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
+import ListScreenSkeleton from '@/components/ListScreenSkeleton';
 import SectionHeader from '@/components/SectionHeader';
 import CompanySelector from '@/components/CompanySelector';
 import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
@@ -149,7 +149,6 @@ export default function InventoryScreen() {
     warehouses: `${warehouseData.length} warehouses`,
   };
 
-  if (loading) return <LoadingView message="Loading inventory…" />;
   if (error && stockData.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (
@@ -158,12 +157,16 @@ export default function InventoryScreen() {
 
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Inventory</Text>
-        <Text style={styles.headerSub}>{tabMeta[activeTab]}</Text>
+        {!loading && <Text style={styles.headerSub}>{tabMeta[activeTab]}</Text>}
       </View>
 
       <CompanySelector />
       <OfflineBanner visible={isStale} />
 
+      {loading ? (
+        <ListScreenSkeleton count={8} showTabs showSearch={false} showBadge />
+      ) : (
+      <>
       <View style={styles.tabBar}>
         {(['stock', 'ledger', 'warehouses'] as Tab[]).map((tab) => (
           <TouchableOpacity
@@ -298,6 +301,8 @@ export default function InventoryScreen() {
 
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
+      </>
+      )}
     </SafeAreaView>
   );
 }

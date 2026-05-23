@@ -24,8 +24,8 @@ import {
   ARInvoice,
   ARCustomer,
 } from '@/api/accountsReceivable';
-import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
+import FinanceSummarySkeleton from '@/components/FinanceSummarySkeleton';
 import SectionHeader from '@/components/SectionHeader';
 import CompanySelector from '@/components/CompanySelector';
 import AgingChart, { AgingBucket } from '@/components/AgingChart';
@@ -107,7 +107,17 @@ export default function AccountsReceivableScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <LoadingView message="Loading accounts receivable…" />;
+  if (loading) return (
+    <SafeAreaView style={styles.root} edges={['top']}>
+      <StatusBar style="dark" />
+      <View style={styles.header}>
+        <BackButton />
+        <Text style={styles.headerTitle}>Accounts Receivable</Text>
+      </View>
+      <CompanySelector />
+      <FinanceSummarySkeleton />
+    </SafeAreaView>
+  );
   if (error && !summary.total_outstanding) {
     return <ErrorView message={error} onRetry={() => load()} />;
   }

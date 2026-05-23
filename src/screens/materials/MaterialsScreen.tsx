@@ -13,8 +13,8 @@ import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchMaterials, fetchMaterialTypes, Material, MaterialType } from '@/api/materials';
-import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
+import ListScreenSkeleton from '@/components/ListScreenSkeleton';
 import SectionHeader from '@/components/SectionHeader';
 import CompanySelector from '@/components/CompanySelector';
 import BackButton from '@/components/BackButton';
@@ -79,7 +79,6 @@ export default function MaterialsScreen() {
     );
   });
 
-  if (loading) return <LoadingView message="Loading materials…" />;
   if (error && materials.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (
@@ -89,91 +88,96 @@ export default function MaterialsScreen() {
       <View style={styles.header}>
         <BackButton />
         <Text style={styles.headerTitle}>Materials</Text>
-        <Text style={styles.headerSub}>{filtered.length} items</Text>
+        {!loading && <Text style={styles.headerSub}>{filtered.length} items</Text>}
       </View>
 
       <CompanySelector showAll />
-
       <OfflineBanner visible={!!(stale && error)} />
 
-      <View style={styles.searchContainer}>
-        <View style={styles.searchRow}>
-          <Feather name="search" size={15} color={Colors.textMuted} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by name, code, type…"
-            placeholderTextColor={Colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Feather name="x" size={15} color={Colors.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+      {loading ? (
+        <ListScreenSkeleton count={7} showTabs={false} showSearch />
+      ) : (
+        <>
+          <View style={styles.searchContainer}>
+            <View style={styles.searchRow}>
+              <Feather name="search" size={15} color={Colors.textMuted} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search by name, code, type…"
+                placeholderTextColor={Colors.textMuted}
+                value={search}
+                onChangeText={setSearch}
+              />
+              {search.length > 0 && (
+                <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Feather name="x" size={15} color={Colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
 
-      {types.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipScroll}
-          contentContainerStyle={styles.chipContainer}
-        >
-          <TouchableOpacity
-            style={[styles.chip, selectedType === null && styles.chipActive]}
-            onPress={() => setSelectedType(null)}
-          >
-            <Text style={[styles.chipText, selectedType === null && styles.chipTextActive]}>
-              All Types
-            </Text>
-          </TouchableOpacity>
-          {types.map((t) => (
-            <TouchableOpacity
-              key={t.id}
-              style={[styles.chip, selectedType === t.id && styles.chipActive]}
-              onPress={() => setSelectedType(selectedType === t.id ? null : t.id)}
+          {types.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.chipScroll}
+              contentContainerStyle={styles.chipContainer}
             >
-              <Text style={[styles.chipText, selectedType === t.id && styles.chipTextActive]}>
-                {t.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+              <TouchableOpacity
+                style={[styles.chip, selectedType === null && styles.chipActive]}
+                onPress={() => setSelectedType(null)}
+              >
+                <Text style={[styles.chipText, selectedType === null && styles.chipTextActive]}>
+                  All Types
+                </Text>
+              </TouchableOpacity>
+              {types.map((t) => (
+                <TouchableOpacity
+                  key={t.id}
+                  style={[styles.chip, selectedType === t.id && styles.chipActive]}
+                  onPress={() => setSelectedType(selectedType === t.id ? null : t.id)}
+                >
+                  <Text style={[styles.chipText, selectedType === t.id && styles.chipTextActive]}>
+                    {t.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => load(true)}
+                tintColor={Colors.textMuted}
+              />
+            }
+          >
+            <SectionHeader title="Material Master" meta={`${filtered.length} records`} />
+
+            {filtered.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Feather name="grid" size={36} color={Colors.textMuted} />
+                <Text style={styles.emptyText}>
+                  {search ? 'No materials match your search' : 'No materials found'}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.cardList}>
+                {filtered.map((m) => (
+                  <MaterialCard key={m.id} material={m} />
+                ))}
+              </View>
+            )}
+
+            <View style={{ height: Spacing.xxl }} />
+          </ScrollView>
+        </>
       )}
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => load(true)}
-            tintColor={Colors.textMuted}
-          />
-        }
-      >
-        <SectionHeader title="Material Master" meta={`${filtered.length} records`} />
-
-        {filtered.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Feather name="grid" size={36} color={Colors.textMuted} />
-            <Text style={styles.emptyText}>
-              {search ? 'No materials match your search' : 'No materials found'}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.cardList}>
-            {filtered.map((m) => (
-              <MaterialCard key={m.id} material={m} />
-            ))}
-          </View>
-        )}
-
-        <View style={{ height: Spacing.xxl }} />
-      </ScrollView>
     </SafeAreaView>
   );
 }

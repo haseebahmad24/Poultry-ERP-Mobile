@@ -15,8 +15,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchPurchaseOrders, PurchaseOrder } from '@/api/purchaseOrders';
-import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
+import ListScreenSkeleton from '@/components/ListScreenSkeleton';
 import SectionHeader from '@/components/SectionHeader';
 import BackButton from '@/components/BackButton';
 import OfflineBanner from '@/components/OfflineBanner';
@@ -76,7 +76,6 @@ export default function PurchaseOrdersScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <LoadingView message="Loading purchase orders…" />;
   if (error && orders.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   const filtered = search.trim()
@@ -97,76 +96,82 @@ export default function PurchaseOrdersScreen() {
       <View style={styles.header}>
         <BackButton />
         <Text style={styles.headerTitle}>Purchase Orders</Text>
-        <Text style={styles.headerSub}>{filtered.length} records</Text>
+        {!loading && <Text style={styles.headerSub}>{filtered.length} records</Text>}
       </View>
 
       <OfflineBanner visible={!!(isStale && error)} />
 
-      <View style={styles.searchContainer}>
-        <Feather name="search" size={14} color={Colors.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search PO number, vendor…"
-          placeholderTextColor={Colors.textMuted}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Feather name="x" size={14} color={Colors.textMuted} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <View style={styles.tabBar}>
-        {STATUS_TABS.map((t) => (
-          <TouchableOpacity
-            key={t.key}
-            style={[styles.tab, activeTab === t.key && styles.tabActive]}
-            onPress={() => setActiveTab(t.key)}
-          >
-            <Text style={[styles.tabText, activeTab === t.key && styles.tabTextActive]}>
-              {t.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => load(true)}
-            tintColor={Colors.textMuted}
-          />
-        }
-      >
-        <SectionHeader title="Orders" meta={`${filtered.length} total`} />
-
-        {filtered.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Feather name="shopping-cart" size={32} color={Colors.textMuted} />
-            <Text style={styles.emptyText}>
-              {search ? 'No orders match search' : 'No purchase orders found'}
-            </Text>
+      {loading ? (
+        <ListScreenSkeleton count={6} showTabs showSearch />
+      ) : (
+        <>
+          <View style={styles.searchContainer}>
+            <Feather name="search" size={14} color={Colors.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search PO number, vendor…"
+              placeholderTextColor={Colors.textMuted}
+              value={search}
+              onChangeText={setSearch}
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <Feather name="x" size={14} color={Colors.textMuted} />
+              </TouchableOpacity>
+            )}
           </View>
-        ) : (
-          <View style={styles.cardList}>
-            {filtered.map((po) => (
-              <POCard
-                key={po.id}
-                po={po}
-                onPress={() => navigation.navigate('PurchaseOrderDetail', { id: po.id })}
-              />
+
+          <View style={styles.tabBar}>
+            {STATUS_TABS.map((t) => (
+              <TouchableOpacity
+                key={t.key}
+                style={[styles.tab, activeTab === t.key && styles.tabActive]}
+                onPress={() => setActiveTab(t.key)}
+              >
+                <Text style={[styles.tabText, activeTab === t.key && styles.tabTextActive]}>
+                  {t.label}
+                </Text>
+              </TouchableOpacity>
             ))}
           </View>
-        )}
 
-        <View style={{ height: Spacing.xxl }} />
-      </ScrollView>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => load(true)}
+                tintColor={Colors.textMuted}
+              />
+            }
+          >
+            <SectionHeader title="Orders" meta={`${filtered.length} total`} />
+
+            {filtered.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Feather name="shopping-cart" size={32} color={Colors.textMuted} />
+                <Text style={styles.emptyText}>
+                  {search ? 'No orders match search' : 'No purchase orders found'}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.cardList}>
+                {filtered.map((po) => (
+                  <POCard
+                    key={po.id}
+                    po={po}
+                    onPress={() => navigation.navigate('PurchaseOrderDetail', { id: po.id })}
+                  />
+                ))}
+              </View>
+            )}
+
+            <View style={{ height: Spacing.xxl }} />
+          </ScrollView>
+        </>
+      )}
     </SafeAreaView>
   );
 }

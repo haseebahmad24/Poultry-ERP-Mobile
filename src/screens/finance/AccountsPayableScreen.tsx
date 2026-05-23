@@ -24,8 +24,8 @@ import {
   APBill,
   APVendor,
 } from '@/api/accountsPayable';
-import LoadingView from '@/components/LoadingView';
 import ErrorView from '@/components/ErrorView';
+import FinanceSummarySkeleton from '@/components/FinanceSummarySkeleton';
 import SectionHeader from '@/components/SectionHeader';
 import CompanySelector from '@/components/CompanySelector';
 import AgingChart, { AgingBucket } from '@/components/AgingChart';
@@ -108,7 +108,17 @@ export default function AccountsPayableScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <LoadingView message="Loading accounts payable…" />;
+  if (loading) return (
+    <SafeAreaView style={styles.root} edges={['top']}>
+      <StatusBar style="dark" />
+      <View style={styles.header}>
+        <BackButton />
+        <Text style={styles.headerTitle}>Accounts Payable</Text>
+      </View>
+      <CompanySelector />
+      <FinanceSummarySkeleton />
+    </SafeAreaView>
+  );
   if (error && !summary.total_outstanding) {
     return <ErrorView message={error} onRetry={() => load()} />;
   }

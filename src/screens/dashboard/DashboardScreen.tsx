@@ -19,7 +19,7 @@ import { fetchDashboardData, KPIs, RecentVoucher } from '@/api/dashboard';
 import KPICard from '@/components/KPICard';
 import SectionHeader from '@/components/SectionHeader';
 import ErrorView from '@/components/ErrorView';
-import LoadingView from '@/components/LoadingView';
+import DashboardSkeleton from '@/components/DashboardSkeleton';
 import CompanySelector from '@/components/CompanySelector';
 import OfflineBanner from '@/components/OfflineBanner';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
@@ -133,7 +133,7 @@ export default function DashboardScreen() {
     return 'Good evening';
   })();
 
-  if (loading) return <LoadingView message="Loading dashboard…" />;
+  if (loading) return <DashboardSkeleton />;
   if (error && !kpis) return <ErrorView message={error} onRetry={() => load()} />;
 
   const netIncome = (kpis?.revenue ?? 0) - (kpis?.expenses ?? 0);
