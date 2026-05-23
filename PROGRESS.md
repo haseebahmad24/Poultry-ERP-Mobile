@@ -1,5 +1,40 @@
 # Mobile App Progress
 
+## Session 13 — 2026-05-23
+
+### Completed This Session
+
+**Material Detail Screen** (`src/screens/materials/MaterialDetailScreen.tsx`)
+- New detail screen: tappable from MaterialsScreen, Search results, and Alerts (low-stock items)
+- Header: material name + optional code badge
+- Meta row: type / category / unit / status chips
+- Optional description bar (shown when description param is provided)
+- Summary tiles (2×2): Total Stock · Warehouse Count · Total In · Total Out
+- **Stock by Warehouse** section: cards per warehouse with qty, unit, low-stock/out-of-stock indicators
+- **Transactions** section: up to 50 latest ledger entries with voucher type badge, date, qty delta (+/-), running balance
+- **DateRangeBar** date filter on transactions: Today / This Week / This Month / Last Month / Custom presets; re-fetches API when changed; cache only written when no date filter active
+- DetailSkeleton loading state, ErrorView, pull-to-refresh, 24h offline cache
+- `MoreNavigator`: added `MaterialDetail` route with typed params (materialId, name, code, type, unit, category, status, description)
+- `MaterialsScreen`: cards now `TouchableOpacity` with chevron-right affordance; navigate to MaterialDetail with all params
+
+**Dashboard Voucher Activity Chart** (`src/components/VoucherActivityChart.tsx`)
+- New `VoucherActivityChart` component: horizontal proportional bars showing top-6 voucher types
+- Bar width = type count / max count; shows type label + count + amount per row
+- `fetchDashboardData` extended to return `voucherTypeStats` (count + amount per type, sorted by count desc)
+- DashboardScreen: "Activity by Type" section shown above Recent Activity when stats are non-empty
+- Cache key backwards-compatible (voucherTypeStats is optional in cached shape)
+
+**Search → MaterialDetail navigation**
+- MaterialDetail now reachable from Global Search (tapping a material result navigates directly to detail)
+- `materialMeta` added to SearchResult type; `materialToResult` populates it; navigate path updated
+- `materialDescription` passed through as well
+
+**AlertsScreen → MaterialDetail navigation**
+- Low-stock items in Alerts now navigate to MaterialDetail when `item_id` is available
+- Falls back to Inventory tab when item_id is absent
+
+---
+
 ## Session 12 — 2026-05-23
 
 ### Completed This Session
