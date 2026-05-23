@@ -28,6 +28,7 @@ export type MoreStackParamList = {
     materialUnit?: string;
     materialCategory?: string;
     materialStatus?: string;
+    materialDescription?: string;
   };
   PurchaseOrders: undefined;
   PurchaseOrderDetail: { id: number };

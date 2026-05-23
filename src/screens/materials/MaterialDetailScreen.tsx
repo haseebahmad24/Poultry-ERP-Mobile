@@ -44,7 +44,7 @@ function SummaryTile({ label, value, sub }: { label: string; value: string; sub?
 }
 
 export default function MaterialDetailScreen({ route }: Props) {
-  const { materialId, materialName, materialCode, materialType, materialUnit, materialCategory, materialStatus } = route.params;
+  const { materialId, materialName, materialCode, materialType, materialUnit, materialCategory, materialStatus, materialDescription } = route.params;
   const { companyId } = useCompany();
 
   const [stock, setStock] = useState<StockBalance[]>([]);
@@ -168,6 +168,12 @@ export default function MaterialDetailScreen({ route }: Props) {
           </View>
         ) : null}
       </View>
+
+      {materialDescription ? (
+        <View style={styles.descRow}>
+          <Text style={styles.descText} numberOfLines={3}>{materialDescription}</Text>
+        </View>
+      ) : null}
 
       <ScrollView
         style={styles.scroll}
@@ -315,6 +321,15 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   codeBadgeText: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary, letterSpacing: 0.5 },
+
+  descRow: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  descText: { fontSize: 12, color: Colors.textSecondary, lineHeight: 18 },
 
   metaRow: {
     flexDirection: 'row',

@@ -186,6 +186,7 @@ export default function MaterialsScreen() {
                       materialUnit: m.unit,
                       materialCategory: m.category,
                       materialStatus: m.status,
+                      materialDescription: m.description,
                     })
                   } />
                 ))}

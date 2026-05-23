@@ -55,6 +55,7 @@ interface SearchResult {
     unit?: string;
     category?: string;
     status?: string;
+    description?: string;
   };
 }
 
@@ -125,6 +126,7 @@ function materialToResult(mat: Material): SearchResult {
       unit: mat.unit,
       category: mat.category,
       status: mat.status,
+      description: mat.description,
     },
   };
 }
@@ -292,6 +294,7 @@ export default function SearchScreen() {
             materialUnit: result.materialMeta.unit,
             materialCategory: result.materialMeta.category,
             materialStatus: result.materialMeta.status,
+            materialDescription: result.materialMeta.description,
           });
         } else {
           navigation.navigate('Materials');
