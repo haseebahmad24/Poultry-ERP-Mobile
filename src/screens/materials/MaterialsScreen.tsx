@@ -11,9 +11,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchMaterials, fetchMaterialTypes, Material, MaterialType } from '@/api/materials';
 import ErrorView from '@/components/ErrorView';
+import type { MoreStackParamList } from '@/navigation/MoreNavigator';
 import ListScreenSkeleton from '@/components/ListScreenSkeleton';
 import SectionHeader from '@/components/SectionHeader';
 import CompanySelector from '@/components/CompanySelector';
@@ -22,7 +25,10 @@ import OfflineBanner from '@/components/OfflineBanner';
 import { useCompany } from '@/context/CompanyContext';
 import { getCached, setCached } from '@/utils/cache';
 
+type Nav = NativeStackNavigationProp<MoreStackParamList>;
+
 export default function MaterialsScreen() {
+  const navigation = useNavigation<Nav>();
   const { companyId } = useCompany();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [types, setTypes] = useState<MaterialType[]>([]);
@@ -171,7 +177,17 @@ export default function MaterialsScreen() {
             ) : (
               <View style={styles.cardList}>
                 {filtered.map((m) => (
-                  <MaterialCard key={m.id} material={m} />
+                  <MaterialCard key={m.id} material={m} onPress={() =>
+                    navigation.navigate('MaterialDetail', {
+                      materialId: m.id,
+                      materialName: m.name,
+                      materialCode: m.code,
+                      materialType: m.type,
+                      materialUnit: m.unit,
+                      materialCategory: m.category,
+                      materialStatus: m.status,
+                    })
+                  } />
                 ))}
               </View>
             )}
@@ -184,12 +200,12 @@ export default function MaterialsScreen() {
   );
 }
 
-function MaterialCard({ material: m }: { material: Material }) {
+function MaterialCard({ material: m, onPress }: { material: Material; onPress: () => void }) {
   const statusKey = (m.status ?? '').toLowerCase();
   const isMuted = statusKey === 'inactive';
 
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.cardTop}>
         <View style={styles.cardInfo}>
           <Text style={styles.cardName} numberOfLines={2}>{m.name}</Text>
@@ -223,7 +239,11 @@ function MaterialCard({ material: m }: { material: Material }) {
       {m.description && (
         <Text style={styles.cardDesc} numberOfLines={2}>{m.description}</Text>
       )}
-    </View>
+
+      <View style={styles.cardChevron}>
+        <Feather name="chevron-right" size={14} color={Colors.textMuted} />
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -332,6 +352,8 @@ const styles = StyleSheet.create({
   unitChip: { backgroundColor: Colors.surfaceHover },
 
   cardDesc: { ...Typography.bodySmall, color: Colors.textSecondary },
+
+  cardChevron: { alignItems: 'flex-end', marginTop: -2 },
 
   emptyState: {
     marginHorizontal: Spacing.md,

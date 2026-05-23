@@ -14,11 +14,21 @@ import CompaniesScreen from '@/screens/companies/CompaniesScreen';
 import SettingsScreen from '@/screens/settings/SettingsScreen';
 import AlertsScreen from '@/screens/alerts/AlertsScreen';
 import SearchScreen from '@/screens/search/SearchScreen';
+import MaterialDetailScreen from '@/screens/materials/MaterialDetailScreen';
 
 export type MoreStackParamList = {
   MoreMenu: undefined;
   Search: undefined;
   Materials: undefined;
+  MaterialDetail: {
+    materialId: number;
+    materialName: string;
+    materialCode?: string;
+    materialType?: string;
+    materialUnit?: string;
+    materialCategory?: string;
+    materialStatus?: string;
+  };
   PurchaseOrders: undefined;
   PurchaseOrderDetail: { id: number };
   SalesOrders: undefined;
@@ -61,6 +71,11 @@ export default function MoreNavigator() {
       <Stack.Screen
         name="Materials"
         component={MaterialsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="MaterialDetail"
+        component={MaterialDetailScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen
