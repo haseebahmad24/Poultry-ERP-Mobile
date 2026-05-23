@@ -29,8 +29,17 @@ const TAB_ICONS: Record<string, string> = {
   More: 'menu',
 };
 
+const BADGE_STYLE = {
+  backgroundColor: Colors.text,
+  color: '#fff',
+  fontSize: 10,
+  minWidth: 16,
+  height: 16,
+  lineHeight: 16,
+};
+
 export default function AppNavigator() {
-  const { totalOverdue } = useOverdue();
+  const { totalOverdue, lowStock } = useOverdue();
 
   return (
     <Tab.Navigator
@@ -56,20 +65,20 @@ export default function AppNavigator() {
       })}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="Inventory" component={InventoryNavigator} />
+      <Tab.Screen
+        name="Inventory"
+        component={InventoryNavigator}
+        options={{
+          tabBarBadge: lowStock > 0 ? lowStock : undefined,
+          tabBarBadgeStyle: BADGE_STYLE,
+        }}
+      />
       <Tab.Screen
         name="Finance"
         component={FinanceNavigator}
         options={{
           tabBarBadge: totalOverdue > 0 ? totalOverdue : undefined,
-          tabBarBadgeStyle: {
-            backgroundColor: Colors.text,
-            color: '#fff',
-            fontSize: 10,
-            minWidth: 16,
-            height: 16,
-            lineHeight: 16,
-          },
+          tabBarBadgeStyle: BADGE_STYLE,
         }}
       />
       <Tab.Screen name="More" component={MoreNavigator} />
