@@ -243,7 +243,17 @@ export default function AlertsScreen() {
                   key={`${item.item_id}-${item.warehouse_id ?? idx}`}
                   style={[styles.alertRow, idx < lowStockItems.length - 1 && styles.alertRowBorder]}
                   activeOpacity={0.7}
-                  onPress={() => tabNav?.navigate('Inventory')}
+                  onPress={() => {
+                    if (item.item_id) {
+                      moreNav.navigate('MaterialDetail', {
+                        materialId: item.item_id,
+                        materialName: item.item_name,
+                        materialCode: item.item_code,
+                      });
+                    } else {
+                      tabNav?.navigate('Inventory');
+                    }
+                  }}
                 >
                   <View style={styles.alertIcon}>
                     <Feather name="package" size={16} color={Colors.textSecondary} />
