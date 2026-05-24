@@ -23,6 +23,7 @@ import CompanySelector from '@/components/CompanySelector';
 import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 import { formatCurrency } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
+import { exportPLPDF, exportBSPDF } from '@/utils/pdfExport';
 
 type ReportTab = 'pl' | 'bs';
 
@@ -125,6 +126,15 @@ export default function FinancialReportsScreen() {
   const pl = computePL(rows);
   const bs = computeBS(rows);
 
+  const handleExportPDF = async () => {
+    const company = ctxCompany?.name ?? 'All Companies';
+    if (activeTab === 'pl') {
+      await exportPLPDF({ pl, companyName: company, asOf });
+    } else {
+      await exportBSPDF({ bs, companyName: company, asOf });
+    }
+  };
+
   const handleExport = async () => {
     const line = '─'.repeat(50);
     const company = ctxCompany?.name ?? 'All Companies';
@@ -165,10 +175,16 @@ export default function FinancialReportsScreen() {
         <BackButton />
         <Text style={styles.headerTitle}>Financial Reports</Text>
         {!loading && rows.length > 0 && (
-          <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
-            <Feather name="share" size={13} color={Colors.text} />
-            <Text style={styles.exportBtnText}>Export</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity style={styles.exportBtn} onPress={handleExportPDF}>
+              <Feather name="file-text" size={13} color={Colors.text} />
+              <Text style={styles.exportBtnText}>PDF</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+              <Feather name="share" size={13} color={Colors.text} />
+              <Text style={styles.exportBtnText}>Share</Text>
+            </TouchableOpacity>
+          </>
         )}
       </View>
 

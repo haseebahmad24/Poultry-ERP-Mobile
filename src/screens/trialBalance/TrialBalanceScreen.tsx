@@ -24,6 +24,7 @@ import CompanySelector from '@/components/CompanySelector';
 import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 import { formatCurrency } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
+import { exportTrialBalancePDF } from '@/utils/pdfExport';
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -85,6 +86,16 @@ export default function TrialBalanceScreen() {
   const totalDebit = result.total_debit ?? filteredRows.reduce((s, r) => s + (r.debit ?? 0), 0);
   const totalCredit = result.total_credit ?? filteredRows.reduce((s, r) => s + (r.credit ?? 0), 0);
 
+  const handleExportPDF = async () => {
+    await exportTrialBalancePDF({
+      rows: filteredRows,
+      companyName: ctxCompany?.name ?? 'All Companies',
+      asOf,
+      totalDebit,
+      totalCredit,
+    });
+  };
+
   const handleExport = async () => {
     const colW = 30;
     const amtW = 16;
@@ -123,10 +134,16 @@ export default function TrialBalanceScreen() {
         <Text style={styles.headerTitle}>Trial Balance</Text>
         {!loading && <Text style={styles.headerSub}>{filteredRows.length} accounts</Text>}
         {!loading && result.rows.length > 0 && (
-          <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
-            <Feather name="share" size={13} color={Colors.text} />
-            <Text style={styles.exportBtnText}>Export</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity style={styles.exportBtn} onPress={handleExportPDF}>
+              <Feather name="file-text" size={13} color={Colors.text} />
+              <Text style={styles.exportBtnText}>PDF</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+              <Feather name="share" size={13} color={Colors.text} />
+              <Text style={styles.exportBtnText}>Share</Text>
+            </TouchableOpacity>
+          </>
         )}
       </View>
 
