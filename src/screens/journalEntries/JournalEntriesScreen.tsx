@@ -24,13 +24,14 @@ import BackButton from '@/components/BackButton';
 import OfflineBanner from '@/components/OfflineBanner';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
+import { exportJournalEntriesPDF } from '@/utils/pdfExport';
 
 const VOUCHER_TYPES = ['All', 'JV', 'GRN', 'PAY', 'REC', 'INV', 'SO', 'PO', 'DN'];
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export default function JournalEntriesScreen() {
-  const { companyId } = useCompany();
+  const { companyId, selectedCompany } = useCompany();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -102,6 +103,16 @@ export default function JournalEntriesScreen() {
     );
   });
 
+  const handleExportPDF = async () => {
+    await exportJournalEntriesPDF({
+      entries: filtered,
+      companyName: selectedCompany?.name ?? 'All Companies',
+      type: selectedType,
+      from: validFrom,
+      to: validTo,
+    });
+  };
+
   const handleExport = async () => {
     const line = '─'.repeat(55);
     const header = `JOURNAL ENTRIES\nType: ${selectedType}${validFrom ? `  From: ${validFrom}` : ''}${validTo ? `  To: ${validTo}` : ''}\n${line}`;
@@ -126,10 +137,16 @@ export default function JournalEntriesScreen() {
         <Text style={styles.headerTitle}>Journal Entries</Text>
         {!loading && <Text style={styles.headerSub}>{filtered.length} entries</Text>}
         {!loading && filtered.length > 0 && (
-          <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
-            <Feather name="share" size={13} color={Colors.textSecondary} />
-            <Text style={styles.exportBtnText}>Export</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity style={styles.exportBtn} onPress={handleExportPDF}>
+              <Feather name="file-text" size={13} color={Colors.text} />
+              <Text style={styles.exportBtnText}>PDF</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+              <Feather name="share" size={13} color={Colors.textSecondary} />
+              <Text style={styles.exportBtnText}>Share</Text>
+            </TouchableOpacity>
+          </>
         )}
       </View>
 

@@ -1,7 +1,8 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 import type { TrialBalanceRow } from '@/api/trialBalance';
+import type { JournalEntry } from '@/api/journalEntries';
 import { formatCurrency } from '@/utils/currency';
 
 // ─── shared HTML helpers ───────────────────────────────────────────────────
@@ -342,4 +343,75 @@ export async function exportBSPDF(params: {
   `;
 
   await printAndShare(wrapHtml('Balance Sheet', body), 'balance-sheet.pdf');
+}
+
+// ─── Journal Entries PDF ─────────────────────────────────────────────────────
+
+export async function exportJournalEntriesPDF(params: {
+  entries: JournalEntry[];
+  companyName: string;
+  type: string;
+  from?: string;
+  to?: string;
+}): Promise<void> {
+  const { entries, companyName, type, from, to } = params;
+
+  const entryRows = entries.map((e) => {
+    const lineRows = (e.lines ?? []).map((l) => `
+      <tr>
+        <td style="padding-left:24px;color:#555">${l.account ?? ''}</td>
+        <td class="right">${l.debit ? formatCurrency(l.debit) : ''}</td>
+        <td class="right">${l.credit ? formatCurrency(l.credit) : ''}</td>
+      </tr>`).join('');
+
+    return `
+      <tr class="group">
+        <td>
+          <span style="font-weight:700">${e.voucher_type ?? ''} ${e.voucher_no ?? ''}</span>
+          <span style="font-weight:400;color:#888;margin-left:8px">${e.dt ?? ''}</span>
+        </td>
+        <td class="right">${e.total_debit ? formatCurrency(e.total_debit) : ''}</td>
+        <td class="right">${e.total_credit ? formatCurrency(e.total_credit) : ''}</td>
+      </tr>
+      ${e.narration ? `<tr><td colspan="3" style="color:#777;padding-left:12px;font-style:italic">${e.narration}</td></tr>` : ''}
+      ${lineRows}`;
+  }).join('');
+
+  const metaParts = [companyName];
+  if (type !== 'All') metaParts.push(`Type: ${type}`);
+  if (from) metaParts.push(`From: ${from}`);
+  if (to) metaParts.push(`To: ${to}`);
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Journal Entries</div>
+      <div class="report-meta">${metaParts.join(' &nbsp;·&nbsp; ')}</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${entries.length}</div>
+        <div class="label">Total Vouchers</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(entries.reduce((s, e) => s + (e.total_debit ?? 0), 0))}</div>
+        <div class="label">Total Amount</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Voucher / Account</th>
+          <th class="right">Debit</th>
+          <th class="right">Credit</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${entryRows || '<tr><td colspan="3" class="muted">No entries</td></tr>'}
+      </tbody>
+    </table>
+  `;
+
+  await printAndShare(wrapHtml('Journal Entries', body), 'journal-entries.pdf');
 }
