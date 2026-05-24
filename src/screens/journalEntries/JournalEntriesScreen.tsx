@@ -21,7 +21,9 @@ import CompanySelector from '@/components/CompanySelector';
 import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 import { useCompany } from '@/context/CompanyContext';
 import BackButton from '@/components/BackButton';
+import OfflineBanner from '@/components/OfflineBanner';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
+import { getCached, setCached } from '@/utils/cache';
 
 const VOUCHER_TYPES = ['All', 'JV', 'GRN', 'PAY', 'REC', 'INV', 'SO', 'PO', 'DN'];
 
@@ -37,13 +39,32 @@ export default function JournalEntriesScreen() {
   const [selectedType, setSelectedType] = useState('All');
   const [expanded, setExpanded] = useState<number | null>(null);
   const [dateRange, setDateRange] = useState<DateRangeValue>({ from: '', to: '' });
+  const [isStale, setIsStale] = useState(false);
 
   const validFrom = DATE_RE.test(dateRange.from) ? dateRange.from : undefined;
   const validTo = DATE_RE.test(dateRange.to) ? dateRange.to : undefined;
 
+  // Only cache the unfiltered (no date range) view per company+type for simplicity
+  const cacheKey = `journal-entries:${companyId ?? 'all'}:${selectedType}`;
+  const useCache = !validFrom && !validTo;
+
   const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+    let hadCachedData = false;
+    if (isRefresh) {
+      setRefreshing(true);
+    } else if (useCache) {
+      const cached = await getCached<JournalEntry[]>(cacheKey);
+      if (cached) {
+        hadCachedData = true;
+        setEntries(cached.data);
+        setIsStale(cached.stale);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+    } else {
+      setLoading(true);
+    }
     setError(null);
     try {
       const data = await fetchJournalEntries({
@@ -53,13 +74,21 @@ export default function JournalEntriesScreen() {
         to: validTo,
       });
       setEntries(data);
+      setIsStale(false);
+      if (useCache) {
+        await setCached(cacheKey, data);
+      }
     } catch (e: any) {
-      setError(String(e?.message ?? e));
+      if (hadCachedData) {
+        setIsStale(true);
+      } else {
+        setError(String(e?.message ?? e));
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedType, companyId, dateRange.from, dateRange.to]);
+  }, [selectedType, companyId, cacheKey, useCache, validFrom, validTo]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -105,6 +134,7 @@ export default function JournalEntriesScreen() {
       </View>
 
       <CompanySelector showAll />
+      <OfflineBanner visible={!!(isStale && !refreshing)} />
       {loading ? (
         <ListScreenSkeleton count={6} showTabs={false} showSearch />
       ) : (
