@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Colors, Radius, Shadow, Spacing } from '@/theme';
+import { Colors, Radius, Spacing } from '@/theme';
 import { formatCurrency } from '@/utils/currency';
 import type { VoucherTypeStat } from '@/api/dashboard';
 
@@ -48,7 +48,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     paddingVertical: Spacing.sm,
-    ...Shadow.card,
   },
   row: {
     flexDirection: 'row',

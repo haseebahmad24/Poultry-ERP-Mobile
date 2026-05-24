@@ -196,7 +196,7 @@ export default function DashboardScreen() {
             {lastUpdated
               ? ` · Updated ${formatLastUpdated(lastUpdated)}`
               : ''}
-            {autoRefreshInterval > 0 ? ` · Auto ↻${autoRefreshInterval}m` : ''}
+            {autoRefreshInterval > 0 ? ` · Refresh ${autoRefreshInterval}m` : ''}
           </Text>
         </View>
         <View style={styles.topBarRight}>

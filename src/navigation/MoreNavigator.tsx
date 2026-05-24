@@ -87,7 +87,7 @@ export default function MoreNavigator() {
       <Stack.Screen
         name="PurchaseOrderDetail"
         component={PurchaseOrderDetailScreen}
-        options={{ title: 'PO Detail' }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="SalesOrders"
@@ -97,7 +97,7 @@ export default function MoreNavigator() {
       <Stack.Screen
         name="SalesOrderDetail"
         component={SalesOrderDetailScreen}
-        options={{ title: 'SO Detail' }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="GRN"

@@ -11,6 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchPODetail, PurchaseOrder, POItem } from '@/api/purchaseOrders';
+import BackButton from '@/components/BackButton';
 import DetailSkeleton from '@/components/DetailSkeleton';
 import ErrorView from '@/components/ErrorView';
 import OfflineBanner from '@/components/OfflineBanner';
@@ -63,7 +64,13 @@ export default function PurchaseOrderDetailScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <SafeAreaView style={{flex:1,backgroundColor:Colors.background}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={4} listCount={5} /></SafeAreaView>;
+  if (loading) return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }} edges={['top']}>
+      <StatusBar style="dark" />
+      <View style={styles.header}><BackButton /><Text style={styles.headerTitle}>Purchase Order</Text></View>
+      <DetailSkeleton tileCount={4} listCount={5} />
+    </SafeAreaView>
+  );
   if (error && !po) return <ErrorView message={error} onRetry={() => load()} />;
   if (!po) return <ErrorView message="Order not found" />;
 
@@ -80,6 +87,11 @@ export default function PurchaseOrderDetailScreen() {
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
+
+      <View style={styles.header}>
+        <BackButton />
+        <Text style={styles.headerTitle}>Purchase Order</Text>
+      </View>
 
       <OfflineBanner visible={!!(stale && error)} />
 
@@ -214,6 +226,19 @@ function LineItemRow({ item, isLast }: { item: POItem; isLast: boolean }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  headerTitle: { ...Typography.h2 },
+
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },
 

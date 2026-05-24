@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
 import DetailSkeleton from '@/components/DetailSkeleton';
 import ErrorView from '@/components/ErrorView';
@@ -372,7 +372,6 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
-    ...Shadow.card,
   },
   tileLabel: { fontSize: 11, fontWeight: '500', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
   tileValue: { fontSize: 22, fontWeight: '700', color: Colors.text, marginTop: 4 },
@@ -388,7 +387,6 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
-    ...Shadow.card,
   },
   warehouseCardOut: { borderLeftWidth: 3, borderLeftColor: Colors.text },
   warehouseInfo: { flex: 1 },
@@ -409,7 +407,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     gap: Spacing.sm,
-    ...Shadow.card,
   },
   ledgerLeft: {},
   ledgerInfo: { flex: 1 },
