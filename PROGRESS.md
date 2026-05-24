@@ -1,5 +1,36 @@
 # Mobile App Progress
 
+## Session 15 — 2026-05-24
+
+### Completed This Session
+
+**Trial Balance + Financial Reports Offline Caching**
+- Both screens now follow the established caching pattern: serve cached data instantly on mount, refresh from API in background
+- Cache key: `trial-balance:<companyId>:<asOf>` — shared between both screens (same API endpoint, same data)
+- `OfflineBanner` shown when stale cached data is served after a failed network request
+- `ErrorView` only shown when no cached data is available (errors don't clobber existing UI)
+- Added `isStale` state that tracks whether current data came from an expired cache entry
+
+**Biometric Lock** (`src/components/BiometricLockOverlay.tsx`, `src/navigation/AppNavigator.tsx`, `src/screens/settings/SettingsScreen.tsx`)
+- Installed `expo-local-authentication`
+- `BiometricLockOverlay`: full-screen overlay component that auto-triggers `LocalAuthentication.authenticateAsync()` on mount; shows "Try Again" state when auth fails or is cancelled; calls `onUnlock()` callback when auth succeeds
+- `AppNavigator`: `AppState` listener (separate from the existing session timeout listener) detects background → foreground transitions; reads `getBiometricEnabled()` and sets `biometricLocked=true` when enabled; the overlay renders above the tab navigator as an absolute-fill element
+- `SettingsScreen`: new Biometric lock `Switch` toggle in SECURITY section; only shown when device has enrolled biometrics (`LocalAuthentication.hasHardwareAsync() && isEnrolledAsync()`); requires one successful auth to enable (prevents accidental lockout when hardware is unavailable or user denies)
+- `settings.ts`: added `getBiometricEnabled()` / `setBiometricEnabled()` via AsyncStorage key `setting:biometricEnabled`
+
+**Local Push Notifications** (`src/utils/notifications.ts`, `src/navigation/AppNavigator.tsx`, `src/screens/settings/SettingsScreen.tsx`)
+- Installed `expo-notifications` v56
+- `notifications.ts`:
+  - `setNotificationHandler`: banner + list display; no sound; no badge
+  - `requestNotificationPermissions()`: checks existing OS grant, prompts if needed, returns boolean
+  - `scheduleOverdueReminder({ apOverdue, arOverdue, lowStock })`: cancels old scheduled notification then schedules a new one for the next 9 AM occurrence; body composed from alert counts (e.g. "3 overdue bills · 2 low-stock items"); cancels when total = 0; silently ignores scheduling failures (Expo Go / missing credentials)
+  - `cancelOverdueReminder()`: cancels the scheduled notification by identifier
+  - `getNotificationsEnabled()` / `setNotificationsEnabled()`: AsyncStorage-backed toggle key `setting:notificationsEnabled`
+- `AppNavigator`: `useEffect` on `[apOverdue, arOverdue, lowStock]` reschedules the overdue reminder whenever alert counts change (only when setting is on)
+- `SettingsScreen`: "Overdue reminders" `Switch` in SECURITY section; on enable → requests OS permissions (shows Alert with instructions if denied); on disable → cancels pending notification
+
+---
+
 ## Session 14 — 2026-05-24
 
 ### Completed This Session
@@ -543,15 +574,15 @@
 
 ---
 
-## What's Next (Session 15+)
+## What's Next (Session 16+)
 
-Sessions 1–14 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
+Sessions 1–15 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
 
-1. **Local push notifications** — expo-notifications for overdue AP/AR items (requires install + permissions flow)
-2. **Deep link navigation** — Universal links / custom URL scheme for sharing screen URLs
-3. **Biometric lock** — expo-local-authentication for PIN/fingerprint on app open (complements session timeout)
-4. **Purchase Order creation** — Draft PO form with item line entry (requires POST API endpoint)
-5. **Trial Balance / Financial Reports caching** — Cache rendered report data per company+date combo
+1. **Deep link navigation** — Universal links / custom URL scheme for sharing screen URLs (`expo-linking`)
+2. **Purchase Order creation** — Draft PO form with item line entry (requires POST API endpoint on web app)
+3. **Notification scheduling improvements** — Configurable notification time (not just 9 AM), per-alert-type toggles
+4. **Report export to PDF** — Generate PDF version of Trial Balance / P&L / Balance Sheet using a PDF library
+5. **Widget support** — Expo WidgetKit for home screen KPI summary (iOS 17+)
 
 ---
 
@@ -608,6 +639,10 @@ Sessions 1–14 are complete. All roadmap screens + polish + key enhancements ar
 | Company selection persistence across restarts | ✅ Done |
 | Session timeout / security lock (configurable) | ✅ Done |
 | Journal Entries offline cache | ✅ Done |
+| Trial Balance offline cache | ✅ Done |
+| Financial Reports offline cache | ✅ Done |
+| Biometric lock (fingerprint / Face ID) | ✅ Done |
+| Local push notifications (overdue reminders) | ✅ Done |
 
 ---
 
