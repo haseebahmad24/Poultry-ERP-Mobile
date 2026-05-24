@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useAuth } from '@/context/AuthContext';
 import { useCompany } from '@/context/CompanyContext';
@@ -26,9 +26,21 @@ import VoucherActivityChart from '@/components/VoucherActivityChart';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
+import { getAutoRefreshInterval } from '@/utils/settings';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
 
 type Nav = BottomTabNavigationProp<AppTabParamList>;
+
+function formatLastUpdated(date: Date): string {
+  const diffMs = Date.now() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'just now';
+  if (diffMin === 1) return '1 min ago';
+  if (diffMin < 60) return `${diffMin} min ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr === 1) return '1 hr ago';
+  return `${diffHr} hr ago`;
+}
 
 type QuickAction = {
   label: string;
@@ -88,14 +100,17 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isStale, setIsStale] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState(0);
+  const [, setTick] = useState(0);
 
   const cacheKey = `dashboard:${selectedCompany?.id ?? 'all'}`;
 
-  const load = useCallback(async (isRefresh = false) => {
+  const load = useCallback(async (isRefresh = false, isSilent = false) => {
     let hadCachedData = false;
-    if (isRefresh) {
+    if (isRefresh && !isSilent) {
       setRefreshing(true);
-    } else {
+    } else if (!isRefresh && !isSilent) {
       const cached = await getCached<{ kpis: KPIs; recentVouchers: RecentVoucher[]; voucherTypeStats?: VoucherTypeStat[] }>(cacheKey);
       if (cached) {
         hadCachedData = true;
@@ -108,27 +123,51 @@ export default function DashboardScreen() {
         setLoading(true);
       }
     }
-    setError(null);
+    if (!isSilent) setError(null);
     try {
       const data = await fetchDashboardData(selectedCompany?.id ?? undefined);
       setKpis(data.kpis);
       setVouchers(data.recentVouchers);
       setVoucherTypeStats(data.voucherTypeStats);
       setIsStale(false);
+      setLastUpdated(new Date());
       await setCached(cacheKey, { kpis: data.kpis, recentVouchers: data.recentVouchers, voucherTypeStats: data.voucherTypeStats });
     } catch (e: any) {
-      if (hadCachedData) {
+      if (isSilent) {
+        // silent auto-refresh: don't clobber UI on transient failure
+      } else if (hadCachedData) {
         setIsStale(true);
       } else {
         setError(String(e?.message ?? e));
       }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (!isSilent) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [selectedCompany, cacheKey]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Re-read auto-refresh interval whenever Dashboard comes into focus (user may have changed it in Settings)
+  useFocusEffect(useCallback(() => {
+    getAutoRefreshInterval().then(setAutoRefreshInterval);
+  }, []));
+
+  useEffect(() => {
+    if (autoRefreshInterval <= 0) return;
+    const ms = autoRefreshInterval * 60 * 1000;
+    const timer = setInterval(() => { load(true, true); }, ms);
+    return () => clearInterval(timer);
+  }, [autoRefreshInterval, load]);
+
+  // Tick every 60s so the "Updated X min ago" label stays current
+  useEffect(() => {
+    if (!lastUpdated) return;
+    const timer = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(timer);
+  }, [lastUpdated]);
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -154,6 +193,10 @@ export default function DashboardScreen() {
           </Text>
           <Text style={styles.subGreeting}>
             {user?.role ?? 'Poultry ERP'} · Today
+            {lastUpdated
+              ? ` · Updated ${formatLastUpdated(lastUpdated)}`
+              : ''}
+            {autoRefreshInterval > 0 ? ` · Auto ↻${autoRefreshInterval}m` : ''}
           </Text>
         </View>
         <View style={styles.topBarRight}>

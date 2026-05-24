@@ -14,16 +14,31 @@ import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
-import { getLowStockThreshold, setLowStockThreshold } from '@/utils/settings';
+import {
+  getLowStockThreshold,
+  setLowStockThreshold,
+  getAutoRefreshInterval,
+  setAutoRefreshInterval,
+} from '@/utils/settings';
 import { clearCache } from '@/utils/cache';
+
+const REFRESH_OPTIONS: { label: string; value: number }[] = [
+  { label: 'Off', value: 0 },
+  { label: '1 min', value: 1 },
+  { label: '5 min', value: 5 },
+  { label: '10 min', value: 10 },
+  { label: '30 min', value: 30 },
+];
 
 export default function SettingsScreen() {
   const [threshold, setThreshold] = useState('100');
   const [thresholdSaved, setThresholdSaved] = useState(false);
   const [cacheCleared, setCacheCleared] = useState(false);
+  const [refreshInterval, setRefreshInterval] = useState(0);
 
   useEffect(() => {
     getLowStockThreshold().then((v) => setThreshold(String(v)));
+    getAutoRefreshInterval().then((v) => setRefreshInterval(v));
   }, []);
 
   const saveThreshold = useCallback(async () => {
@@ -36,6 +51,11 @@ export default function SettingsScreen() {
     setThresholdSaved(true);
     setTimeout(() => setThresholdSaved(false), 2000);
   }, [threshold]);
+
+  const handleRefreshIntervalChange = useCallback(async (minutes: number) => {
+    setRefreshInterval(minutes);
+    await setAutoRefreshInterval(minutes);
+  }, []);
 
   const handleClearCache = useCallback(() => {
     Alert.alert(
@@ -106,6 +126,33 @@ export default function SettingsScreen() {
                 <Text style={styles.saveBtnText}>Save</Text>
               )}
             </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Dashboard */}
+        <Text style={styles.sectionLabel}>DASHBOARD</Text>
+        <View style={styles.card}>
+          <View style={[styles.settingRow, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight }]}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingTitle}>Auto-refresh interval</Text>
+              <Text style={styles.settingDesc}>
+                Dashboard KPIs and vouchers refresh automatically at this interval.
+              </Text>
+            </View>
+          </View>
+          <View style={styles.refreshOptionsRow}>
+            {REFRESH_OPTIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[styles.refreshChip, refreshInterval === opt.value && styles.refreshChipActive]}
+                onPress={() => handleRefreshIntervalChange(opt.value)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.refreshChipText, refreshInterval === opt.value && styles.refreshChipTextActive]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
@@ -228,6 +275,36 @@ const styles = StyleSheet.create({
   },
   saveBtnSuccess: { backgroundColor: Colors.textSecondary },
   saveBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  refreshOptionsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.md,
+    paddingTop: Spacing.sm,
+    gap: Spacing.xs,
+    flexWrap: 'wrap',
+  },
+  refreshChip: {
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 6,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  refreshChipActive: {
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
+  },
+  refreshChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+  },
+  refreshChipTextActive: {
+    color: '#fff',
+    fontWeight: '700',
+  },
 
   actionRow: {
     flexDirection: 'row',
