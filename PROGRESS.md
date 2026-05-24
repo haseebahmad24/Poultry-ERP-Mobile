@@ -1,5 +1,48 @@
 # Mobile App Progress
 
+## Session 16 — 2026-05-24
+
+### Completed This Session
+
+**Notification Time Picker + Per-Type Toggles** (`src/utils/settings.ts`, `src/utils/notifications.ts`, `src/screens/settings/SettingsScreen.tsx`, `src/navigation/AppNavigator.tsx`)
+- `settings.ts`: 4 new AsyncStorage-backed settings with defaults:
+  - `notificationHour` (0–23, default 9) — hour at which the daily reminder fires
+  - `notifyApOverdue` (bool, default true) — whether AP overdue bills trigger a notification
+  - `notifyArOverdue` (bool, default true) — whether AR overdue invoices trigger a notification
+  - `notifyLowStock` (bool, default true) — whether low-stock items trigger a notification
+- `notifications.ts`: `scheduleOverdueReminder` now reads all 4 new settings on each call; silently drops disabled types from the notification body; schedules at the configured hour instead of hardcoded 9 AM
+- `SettingsScreen`: new NOTIFICATIONS section replaces the old SECURITY-embedded toggle:
+  - Master `Switch` toggle for enabling/disabling overdue reminders
+  - 8-chip time picker (6 AM → 6 PM) shown only when master toggle is on
+  - 3 per-type `Switch` rows (Overdue bills AP / Overdue invoices AR / Low-stock items) shown only when master toggle is on
+- `AppNavigator`: added `Notifications.addNotificationResponseReceivedListener` — tapping the daily reminder notification navigates to the Alerts screen (`More > Alerts`) via `CommonActions.navigate`
+
+**Deep Link Navigation** (`app.json`, `src/navigation/linking.ts`, `src/navigation/RootNavigator.tsx`)
+- `app.json`: added `scheme: "poultryerp"` — enables `poultryerp://` custom URL scheme on iOS and Android
+- Installed `expo-linking`
+- `src/navigation/linking.ts`: new `LinkingOptions` config mapping 17 URL paths to screen names across all tab/stack navigators:
+  - `poultryerp://dashboard` → Dashboard tab
+  - `poultryerp://inventory` → InventoryMain
+  - `poultryerp://finance`, `/finance/ap`, `/finance/ar`, `/finance/journal`, `/finance/trial-balance`, `/finance/reports`
+  - `poultryerp://materials`, `/purchase-orders`, `/sales-orders`, `/grn`, `/partners`, `/companies`
+  - `poultryerp://alerts`, `/settings`, `/search`
+- `RootNavigator`: `NavigationContainer` receives the linking config when user is authenticated (not on login/loading screens)
+
+**PDF Export for Financial Reports + Journal Entries** (`src/utils/pdfExport.ts`, updated screens)
+- Installed `expo-print` + `expo-sharing`
+- `src/utils/pdfExport.ts`: new shared PDF utility with 4 export functions:
+  - `exportTrialBalancePDF`: account table with debit/credit columns, group rows with level indentation, totals row, balanced/out-of-balance status message
+  - `exportPLPDF`: summary grid (revenue/expenses), Net Income box, separate revenue and expense account tables
+  - `exportBSPDF`: assets/liabilities/equity tables, imbalance warning, L+E total
+  - `exportJournalEntriesPDF`: summary grid (voucher count + total), full entry table with group header rows (voucher type/number/date) + indented line items (account + debit/credit)
+  - Shared `BASE_CSS`: clean monochrome print stylesheet matching app design
+  - `printAndShare`: renders HTML to PDF via `expo-print.printToFileAsync`, opens OS share sheet via `expo-sharing.shareAsync`; falls back to `printAsync` (print dialog) when sharing unavailable
+- `TrialBalanceScreen`: PDF button (Feather `file-text` icon) added alongside existing Share text button
+- `FinancialReportsScreen`: PDF button added; dispatches to `exportPLPDF` or `exportBSPDF` based on active tab
+- `JournalEntriesScreen`: PDF button added; uses `selectedCompany.name` from context for the company label
+
+---
+
 ## Session 15 — 2026-05-24
 
 ### Completed This Session
@@ -574,15 +617,15 @@
 
 ---
 
-## What's Next (Session 16+)
+## What's Next (Session 17+)
 
-Sessions 1–15 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
+Sessions 1–16 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
 
-1. **Deep link navigation** — Universal links / custom URL scheme for sharing screen URLs (`expo-linking`)
-2. **Purchase Order creation** — Draft PO form with item line entry (requires POST API endpoint on web app)
-3. **Notification scheduling improvements** — Configurable notification time (not just 9 AM), per-alert-type toggles
-4. **Report export to PDF** — Generate PDF version of Trial Balance / P&L / Balance Sheet using a PDF library
-5. **Widget support** — Expo WidgetKit for home screen KPI summary (iOS 17+)
+1. **Purchase Order creation** — Draft PO form with item line entry (requires POST API endpoint on web app)
+2. **Widget support** — Expo WidgetKit for home screen KPI summary (iOS 17+)
+3. **Universal links** — Associate poultryerp:// scheme with a web domain (requires associated-domains entitlement + server-side apple-app-site-association)
+4. **In-app notifications** — Show a notification bell/inbox within the app showing history of auto-generated alerts
+5. **Batch PDF export** — Export multiple reports into a single combined PDF
 
 ---
 
@@ -643,6 +686,13 @@ Sessions 1–15 are complete. All roadmap screens + polish + key enhancements ar
 | Financial Reports offline cache | ✅ Done |
 | Biometric lock (fingerprint / Face ID) | ✅ Done |
 | Local push notifications (overdue reminders) | ✅ Done |
+| Notification time picker (configurable hour) | ✅ Done |
+| Per-type notification toggles (AP/AR/Stock) | ✅ Done |
+| Notification tap → Alerts screen deep link | ✅ Done |
+| Deep link navigation (poultryerp:// URL scheme) | ✅ Done |
+| PDF export — Trial Balance | ✅ Done |
+| PDF export — P&L + Balance Sheet | ✅ Done |
+| PDF export — Journal Entries | ✅ Done |
 
 ---
 
