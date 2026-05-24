@@ -24,6 +24,14 @@ import {
   setSessionTimeout,
   getBiometricEnabled,
   setBiometricEnabled,
+  getNotificationHour,
+  setNotificationHour,
+  getNotifyApOverdue,
+  setNotifyApOverdue,
+  getNotifyArOverdue,
+  setNotifyArOverdue,
+  getNotifyLowStock,
+  setNotifyLowStock,
 } from '@/utils/settings';
 import {
   getNotificationsEnabled,
@@ -39,6 +47,17 @@ const REFRESH_OPTIONS: { label: string; value: number }[] = [
   { label: '5 min', value: 5 },
   { label: '10 min', value: 10 },
   { label: '30 min', value: 30 },
+];
+
+const NOTIFICATION_HOUR_OPTIONS: { label: string; value: number }[] = [
+  { label: '6 AM', value: 6 },
+  { label: '7 AM', value: 7 },
+  { label: '8 AM', value: 8 },
+  { label: '9 AM', value: 9 },
+  { label: '10 AM', value: 10 },
+  { label: '12 PM', value: 12 },
+  { label: '5 PM', value: 17 },
+  { label: '6 PM', value: 18 },
 ];
 
 const TIMEOUT_OPTIONS: { label: string; value: number }[] = [
@@ -58,6 +77,10 @@ export default function SettingsScreen() {
   const [biometricEnabled, setBiometricEnabledState] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [notificationsEnabled, setNotificationsEnabledState] = useState(false);
+  const [notificationHour, setNotificationHourState] = useState(9);
+  const [notifyAP, setNotifyAPState] = useState(true);
+  const [notifyAR, setNotifyARState] = useState(true);
+  const [notifyStock, setNotifyStockState] = useState(true);
 
   useEffect(() => {
     getLowStockThreshold().then((v) => setThreshold(String(v)));
@@ -65,6 +88,10 @@ export default function SettingsScreen() {
     getSessionTimeout().then((v) => setSessionTimeoutState(v));
     getBiometricEnabled().then((v) => setBiometricEnabledState(v));
     getNotificationsEnabled().then((v) => setNotificationsEnabledState(v));
+    getNotificationHour().then((v) => setNotificationHourState(v));
+    getNotifyApOverdue().then((v) => setNotifyAPState(v));
+    getNotifyArOverdue().then((v) => setNotifyARState(v));
+    getNotifyLowStock().then((v) => setNotifyStockState(v));
     LocalAuthentication.hasHardwareAsync().then((has) => {
       if (has) LocalAuthentication.isEnrolledAsync().then((enrolled) => setBiometricAvailable(enrolled));
     });
@@ -119,6 +146,26 @@ export default function SettingsScreen() {
     }
     setNotificationsEnabledState(value);
     await setNotificationsEnabled(value);
+  }, []);
+
+  const handleNotificationHourChange = useCallback(async (hour: number) => {
+    setNotificationHourState(hour);
+    await setNotificationHour(hour);
+  }, []);
+
+  const handleNotifyAPToggle = useCallback(async (value: boolean) => {
+    setNotifyAPState(value);
+    await setNotifyApOverdue(value);
+  }, []);
+
+  const handleNotifyARToggle = useCallback(async (value: boolean) => {
+    setNotifyARState(value);
+    await setNotifyArOverdue(value);
+  }, []);
+
+  const handleNotifyStockToggle = useCallback(async (value: boolean) => {
+    setNotifyStockState(value);
+    await setNotifyLowStock(value);
   }, []);
 
   const handleClearCache = useCallback(() => {
@@ -261,11 +308,16 @@ export default function SettingsScreen() {
               />
             </View>
           )}
-          <View style={[styles.settingRow, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.borderLight }]}>
+        </View>
+
+        {/* Notifications */}
+        <Text style={styles.sectionLabel}>NOTIFICATIONS</Text>
+        <View style={styles.card}>
+          <View style={[styles.settingRow, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight }]}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingTitle}>Overdue reminders</Text>
               <Text style={styles.settingDesc}>
-                Daily notification at 9 AM when there are overdue bills, invoices, or low-stock items.
+                Daily notification when there are overdue bills, invoices, or low-stock items.
               </Text>
             </View>
             <Switch
@@ -275,6 +327,71 @@ export default function SettingsScreen() {
               thumbColor={Colors.surface}
             />
           </View>
+
+          {notificationsEnabled && (
+            <>
+              <View style={[styles.settingRow, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight }]}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>Notification time</Text>
+                  <Text style={styles.settingDesc}>Daily reminder fires at this hour.</Text>
+                </View>
+              </View>
+              <View style={styles.refreshOptionsRow}>
+                {NOTIFICATION_HOUR_OPTIONS.map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[styles.refreshChip, notificationHour === opt.value && styles.refreshChipActive]}
+                    onPress={() => handleNotificationHourChange(opt.value)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.refreshChipText, notificationHour === opt.value && styles.refreshChipTextActive]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={[styles.settingRow, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.borderLight, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight }]}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>Notify about</Text>
+                  <Text style={styles.settingDesc}>Choose which alert types trigger a notification.</Text>
+                </View>
+              </View>
+              <View style={[styles.settingRow, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight }]}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>Overdue bills (AP)</Text>
+                </View>
+                <Switch
+                  value={notifyAP}
+                  onValueChange={handleNotifyAPToggle}
+                  trackColor={{ false: Colors.border, true: Colors.text }}
+                  thumbColor={Colors.surface}
+                />
+              </View>
+              <View style={[styles.settingRow, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight }]}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>Overdue invoices (AR)</Text>
+                </View>
+                <Switch
+                  value={notifyAR}
+                  onValueChange={handleNotifyARToggle}
+                  trackColor={{ false: Colors.border, true: Colors.text }}
+                  thumbColor={Colors.surface}
+                />
+              </View>
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>Low-stock items</Text>
+                </View>
+                <Switch
+                  value={notifyStock}
+                  onValueChange={handleNotifyStockToggle}
+                  trackColor={{ false: Colors.border, true: Colors.text }}
+                  thumbColor={Colors.surface}
+                />
+              </View>
+            </>
+          )}
         </View>
 
         {/* Data & Cache */}

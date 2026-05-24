@@ -1,5 +1,11 @@
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  getNotificationHour,
+  getNotifyApOverdue,
+  getNotifyArOverdue,
+  getNotifyLowStock,
+} from '@/utils/settings';
 
 const KEY_NOTIFICATIONS_ENABLED = 'setting:notificationsEnabled';
 const IDENTIFIER_OVERDUE = 'poultry-erp-overdue-reminder';
@@ -40,23 +46,33 @@ export async function scheduleOverdueReminder(params: {
   arOverdue: number;
   lowStock: number;
 }): Promise<void> {
-  const { apOverdue, arOverdue, lowStock } = params;
-  const total = apOverdue + arOverdue + lowStock;
+  const [notifyAP, notifyAR, notifyStock, hour] = await Promise.all([
+    getNotifyApOverdue(),
+    getNotifyArOverdue(),
+    getNotifyLowStock(),
+    getNotificationHour(),
+  ]);
+
+  const effectiveAP = notifyAP ? params.apOverdue : 0;
+  const effectiveAR = notifyAR ? params.arOverdue : 0;
+  const effectiveStock = notifyStock ? params.lowStock : 0;
+  const total = effectiveAP + effectiveAR + effectiveStock;
+
   if (total === 0) {
     await Notifications.cancelScheduledNotificationAsync(IDENTIFIER_OVERDUE).catch(() => {});
     return;
   }
 
   const parts: string[] = [];
-  if (apOverdue > 0) parts.push(`${apOverdue} overdue bill${apOverdue > 1 ? 's' : ''}`);
-  if (arOverdue > 0) parts.push(`${arOverdue} overdue invoice${arOverdue > 1 ? 's' : ''}`);
-  if (lowStock > 0) parts.push(`${lowStock} low-stock item${lowStock > 1 ? 's' : ''}`);
+  if (effectiveAP > 0) parts.push(`${effectiveAP} overdue bill${effectiveAP > 1 ? 's' : ''}`);
+  if (effectiveAR > 0) parts.push(`${effectiveAR} overdue invoice${effectiveAR > 1 ? 's' : ''}`);
+  if (effectiveStock > 0) parts.push(`${effectiveStock} low-stock item${effectiveStock > 1 ? 's' : ''}`);
 
   const body = parts.join(' · ');
 
-  // Schedule for next occurrence of 9 AM
+  // Schedule for next occurrence of the configured hour
   const trigger = new Date();
-  trigger.setHours(9, 0, 0, 0);
+  trigger.setHours(hour, 0, 0, 0);
   if (trigger <= new Date()) trigger.setDate(trigger.getDate() + 1);
 
   try {

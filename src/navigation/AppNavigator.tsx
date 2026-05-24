@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { NavigatorScreenParams } from '@react-navigation/native';
+import { NavigatorScreenParams, useNavigation, CommonActions } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
 import DashboardScreen from '@/screens/dashboard/DashboardScreen';
 import InventoryNavigator from '@/navigation/InventoryNavigator';
 import MoreNavigator from '@/navigation/MoreNavigator';
@@ -49,6 +50,7 @@ const BADGE_STYLE = {
 export default function AppNavigator() {
   const { totalOverdue, apOverdue, arOverdue, lowStock } = useOverdue();
   const { logout } = useAuth();
+  const navigation = useNavigation();
   const handleSessionExpired = useCallback(() => { logout(); }, [logout]);
   useSessionTimeout(handleSessionExpired);
 
@@ -73,6 +75,19 @@ export default function AppNavigator() {
       scheduleOverdueReminder({ apOverdue, arOverdue, lowStock });
     });
   }, [apOverdue, arOverdue, lowStock]);
+
+  // Navigate to Alerts screen when user taps the overdue notification
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as any;
+      if (data?.type === 'overdue') {
+        navigation.dispatch(
+          CommonActions.navigate({ name: 'More', params: { screen: 'Alerts' } })
+        );
+      }
+    });
+    return () => sub.remove();
+  }, [navigation]);
 
   return (
     <View style={{ flex: 1 }}>
