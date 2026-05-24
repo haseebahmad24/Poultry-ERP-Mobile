@@ -1,5 +1,45 @@
 # Mobile App Progress
 
+## Session 14 — 2026-05-24
+
+### Completed This Session
+
+**Dashboard Auto-Refresh** (`src/screens/dashboard/DashboardScreen.tsx`)
+- New `isSilent` flag on `load()` — silent auto-refresh runs in the background without triggering RefreshControl or replacing error state
+- `useFocusEffect` re-reads the refresh interval whenever Dashboard comes into focus (picks up Settings changes immediately)
+- `setInterval` fires `load(true, true)` at the configured interval; cleared on unmount/interval change
+- `lastUpdated: Date` state tracks successful fetches and is displayed in the top bar as "Updated X min ago"
+- 60-second tick interval keeps the relative-time label fresh without API calls
+- "Auto ↻Xm" indicator shown in the subGreeting when auto-refresh is active
+
+**Auto-Refresh Interval Setting** (`src/screens/settings/SettingsScreen.tsx`)
+- New DASHBOARD section in Settings with chip picker: Off / 1 min / 5 min / 10 min / 30 min
+- Reads/writes `setting:autoRefreshInterval` via `getAutoRefreshInterval` / `setAutoRefreshInterval` from `settings.ts`
+- Instant feedback — no Save button needed; setting takes effect on next Dashboard focus
+
+**Company Selection Persistence** (`src/context/CompanyContext.tsx`)
+- Selected company ID is now persisted to AsyncStorage (`setting:selectedCompanyId`) via the wrapping `setSelectedCompany` callback
+- On app restart, `load()` reads the saved ID alongside the companies list and restores the previous selection
+- Falls back to the first company when the saved ID is absent or no longer in the list
+- `setSelectedCompanyState` used internally to avoid triggering AsyncStorage writes during initial restore
+
+**Session Timeout / Security Lock** (`src/hooks/useSessionTimeout.ts`, `src/navigation/AppNavigator.tsx`)
+- New `useSessionTimeout(onTimeout)` hook using React Native's built-in `AppState` API
+- Records `backgroundedAt` timestamp when app moves to background; re-reads the timeout setting on each background event
+- On foreground: computes elapsed time; calls `onTimeout` (→ `logout()`) when elapsed ≥ configured timeout
+- `AppNavigator` wires `useSessionTimeout(logout)` so the check runs for all authenticated screens
+- New SECURITY section in Settings with chip picker: Off / 5 min / 15 min / 30 min / 1 hr
+
+**Journal Entries Offline Caching** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- Added `isStale` state and caching via `getCached` / `setCached` (24h TTL)
+- Cache key: `journal-entries:<companyId>:<type>` — per company + voucher type
+- Cache bypassed when a date range filter is active (too many permutations)
+- Serves cached data instantly on mount, then refreshes from API in background
+- `OfflineBanner` shown when serving stale data after a failed refresh
+- Network errors no longer clobber existing entries when cached data is present
+
+---
+
 ## Session 13 — 2026-05-23
 
 ### Completed This Session
@@ -503,15 +543,15 @@
 
 ---
 
-## What's Next (Session 12)
+## What's Next (Session 15+)
 
-Sessions 1–11 are complete. All roadmap screens + polish are done. Remaining enhancement options:
+Sessions 1–14 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
 
 1. **Local push notifications** — expo-notifications for overdue AP/AR items (requires install + permissions flow)
 2. **Deep link navigation** — Universal links / custom URL scheme for sharing screen URLs
-3. **Biometric lock** — expo-local-authentication for PIN/fingerprint on app open
-4. **Purchase Order creation** — Draft PO form with item line entry (requires POST API)
-5. **Dashboard real-time refresh** — Background polling or WebSocket updates for live KPI changes
+3. **Biometric lock** — expo-local-authentication for PIN/fingerprint on app open (complements session timeout)
+4. **Purchase Order creation** — Draft PO form with item line entry (requires POST API endpoint)
+5. **Trial Balance / Financial Reports caching** — Cache rendered report data per company+date combo
 
 ---
 
@@ -536,7 +576,7 @@ Sessions 1–11 are complete. All roadmap screens + polish are done. Remaining e
 | Vendor Detail (tap vendor → bill history) | ✅ Done |
 | Accounts Receivable (with search + overdue alerts + offline cache) | ✅ Done |
 | Customer Detail (tap customer → invoice history) | ✅ Done |
-| Journal Entries (with date filter + presets + Export) | ✅ Done |
+| Journal Entries (with date filter + presets + Export + offline cache) | ✅ Done |
 | Trial Balance (with Export) | ✅ Done |
 | Financial Reports (P&L, BS, with Export) | ✅ Done |
 | Business Partners (with offline cache + tappable) | ✅ Done |
@@ -563,6 +603,11 @@ Sessions 1–11 are complete. All roadmap screens + polish are done. Remaining e
 | OfflineBanner component | ✅ Done |
 | Finance tab badge (overdue count) | ✅ Done |
 | KPICard tappable chevron indicator | ✅ Done |
+| Dashboard auto-refresh interval (configurable) | ✅ Done |
+| Dashboard "last updated" timestamp in top bar | ✅ Done |
+| Company selection persistence across restarts | ✅ Done |
+| Session timeout / security lock (configurable) | ✅ Done |
+| Journal Entries offline cache | ✅ Done |
 
 ---
 
