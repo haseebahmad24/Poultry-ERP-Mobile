@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchCompanies } from '@/api/dashboard';
 import { useAuth } from '@/context/AuthContext';
 
@@ -20,20 +21,41 @@ const CompanyContext = createContext<CompanyContextValue>({
   loading: false,
 });
 
+const SELECTED_COMPANY_KEY = 'setting:selectedCompanyId';
+
 export function CompanyProvider({ children }: { children: React.ReactNode }) {
   const { authState } = useAuth();
   const isAuthenticated = authState.status === 'authenticated';
 
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [selectedCompany, setSelectedCompanyState] = useState<Company | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const setSelectedCompany = useCallback((company: Company | null) => {
+    setSelectedCompanyState(company);
+    if (company) {
+      AsyncStorage.setItem(SELECTED_COMPANY_KEY, company.id).catch(() => {});
+    } else {
+      AsyncStorage.removeItem(SELECTED_COMPANY_KEY).catch(() => {});
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchCompanies();
+      const [data, savedId] = await Promise.all([
+        fetchCompanies(),
+        AsyncStorage.getItem(SELECTED_COMPANY_KEY),
+      ]);
       setCompanies(data);
-      setSelectedCompany((prev) => prev ?? (data.length > 0 ? data[0] : null));
+      setSelectedCompanyState((prev) => {
+        if (prev) return prev; // already set (shouldn't happen on cold start, but guard)
+        if (savedId) {
+          const saved = data.find((c) => c.id === savedId);
+          if (saved) return saved;
+        }
+        return data.length > 0 ? data[0] : null;
+      });
     } catch {
       // Non-fatal — screens fall back to no company filter
     } finally {
@@ -46,7 +68,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       load();
     } else {
       setCompanies([]);
-      setSelectedCompany(null);
+      setSelectedCompanyState(null);
     }
   }, [isAuthenticated, load]);
 
