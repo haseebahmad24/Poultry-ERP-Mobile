@@ -12,15 +12,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
-import { fetchTrialBalance, TrialBalanceRow } from '@/api/trialBalance';
+import { fetchTrialBalance, TrialBalanceRow, TrialBalanceResult } from '@/api/trialBalance';
 import { useCompany } from '@/context/CompanyContext';
 import ErrorView from '@/components/ErrorView';
 import ListScreenSkeleton from '@/components/ListScreenSkeleton';
+import OfflineBanner from '@/components/OfflineBanner';
 import SectionHeader from '@/components/SectionHeader';
 import BackButton from '@/components/BackButton';
 import CompanySelector from '@/components/CompanySelector';
 import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 import { formatCurrency } from '@/utils/currency';
+import { getCached, setCached } from '@/utils/cache';
 
 type ReportTab = 'pl' | 'bs';
 
@@ -82,14 +84,29 @@ export default function FinancialReportsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isStale, setIsStale] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+    const cacheKey = `trial-balance:${companyId ?? 'all'}:${asOf}`;
+    if (!isRefresh) {
+      const cached = await getCached<TrialBalanceResult>(cacheKey);
+      if (cached) {
+        setRows(cached.data.rows);
+        setIsStale(cached.stale);
+        setLoading(false);
+        if (!cached.stale) return;
+      } else {
+        setLoading(true);
+      }
+    } else {
+      setRefreshing(true);
+    }
     setError(null);
     try {
       const result = await fetchTrialBalance(companyId, asOf);
       setRows(result.rows);
+      setIsStale(false);
+      await setCached(cacheKey, result);
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
@@ -138,7 +155,7 @@ export default function FinancialReportsScreen() {
     await Share.share({ message: text, title: activeTab === 'pl' ? 'P&L Statement' : 'Balance Sheet' });
   };
 
-  if (error && rows.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
+  if (error && rows.length === 0 && !isStale) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -176,6 +193,7 @@ export default function FinancialReportsScreen() {
 
       <CompanySelector showAll />
       {!loading && <DateRangeBar mode="single" value={dateRange} onChange={handleDateChange} />}
+      <OfflineBanner visible={!!(isStale && error)} />
 
       {loading ? <ListScreenSkeleton count={8} showTabs={false} showSearch={false} showBadge={false} /> : <ScrollView
         style={styles.scroll}

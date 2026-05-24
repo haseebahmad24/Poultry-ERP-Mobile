@@ -18,10 +18,12 @@ import { useCompany } from '@/context/CompanyContext';
 import BackButton from '@/components/BackButton';
 import ErrorView from '@/components/ErrorView';
 import ListScreenSkeleton from '@/components/ListScreenSkeleton';
+import OfflineBanner from '@/components/OfflineBanner';
 import SectionHeader from '@/components/SectionHeader';
 import CompanySelector from '@/components/CompanySelector';
 import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 import { formatCurrency } from '@/utils/currency';
+import { getCached, setCached } from '@/utils/cache';
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -35,15 +37,30 @@ export default function TrialBalanceScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isStale, setIsStale] = useState(false);
   const [search, setSearch] = useState('');
 
   const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+    const cacheKey = `trial-balance:${companyId ?? 'all'}:${asOf}`;
+    if (!isRefresh) {
+      const cached = await getCached<TrialBalanceResult>(cacheKey);
+      if (cached) {
+        setResult(cached.data);
+        setIsStale(cached.stale);
+        setLoading(false);
+        if (!cached.stale) return;
+      } else {
+        setLoading(true);
+      }
+    } else {
+      setRefreshing(true);
+    }
     setError(null);
     try {
       const data = await fetchTrialBalance(companyId, asOf);
       setResult(data);
+      setIsStale(false);
+      await setCached(cacheKey, data);
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
@@ -93,7 +110,7 @@ export default function TrialBalanceScreen() {
     await Share.share({ message: text, title: 'Trial Balance' });
   };
 
-  if (error && result.rows.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
+  if (error && result.rows.length === 0 && !isStale) return <ErrorView message={error} onRetry={() => load()} />;
 
   const isOutOfBalance = Math.abs(totalDebit - totalCredit) > 0.01;
 
@@ -115,6 +132,7 @@ export default function TrialBalanceScreen() {
 
       <CompanySelector showAll />
       {!loading && <DateRangeBar mode="single" value={dateRange} onChange={handleDateChange} />}
+      <OfflineBanner visible={!!(isStale && error)} />
 
       {loading ? <ListScreenSkeleton count={8} showTabs={false} showSearch={false} showBadge={false} /> : <>
       <View style={styles.searchContainer}>
