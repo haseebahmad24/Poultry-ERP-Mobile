@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, StyleSheet, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigatorScreenParams } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -7,10 +7,12 @@ import DashboardScreen from '@/screens/dashboard/DashboardScreen';
 import InventoryNavigator from '@/navigation/InventoryNavigator';
 import MoreNavigator from '@/navigation/MoreNavigator';
 import FinanceNavigator from '@/navigation/FinanceNavigator';
+import BiometricLockOverlay from '@/components/BiometricLockOverlay';
 import { Colors } from '@/theme';
 import { useOverdue } from '@/context/OverdueContext';
 import { useAuth } from '@/context/AuthContext';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+import { getBiometricEnabled } from '@/utils/settings';
 import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
 import type { MoreStackParamList } from '@/navigation/MoreNavigator';
@@ -46,47 +48,68 @@ export default function AppNavigator() {
   const handleSessionExpired = useCallback(() => { logout(); }, [logout]);
   useSessionTimeout(handleSessionExpired);
 
+  const [biometricLocked, setBiometricLocked] = useState(false);
+  const appStateRef = useRef(AppState.currentState);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', async (nextState) => {
+      const prev = appStateRef.current;
+      appStateRef.current = nextState;
+      if ((prev === 'background' || prev === 'inactive') && nextState === 'active') {
+        const enabled = await getBiometricEnabled();
+        if (enabled) setBiometricLocked(true);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: Colors.text,
-        tabBarInactiveTintColor: Colors.textMuted,
-        tabBarStyle: {
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: Colors.border,
-          backgroundColor: Colors.surface,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
-        tabBarIcon: ({ color, size }) => (
-          <Feather
-            name={(TAB_ICONS[route.name] ?? 'circle') as any}
-            size={size - 2}
-            color={color}
-          />
-        ),
-      })}
-    >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen
-        name="Inventory"
-        component={InventoryNavigator}
-        options={{
-          tabBarBadge: lowStock > 0 ? lowStock : undefined,
-          tabBarBadgeStyle: BADGE_STYLE,
-        }}
-      />
-      <Tab.Screen
-        name="Finance"
-        component={FinanceNavigator}
-        options={{
-          tabBarBadge: totalOverdue > 0 ? totalOverdue : undefined,
-          tabBarBadgeStyle: BADGE_STYLE,
-        }}
-      />
-      <Tab.Screen name="More" component={MoreNavigator} />
-    </Tab.Navigator>
+    <View style={{ flex: 1 }}>
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          headerShown: false,
+          tabBarActiveTintColor: Colors.text,
+          tabBarInactiveTintColor: Colors.textMuted,
+          tabBarStyle: {
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: Colors.border,
+            backgroundColor: Colors.surface,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
+          tabBarIcon: ({ color, size }) => (
+            <Feather
+              name={(TAB_ICONS[route.name] ?? 'circle') as any}
+              size={size - 2}
+              color={color}
+            />
+          ),
+        })}
+      >
+        <Tab.Screen name="Dashboard" component={DashboardScreen} />
+        <Tab.Screen
+          name="Inventory"
+          component={InventoryNavigator}
+          options={{
+            tabBarBadge: lowStock > 0 ? lowStock : undefined,
+            tabBarBadgeStyle: BADGE_STYLE,
+          }}
+        />
+        <Tab.Screen
+          name="Finance"
+          component={FinanceNavigator}
+          options={{
+            tabBarBadge: totalOverdue > 0 ? totalOverdue : undefined,
+            tabBarBadgeStyle: BADGE_STYLE,
+          }}
+        />
+        <Tab.Screen name="More" component={MoreNavigator} />
+      </Tab.Navigator>
+
+      {biometricLocked && (
+        <BiometricLockOverlay onUnlock={() => setBiometricLocked(false)} />
+      )}
+    </View>
   );
 }

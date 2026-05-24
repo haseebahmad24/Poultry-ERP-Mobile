@@ -4,6 +4,7 @@ const KEYS = {
   LOW_STOCK_THRESHOLD: 'setting:lowStockThreshold',
   AUTO_REFRESH_INTERVAL: 'setting:autoRefreshInterval',
   SESSION_TIMEOUT: 'setting:sessionTimeout',
+  BIOMETRIC_ENABLED: 'setting:biometricEnabled',
 };
 
 const DEFAULTS = {
@@ -57,4 +58,17 @@ export async function getSessionTimeout(): Promise<number> {
 
 export async function setSessionTimeout(minutes: number): Promise<void> {
   await AsyncStorage.setItem(KEYS.SESSION_TIMEOUT, String(Math.max(0, minutes)));
+}
+
+export async function getBiometricEnabled(): Promise<boolean> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.BIOMETRIC_ENABLED);
+    return raw === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export async function setBiometricEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEYS.BIOMETRIC_ENABLED, enabled ? 'true' : 'false');
 }

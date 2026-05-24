@@ -3,6 +3,7 @@ import {
   Alert,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -11,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
 import {
@@ -20,6 +22,8 @@ import {
   setAutoRefreshInterval,
   getSessionTimeout,
   setSessionTimeout,
+  getBiometricEnabled,
+  setBiometricEnabled,
 } from '@/utils/settings';
 import { clearCache } from '@/utils/cache';
 
@@ -45,11 +49,17 @@ export default function SettingsScreen() {
   const [cacheCleared, setCacheCleared] = useState(false);
   const [refreshInterval, setRefreshInterval] = useState(0);
   const [sessionTimeout, setSessionTimeoutState] = useState(0);
+  const [biometricEnabled, setBiometricEnabledState] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
 
   useEffect(() => {
     getLowStockThreshold().then((v) => setThreshold(String(v)));
     getAutoRefreshInterval().then((v) => setRefreshInterval(v));
     getSessionTimeout().then((v) => setSessionTimeoutState(v));
+    getBiometricEnabled().then((v) => setBiometricEnabledState(v));
+    LocalAuthentication.hasHardwareAsync().then((has) => {
+      if (has) LocalAuthentication.isEnrolledAsync().then((enrolled) => setBiometricAvailable(enrolled));
+    });
   }, []);
 
   const saveThreshold = useCallback(async () => {
@@ -71,6 +81,19 @@ export default function SettingsScreen() {
   const handleSessionTimeoutChange = useCallback(async (minutes: number) => {
     setSessionTimeoutState(minutes);
     await setSessionTimeout(minutes);
+  }, []);
+
+  const handleBiometricToggle = useCallback(async (value: boolean) => {
+    if (value) {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Confirm to enable biometric lock',
+        cancelLabel: 'Cancel',
+        disableDeviceFallback: false,
+      });
+      if (!result.success) return;
+    }
+    setBiometricEnabledState(value);
+    await setBiometricEnabled(value);
   }, []);
 
   const handleClearCache = useCallback(() => {
@@ -197,6 +220,22 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             ))}
           </View>
+          {biometricAvailable && (
+            <View style={[styles.settingRow, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.borderLight }]}>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingTitle}>Biometric lock</Text>
+                <Text style={styles.settingDesc}>
+                  Require fingerprint or Face ID when resuming the app from background.
+                </Text>
+              </View>
+              <Switch
+                value={biometricEnabled}
+                onValueChange={handleBiometricToggle}
+                trackColor={{ false: Colors.border, true: Colors.text }}
+                thumbColor={Colors.surface}
+              />
+            </View>
+          )}
         </View>
 
         {/* Data & Cache */}
