@@ -57,11 +57,11 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
       <View style={styles.header}>
         <View style={styles.logoWrap}>
-          <Feather name="layers" size={32} color="#fff" />
+          <Feather name="layers" size={32} color={Colors.text} />
         </View>
         <Text style={styles.appName}>Poultry ERP</Text>
         <Text style={styles.tagline}>Select your account to continue</Text>
@@ -152,17 +152,21 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
 
   header: {
-    backgroundColor: Colors.text,
+    backgroundColor: Colors.surface,
     alignItems: 'center',
     paddingTop: Spacing.xl,
-    paddingBottom: Spacing.xl + 8,
+    paddingBottom: Spacing.xl,
     paddingHorizontal: Spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
   logoWrap: {
     width: 72,
     height: 72,
     borderRadius: Radius.full,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: Colors.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
@@ -170,11 +174,11 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#fff',
+    color: Colors.text,
     letterSpacing: -0.5,
     marginBottom: 4,
   },
-  tagline: { fontSize: 14, color: 'rgba(255,255,255,0.65)', fontWeight: '400' },
+  tagline: { fontSize: 14, color: Colors.textMuted, fontWeight: '400' },
 
   body: { flex: 1, paddingTop: Spacing.md },
 
