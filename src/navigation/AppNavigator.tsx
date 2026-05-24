@@ -13,6 +13,10 @@ import { useOverdue } from '@/context/OverdueContext';
 import { useAuth } from '@/context/AuthContext';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import { getBiometricEnabled } from '@/utils/settings';
+import {
+  getNotificationsEnabled,
+  scheduleOverdueReminder,
+} from '@/utils/notifications';
 import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
 import type { MoreStackParamList } from '@/navigation/MoreNavigator';
@@ -43,7 +47,7 @@ const BADGE_STYLE = {
 };
 
 export default function AppNavigator() {
-  const { totalOverdue, lowStock } = useOverdue();
+  const { totalOverdue, apOverdue, arOverdue, lowStock } = useOverdue();
   const { logout } = useAuth();
   const handleSessionExpired = useCallback(() => { logout(); }, [logout]);
   useSessionTimeout(handleSessionExpired);
@@ -62,6 +66,13 @@ export default function AppNavigator() {
     });
     return () => sub.remove();
   }, []);
+
+  useEffect(() => {
+    getNotificationsEnabled().then((enabled) => {
+      if (!enabled) return;
+      scheduleOverdueReminder({ apOverdue, arOverdue, lowStock });
+    });
+  }, [apOverdue, arOverdue, lowStock]);
 
   return (
     <View style={{ flex: 1 }}>

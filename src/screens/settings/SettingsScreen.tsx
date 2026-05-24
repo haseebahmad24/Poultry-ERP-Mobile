@@ -25,6 +25,12 @@ import {
   getBiometricEnabled,
   setBiometricEnabled,
 } from '@/utils/settings';
+import {
+  getNotificationsEnabled,
+  setNotificationsEnabled,
+  requestNotificationPermissions,
+  cancelOverdueReminder,
+} from '@/utils/notifications';
 import { clearCache } from '@/utils/cache';
 
 const REFRESH_OPTIONS: { label: string; value: number }[] = [
@@ -51,12 +57,14 @@ export default function SettingsScreen() {
   const [sessionTimeout, setSessionTimeoutState] = useState(0);
   const [biometricEnabled, setBiometricEnabledState] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabledState] = useState(false);
 
   useEffect(() => {
     getLowStockThreshold().then((v) => setThreshold(String(v)));
     getAutoRefreshInterval().then((v) => setRefreshInterval(v));
     getSessionTimeout().then((v) => setSessionTimeoutState(v));
     getBiometricEnabled().then((v) => setBiometricEnabledState(v));
+    getNotificationsEnabled().then((v) => setNotificationsEnabledState(v));
     LocalAuthentication.hasHardwareAsync().then((has) => {
       if (has) LocalAuthentication.isEnrolledAsync().then((enrolled) => setBiometricAvailable(enrolled));
     });
@@ -94,6 +102,23 @@ export default function SettingsScreen() {
     }
     setBiometricEnabledState(value);
     await setBiometricEnabled(value);
+  }, []);
+
+  const handleNotificationsToggle = useCallback(async (value: boolean) => {
+    if (value) {
+      const granted = await requestNotificationPermissions();
+      if (!granted) {
+        Alert.alert(
+          'Permission denied',
+          'Please enable notifications for Poultry ERP in your device Settings to use this feature.'
+        );
+        return;
+      }
+    } else {
+      await cancelOverdueReminder();
+    }
+    setNotificationsEnabledState(value);
+    await setNotificationsEnabled(value);
   }, []);
 
   const handleClearCache = useCallback(() => {
@@ -236,6 +261,20 @@ export default function SettingsScreen() {
               />
             </View>
           )}
+          <View style={[styles.settingRow, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.borderLight }]}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingTitle}>Overdue reminders</Text>
+              <Text style={styles.settingDesc}>
+                Daily notification at 9 AM when there are overdue bills, invoices, or low-stock items.
+              </Text>
+            </View>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={handleNotificationsToggle}
+              trackColor={{ false: Colors.border, true: Colors.text }}
+              thumbColor={Colors.surface}
+            />
+          </View>
         </View>
 
         {/* Data & Cache */}
