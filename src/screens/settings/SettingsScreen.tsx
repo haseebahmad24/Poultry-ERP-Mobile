@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
 import {
@@ -19,6 +18,8 @@ import {
   setLowStockThreshold,
   getAutoRefreshInterval,
   setAutoRefreshInterval,
+  getSessionTimeout,
+  setSessionTimeout,
 } from '@/utils/settings';
 import { clearCache } from '@/utils/cache';
 
@@ -30,15 +31,25 @@ const REFRESH_OPTIONS: { label: string; value: number }[] = [
   { label: '30 min', value: 30 },
 ];
 
+const TIMEOUT_OPTIONS: { label: string; value: number }[] = [
+  { label: 'Off', value: 0 },
+  { label: '5 min', value: 5 },
+  { label: '15 min', value: 15 },
+  { label: '30 min', value: 30 },
+  { label: '1 hr', value: 60 },
+];
+
 export default function SettingsScreen() {
   const [threshold, setThreshold] = useState('100');
   const [thresholdSaved, setThresholdSaved] = useState(false);
   const [cacheCleared, setCacheCleared] = useState(false);
   const [refreshInterval, setRefreshInterval] = useState(0);
+  const [sessionTimeout, setSessionTimeoutState] = useState(0);
 
   useEffect(() => {
     getLowStockThreshold().then((v) => setThreshold(String(v)));
     getAutoRefreshInterval().then((v) => setRefreshInterval(v));
+    getSessionTimeout().then((v) => setSessionTimeoutState(v));
   }, []);
 
   const saveThreshold = useCallback(async () => {
@@ -55,6 +66,11 @@ export default function SettingsScreen() {
   const handleRefreshIntervalChange = useCallback(async (minutes: number) => {
     setRefreshInterval(minutes);
     await setAutoRefreshInterval(minutes);
+  }, []);
+
+  const handleSessionTimeoutChange = useCallback(async (minutes: number) => {
+    setSessionTimeoutState(minutes);
+    await setSessionTimeout(minutes);
   }, []);
 
   const handleClearCache = useCallback(() => {
@@ -149,6 +165,33 @@ export default function SettingsScreen() {
                 activeOpacity={0.7}
               >
                 <Text style={[styles.refreshChipText, refreshInterval === opt.value && styles.refreshChipTextActive]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Security */}
+        <Text style={styles.sectionLabel}>SECURITY</Text>
+        <View style={styles.card}>
+          <View style={[styles.settingRow, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight }]}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingTitle}>Session timeout</Text>
+              <Text style={styles.settingDesc}>
+                Automatically sign out after the app is in the background for this long.
+              </Text>
+            </View>
+          </View>
+          <View style={styles.refreshOptionsRow}>
+            {TIMEOUT_OPTIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[styles.refreshChip, sessionTimeout === opt.value && styles.refreshChipActive]}
+                onPress={() => handleSessionTimeoutChange(opt.value)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.refreshChipText, sessionTimeout === opt.value && styles.refreshChipTextActive]}>
                   {opt.label}
                 </Text>
               </TouchableOpacity>

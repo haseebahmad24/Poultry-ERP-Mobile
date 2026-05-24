@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigatorScreenParams } from '@react-navigation/native';
@@ -9,6 +9,8 @@ import MoreNavigator from '@/navigation/MoreNavigator';
 import FinanceNavigator from '@/navigation/FinanceNavigator';
 import { Colors } from '@/theme';
 import { useOverdue } from '@/context/OverdueContext';
+import { useAuth } from '@/context/AuthContext';
+import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
 import type { MoreStackParamList } from '@/navigation/MoreNavigator';
@@ -40,6 +42,9 @@ const BADGE_STYLE = {
 
 export default function AppNavigator() {
   const { totalOverdue, lowStock } = useOverdue();
+  const { logout } = useAuth();
+  const handleSessionExpired = useCallback(() => { logout(); }, [logout]);
+  useSessionTimeout(handleSessionExpired);
 
   return (
     <Tab.Navigator

@@ -3,11 +3,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const KEYS = {
   LOW_STOCK_THRESHOLD: 'setting:lowStockThreshold',
   AUTO_REFRESH_INTERVAL: 'setting:autoRefreshInterval',
+  SESSION_TIMEOUT: 'setting:sessionTimeout',
 };
 
 const DEFAULTS = {
   lowStockThreshold: 100,
   autoRefreshInterval: 0, // 0 = off
+  sessionTimeout: 0, // 0 = off, else minutes
 };
 
 export async function getLowStockThreshold(): Promise<number> {
@@ -39,4 +41,20 @@ export async function getAutoRefreshInterval(): Promise<number> {
 
 export async function setAutoRefreshInterval(minutes: number): Promise<void> {
   await AsyncStorage.setItem(KEYS.AUTO_REFRESH_INTERVAL, String(Math.max(0, minutes)));
+}
+
+/** Returns the session timeout in minutes (0 = disabled). */
+export async function getSessionTimeout(): Promise<number> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.SESSION_TIMEOUT);
+    if (raw === null) return DEFAULTS.sessionTimeout;
+    const n = parseInt(raw, 10);
+    return isNaN(n) || n < 0 ? DEFAULTS.sessionTimeout : n;
+  } catch {
+    return DEFAULTS.sessionTimeout;
+  }
+}
+
+export async function setSessionTimeout(minutes: number): Promise<void> {
+  await AsyncStorage.setItem(KEYS.SESSION_TIMEOUT, String(Math.max(0, minutes)));
 }
