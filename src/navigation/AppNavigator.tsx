@@ -18,6 +18,7 @@ import {
   getNotificationsEnabled,
   scheduleOverdueReminder,
 } from '@/utils/notifications';
+import { getUnreadCount } from '@/utils/notificationLog';
 import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
 import type { MoreStackParamList } from '@/navigation/MoreNavigator';
@@ -55,6 +56,7 @@ export default function AppNavigator() {
   useSessionTimeout(handleSessionExpired);
 
   const [biometricLocked, setBiometricLocked] = useState(false);
+  const [inboxUnread, setInboxUnread] = useState(0);
   const appStateRef = useRef(AppState.currentState);
 
   useEffect(() => {
@@ -64,15 +66,22 @@ export default function AppNavigator() {
       if ((prev === 'background' || prev === 'inactive') && nextState === 'active') {
         const enabled = await getBiometricEnabled();
         if (enabled) setBiometricLocked(true);
+        // Refresh inbox badge whenever app comes to foreground
+        getUnreadCount().then(setInboxUnread);
       }
     });
+    // Read initial unread count on mount
+    getUnreadCount().then(setInboxUnread);
     return () => sub.remove();
   }, []);
 
   useEffect(() => {
     getNotificationsEnabled().then((enabled) => {
       if (!enabled) return;
-      scheduleOverdueReminder({ apOverdue, arOverdue, lowStock });
+      scheduleOverdueReminder({ apOverdue, arOverdue, lowStock }).then(() => {
+        // Refresh inbox badge after scheduling (inbox is updated inside scheduleOverdueReminder)
+        getUnreadCount().then(setInboxUnread);
+      });
     });
   }, [apOverdue, arOverdue, lowStock]);
 
@@ -130,7 +139,14 @@ export default function AppNavigator() {
             tabBarBadgeStyle: BADGE_STYLE,
           }}
         />
-        <Tab.Screen name="More" component={MoreNavigator} />
+        <Tab.Screen
+          name="More"
+          component={MoreNavigator}
+          options={{
+            tabBarBadge: inboxUnread > 0 ? inboxUnread : undefined,
+            tabBarBadgeStyle: BADGE_STYLE,
+          }}
+        />
       </Tab.Navigator>
 
       {biometricLocked && (
