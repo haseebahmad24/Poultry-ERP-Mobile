@@ -345,6 +345,81 @@ export async function exportBSPDF(params: {
   await printAndShare(wrapHtml('Balance Sheet', body), 'balance-sheet.pdf');
 }
 
+// ─── Stock Balances PDF ──────────────────────────────────────────────────────
+
+export interface StockBalanceRow {
+  item_name: string;
+  item_code?: string;
+  warehouse_name?: string;
+  qty: number;
+  unit?: string;
+}
+
+export async function exportStockBalancePDF(params: {
+  rows: StockBalanceRow[];
+  companyName: string;
+  filter?: string;
+}): Promise<void> {
+  const { rows, companyName, filter } = params;
+
+  const totalQty = rows.reduce((s, r) => s + (r.qty ?? 0), 0);
+
+  const tableRows = rows
+    .map((r) => {
+      const name = r.item_code ? `${r.item_code} — ${r.item_name}` : r.item_name;
+      const qtyClass = r.qty <= 0 ? 'muted' : '';
+      return `<tr>
+        <td>${name}</td>
+        <td>${r.warehouse_name ?? '—'}</td>
+        <td class="right ${qtyClass}">${r.qty ?? 0}</td>
+        <td>${r.unit ?? ''}</td>
+      </tr>`;
+    })
+    .join('');
+
+  const metaParts = [companyName];
+  if (filter && filter !== 'All') metaParts.push(`Filter: ${filter}`);
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Stock Balances</div>
+      <div class="report-meta">${metaParts.join(' &nbsp;·&nbsp; ')} &nbsp;·&nbsp; ${new Date().toLocaleDateString()}</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${rows.length}</div>
+        <div class="label">Items</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${totalQty.toLocaleString()}</div>
+        <div class="label">Total Quantity</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Warehouse</th>
+          <th class="right">Qty</th>
+          <th>Unit</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tableRows || '<tr><td colspan="4" class="muted">No stock data</td></tr>'}
+        <tr class="total">
+          <td colspan="2">TOTAL</td>
+          <td class="right">${totalQty.toLocaleString()}</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  `;
+
+  await printAndShare(wrapHtml('Stock Balances', body), 'stock-balances.pdf');
+}
+
 // ─── Combined Financial Reports PDF ─────────────────────────────────────────
 
 function classifyRow(

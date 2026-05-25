@@ -33,13 +33,14 @@ import { formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import OfflineBanner from '@/components/OfflineBanner';
 import { getLowStockThreshold } from '@/utils/settings';
+import { exportStockBalancePDF } from '@/utils/pdfExport';
 import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 
 type Tab = 'stock' | 'ledger' | 'warehouses';
 type StockFilter = 'all' | 'low' | 'out';
 
 export default function InventoryScreen() {
-  const { companyId } = useCompany();
+  const { companyId, selectedCompany } = useCompany();
   const { setLowStock } = useOverdue();
   const navigation = useNavigation<NativeStackNavigationProp<InventoryStackParamList>>();
   const [activeTab, setActiveTab] = useState<Tab>('stock');
@@ -149,6 +150,16 @@ export default function InventoryScreen() {
     warehouses: `${warehouseData.length} warehouses`,
   };
 
+  const handleExportPDF = async () => {
+    const companyName = selectedCompany?.name ?? 'All Companies';
+    const filterLabel = stockFilter === 'all' ? 'All' : stockFilter === 'low' ? 'Low Stock' : 'Out of Stock';
+    await exportStockBalancePDF({
+      rows: filteredStock,
+      companyName,
+      filter: filterLabel,
+    });
+  };
+
   if (error && stockData.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (
@@ -158,6 +169,12 @@ export default function InventoryScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Inventory</Text>
         {!loading && <Text style={styles.headerSub}>{tabMeta[activeTab]}</Text>}
+        {!loading && activeTab === 'stock' && filteredStock.length > 0 && (
+          <TouchableOpacity style={styles.exportBtn} onPress={handleExportPDF}>
+            <Feather name="file-text" size={13} color={Colors.text} />
+            <Text style={styles.exportBtnText}>PDF</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <CompanySelector />
@@ -466,6 +483,20 @@ const styles = StyleSheet.create({
   },
   headerTitle: { ...Typography.h2 },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted, flex: 1 },
+
+  exportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 5,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  exportBtnText: { fontSize: 12, fontWeight: '600', color: Colors.text },
+
   tabBar: {
     flexDirection: 'row',
     backgroundColor: Colors.surface,
