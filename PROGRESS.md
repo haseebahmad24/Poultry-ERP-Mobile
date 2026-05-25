@@ -1,5 +1,43 @@
 # Mobile App Progress
 
+## Session 19 — 2026-05-25
+
+### Completed This Session
+
+**Bookmark Count Badge** (`src/screens/dashboard/DashboardScreen.tsx`)
+- Added `bookmarkCount` state loaded from `getBookmarks().length` in `useFocusEffect` (same refresh pattern as `inboxUnread`)
+- Quick action tile badge rendered using existing badge renderer; shows numeric count when > 0; hides when empty
+
+**Bookmarks PDF Export** (`src/screens/bookmarks/BookmarksScreen.tsx`, `src/utils/pdfExport.ts`)
+- `exportBookmarksPDF()`: summary grid (count per type), then per-type tables: Name / Details / Amount / Saved Date
+- `BookmarksScreen`: Feather `file-text` PDF button in header alongside Clear All; wrapped in `headerActions` row; only visible when bookmarks non-empty
+
+**PO Detail PDF Export** (`src/screens/purchaseOrders/PurchaseOrderDetailScreen.tsx`, `src/utils/pdfExport.ts`)
+- `exportPODetailPDF(po)`: PO summary tiles (status / amount / order date / delivery date), receipt progress bar (received/ordered), full line items table (item / ordered / received / pending / unit / rate / amount) with totals row
+- `PurchaseOrderDetailScreen`: Feather `file-text` button in header between BackButton and BookmarkButton
+
+**SO Detail PDF Export** (`src/screens/salesOrders/SalesOrderDetailScreen.tsx`, `src/utils/pdfExport.ts`)
+- `exportSODetailPDF(so)`: SO summary tiles, line items table (item / qty / unit / rate / amount) with totals row
+- `SalesOrderDetailScreen`: Feather `file-text` button in header between BackButton and BookmarkButton
+
+**Partner Detail PDF Export** (`src/screens/partners/PartnerDetailScreen.tsx`, `src/utils/pdfExport.ts`)
+- `exportPartnerDetailPDF()`: PO + SO summary tiles, separate PO/SO tables with date/status/amount and totals rows
+- `PartnerDetailScreen`: Feather `file-text` button in header; passes live `pos`/`sos`/`roles` at press time
+
+**Material Detail PDF Export** (`src/screens/materials/MaterialDetailScreen.tsx`, `src/utils/pdfExport.ts`)
+- `exportMaterialDetailPDF()`: 4-tile summary (total qty / warehouses / total in / total out), stock-by-warehouse table with status flags, ledger table (date / voucher type / voucher# / warehouse / in / out / balance)
+- `MaterialDetailScreen`: Feather `file-text` button in header; passes live `stock` + `ledger` state at press time
+
+**Vendor Detail PDF Export** (`src/screens/finance/VendorDetailScreen.tsx`, `src/utils/pdfExport.ts`)
+- `exportVendorDetailPDF()`: 4-tile summary (outstanding / overdue / total billed / bill count), bills table with number/date/due-date/status/amount/paid/outstanding + totals row
+- `VendorDetailScreen`: Feather `file-text` button in header; only shown when `bills.length > 0`
+
+**Customer Detail PDF Export** (`src/screens/finance/CustomerDetailScreen.tsx`, `src/utils/pdfExport.ts`)
+- `exportCustomerDetailPDF()`: same structure as Vendor but for AR invoices; filename from `customerName`
+- `CustomerDetailScreen`: Feather `file-text` button in header; only shown when `invoices.length > 0`
+
+---
+
 ## Session 18 — 2026-05-25
 
 ### Completed This Session
@@ -704,15 +742,15 @@
 
 ---
 
-## What's Next (Session 19+)
+## What's Next (Session 20+)
 
-Sessions 1–18 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
+Sessions 1–19 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
 
 1. **Purchase Order creation** — Draft PO form with item line entry (requires POST API endpoint on web app)
 2. **Widget support** — Expo WidgetKit for home screen KPI summary (iOS 17+)
 3. **Universal links** — Associate poultryerp:// scheme with a web domain (requires associated-domains entitlement + server-side apple-app-site-association)
-4. **Export bookmarks** — Share a list of bookmarks as a formatted text/PDF report
-5. **Bookmark count badge** — Show count of saved bookmarks on the Bookmarks quick-action tile
+4. **Inventory PDF export** — Print material ledger or warehouse stock report from ItemLedgerScreen
+5. **GRN PDF export** — Print goods receipt summary with progress bars per PO
 
 ---
 
@@ -790,6 +828,14 @@ Sessions 1–18 are complete. All roadmap screens + polish + key enhancements ar
 | BookmarksScreen — grouped list, tap to navigate, per-entry delete | ✅ Done |
 | Inbox swipe-to-delete (per-entry PanResponder gesture) | ✅ Done |
 | Multi-company KPI comparison screen (ranked metrics, proportional bars) | ✅ Done |
+| Bookmark count badge on Dashboard Bookmarks tile | ✅ Done |
+| PDF export — Bookmarks list | ✅ Done |
+| PDF export — PO Detail (summary + receipt progress + line items) | ✅ Done |
+| PDF export — SO Detail (summary + line items) | ✅ Done |
+| PDF export — Partner Detail (PO/SO history) | ✅ Done |
+| PDF export — Material Detail (stock + ledger) | ✅ Done |
+| PDF export — Vendor Detail (AP bills) | ✅ Done |
+| PDF export — Customer Detail (AR invoices) | ✅ Done |
 
 ---
 
