@@ -4,10 +4,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Feather } from '@expo/vector-icons';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchPODetail, PurchaseOrder, POItem } from '@/api/purchaseOrders';
@@ -19,6 +21,7 @@ import OfflineBanner from '@/components/OfflineBanner';
 import SectionHeader from '@/components/SectionHeader';
 import { getCached, setCached } from '@/utils/cache';
 import { formatCurrency, formatDate } from '@/utils/currency';
+import { exportPODetailPDF } from '@/utils/pdfExport';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type RouteProps = RouteProp<MoreStackParamList, 'PurchaseOrderDetail'>;
@@ -92,6 +95,13 @@ export default function PurchaseOrderDetailScreen() {
       <View style={styles.header}>
         <BackButton />
         <Text style={styles.headerTitle} numberOfLines={1}>Purchase Order</Text>
+        <TouchableOpacity
+          style={styles.headerBtn}
+          onPress={() => exportPODetailPDF(po)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Feather name="file-text" size={18} color={Colors.text} />
+        </TouchableOpacity>
         <BookmarkButton
           type="po"
           entityId={po.id}
@@ -245,6 +255,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
+  headerBtn: { padding: 4 },
   headerTitle: { flex: 1, ...Typography.h2 },
 
   scroll: { flex: 1 },

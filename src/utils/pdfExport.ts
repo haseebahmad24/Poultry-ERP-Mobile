@@ -3,7 +3,10 @@ import * as Sharing from 'expo-sharing';
 import { Alert } from 'react-native';
 import type { TrialBalanceRow } from '@/api/trialBalance';
 import type { JournalEntry } from '@/api/journalEntries';
-import { formatCurrency } from '@/utils/currency';
+import type { PurchaseOrder, POItem } from '@/api/purchaseOrders';
+import type { SalesOrder, SOItem } from '@/api/salesOrders';
+import type { Bookmark, BookmarkType } from '@/utils/bookmarks';
+import { formatCurrency, formatDate } from '@/utils/currency';
 
 // ─── shared HTML helpers ───────────────────────────────────────────────────
 
@@ -710,4 +713,233 @@ export async function exportJournalEntriesPDF(params: {
   `;
 
   await printAndShare(wrapHtml('Journal Entries', body), 'journal-entries.pdf');
+}
+
+// ─── Purchase Order Detail PDF ───────────────────────────────────────────────
+
+export async function exportPODetailPDF(po: PurchaseOrder): Promise<void> {
+  const items: POItem[] = po.items ?? [];
+  const totalOrdered = items.reduce((s, i) => s + (i.qty_ordered ?? 0), 0);
+  const totalReceived = items.reduce((s, i) => s + (i.qty_received ?? 0), 0);
+  const progressPct = totalOrdered > 0 ? Math.round((totalReceived / totalOrdered) * 100) : 0;
+
+  const itemRows = items
+    .map(
+      (i) => `<tr>
+        <td>${i.item_name}</td>
+        <td class="right">${i.qty_ordered.toLocaleString()}</td>
+        <td class="right">${(i.qty_received ?? 0).toLocaleString()}</td>
+        <td class="right">${(i.qty_ordered - (i.qty_received ?? 0)).toLocaleString()}</td>
+        <td>${i.unit ?? ''}</td>
+        <td class="right">${i.rate != null ? formatCurrency(i.rate) : ''}</td>
+        <td class="right">${i.amount != null ? formatCurrency(i.amount) : ''}</td>
+      </tr>`,
+    )
+    .join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">${po.po_number ?? `PO-${po.id}`}</div>
+      <div class="report-meta">Purchase Order &nbsp;·&nbsp; ${po.vendor ?? 'Unknown Vendor'} &nbsp;·&nbsp; ${new Date().toLocaleDateString()}</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${po.status ?? '—'}</div>
+        <div class="label">Status</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${po.total != null ? formatCurrency(po.total) : '—'}</div>
+        <div class="label">Total Amount</div>
+      </div>
+      ${po.dt ? `<div class="summary-block">
+        <div class="value">${formatDate(po.dt)}</div>
+        <div class="label">Order Date</div>
+      </div>` : ''}
+      ${po.delivery_date ? `<div class="summary-block">
+        <div class="value">${formatDate(po.delivery_date)}</div>
+        <div class="label">Delivery Date</div>
+      </div>` : ''}
+    </div>
+
+    ${items.length > 0 ? `<div class="net-row">
+      <span class="net-label">Receipt Progress</span>
+      <span class="net-value">${progressPct}% &nbsp; (${totalReceived.toLocaleString()} / ${totalOrdered.toLocaleString()} units)</span>
+    </div>` : ''}
+
+    ${po.notes ? `<div class="warning">Notes: ${po.notes}</div>` : ''}
+
+    <div class="section-label">Line Items (${items.length})</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th class="right">Ordered</th>
+          <th class="right">Received</th>
+          <th class="right">Pending</th>
+          <th>Unit</th>
+          <th class="right">Rate</th>
+          <th class="right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemRows || '<tr><td colspan="7" class="muted">No line items</td></tr>'}
+        ${items.length > 0 ? `<tr class="total">
+          <td>TOTAL</td>
+          <td class="right">${totalOrdered.toLocaleString()}</td>
+          <td class="right">${totalReceived.toLocaleString()}</td>
+          <td class="right">${(totalOrdered - totalReceived).toLocaleString()}</td>
+          <td colspan="2"></td>
+          <td class="right">${po.total != null ? formatCurrency(po.total) : ''}</td>
+        </tr>` : ''}
+      </tbody>
+    </table>
+  `;
+
+  const filename = (po.po_number ?? `PO-${po.id}`).replace(/[^a-zA-Z0-9-]/g, '-') + '.pdf';
+  await printAndShare(wrapHtml(`Purchase Order — ${po.po_number ?? po.id}`, body), filename);
+}
+
+// ─── Sales Order Detail PDF ──────────────────────────────────────────────────
+
+export async function exportSODetailPDF(so: SalesOrder): Promise<void> {
+  const items: SOItem[] = so.items ?? [];
+  const totalQty = items.reduce((s, i) => s + (i.qty ?? 0), 0);
+
+  const itemRows = items
+    .map(
+      (i) => `<tr>
+        <td>${i.item_name}</td>
+        <td class="right">${(i.qty ?? 0).toLocaleString()}</td>
+        <td>${i.unit ?? ''}</td>
+        <td class="right">${i.rate != null ? formatCurrency(i.rate) : ''}</td>
+        <td class="right">${i.amount != null ? formatCurrency(i.amount) : ''}</td>
+      </tr>`,
+    )
+    .join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">${so.so_number ?? `SO-${so.id}`}</div>
+      <div class="report-meta">Sales Order &nbsp;·&nbsp; ${so.customer ?? 'Unknown Customer'} &nbsp;·&nbsp; ${new Date().toLocaleDateString()}</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${so.status ?? '—'}</div>
+        <div class="label">Status</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${so.total != null ? formatCurrency(so.total) : '—'}</div>
+        <div class="label">Total Amount</div>
+      </div>
+      ${so.dt ? `<div class="summary-block">
+        <div class="value">${formatDate(so.dt)}</div>
+        <div class="label">Order Date</div>
+      </div>` : ''}
+      ${so.delivery_date ? `<div class="summary-block">
+        <div class="value">${formatDate(so.delivery_date)}</div>
+        <div class="label">Delivery Date</div>
+      </div>` : ''}
+    </div>
+
+    ${so.notes ? `<div class="warning">Notes: ${so.notes}</div>` : ''}
+
+    <div class="section-label">Line Items (${items.length})</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th class="right">Qty</th>
+          <th>Unit</th>
+          <th class="right">Rate</th>
+          <th class="right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemRows || '<tr><td colspan="5" class="muted">No line items</td></tr>'}
+        ${items.length > 0 ? `<tr class="total">
+          <td>TOTAL</td>
+          <td class="right">${totalQty.toLocaleString()}</td>
+          <td colspan="2"></td>
+          <td class="right">${so.total != null ? formatCurrency(so.total) : ''}</td>
+        </tr>` : ''}
+      </tbody>
+    </table>
+  `;
+
+  const filename = (so.so_number ?? `SO-${so.id}`).replace(/[^a-zA-Z0-9-]/g, '-') + '.pdf';
+  await printAndShare(wrapHtml(`Sales Order — ${so.so_number ?? so.id}`, body), filename);
+}
+
+// ─── Bookmarks PDF ───────────────────────────────────────────────────────────
+
+const BOOKMARK_TYPE_LABELS: Record<BookmarkType, string> = {
+  po: 'Purchase Orders',
+  so: 'Sales Orders',
+  partner: 'Partners',
+  material: 'Materials',
+};
+
+export async function exportBookmarksPDF(bookmarks: Bookmark[]): Promise<void> {
+  const byType: Record<BookmarkType, Bookmark[]> = { po: [], so: [], partner: [], material: [] };
+  for (const b of bookmarks) {
+    byType[b.type].push(b);
+  }
+
+  const typeOrder: BookmarkType[] = ['po', 'so', 'partner', 'material'];
+
+  let sections = '';
+  for (const type of typeOrder) {
+    const list = byType[type];
+    if (list.length === 0) continue;
+    const label = BOOKMARK_TYPE_LABELS[type];
+    const rows = list
+      .map(
+        (b) => `<tr>
+          <td>${b.title}</td>
+          <td>${b.subtitle ?? ''}</td>
+          <td class="right">${b.meta ?? ''}</td>
+          <td class="muted">${new Date(b.addedAt).toLocaleDateString()}</td>
+        </tr>`,
+      )
+      .join('');
+    sections += `
+      <div class="section-label">${label} (${list.length})</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Details</th>
+            <th class="right">Amount / Info</th>
+            <th>Saved</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Bookmarks</div>
+      <div class="report-meta">${bookmarks.length} saved items &nbsp;·&nbsp; ${new Date().toLocaleDateString()}</div>
+    </div>
+
+    <div class="summary-grid">
+      ${typeOrder
+        .filter((t) => byType[t].length > 0)
+        .map(
+          (t) => `<div class="summary-block">
+            <div class="value">${byType[t].length}</div>
+            <div class="label">${BOOKMARK_TYPE_LABELS[t]}</div>
+          </div>`,
+        )
+        .join('')}
+    </div>
+
+    ${sections || '<div class="warning">No bookmarks saved.</div>'}
+  `;
+
+  await printAndShare(wrapHtml('Bookmarks', body), 'bookmarks.pdf');
 }

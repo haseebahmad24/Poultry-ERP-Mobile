@@ -28,6 +28,7 @@ import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import { getAutoRefreshInterval } from '@/utils/settings';
 import { getUnreadCount } from '@/utils/notificationLog';
+import { getBookmarks } from '@/utils/bookmarks';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
 
 type Nav = BottomTabNavigationProp<AppTabParamList>;
@@ -114,6 +115,7 @@ export default function DashboardScreen() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [autoRefreshInterval, setAutoRefreshInterval] = useState(0);
   const [inboxUnread, setInboxUnread] = useState(0);
+  const [bookmarkCount, setBookmarkCount] = useState(0);
   const [, setTick] = useState(0);
 
   const cacheKey = `dashboard:${selectedCompany?.id ?? 'all'}`;
@@ -166,6 +168,7 @@ export default function DashboardScreen() {
   useFocusEffect(useCallback(() => {
     getAutoRefreshInterval().then(setAutoRefreshInterval);
     getUnreadCount().then(setInboxUnread);
+    getBookmarks().then((list) => setBookmarkCount(list.length));
   }, []));
 
   useEffect(() => {
@@ -386,7 +389,8 @@ export default function DashboardScreen() {
           {QUICK_ACTIONS.map((qa) => {
             const isAlerts = qa.label === 'Alerts';
             const isInbox = qa.label === 'Inbox';
-            const badgeCount = isAlerts ? totalAlerts : isInbox ? inboxUnread : 0;
+            const isBookmarks = qa.label === 'Bookmarks';
+            const badgeCount = isAlerts ? totalAlerts : isInbox ? inboxUnread : isBookmarks ? bookmarkCount : 0;
             return (
               <TouchableOpacity
                 key={qa.label}

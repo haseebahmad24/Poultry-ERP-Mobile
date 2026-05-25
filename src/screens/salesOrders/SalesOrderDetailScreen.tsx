@@ -4,10 +4,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Feather } from '@expo/vector-icons';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchSODetail, SalesOrder, SOItem } from '@/api/salesOrders';
@@ -19,6 +21,7 @@ import OfflineBanner from '@/components/OfflineBanner';
 import SectionHeader from '@/components/SectionHeader';
 import { getCached, setCached } from '@/utils/cache';
 import { formatCurrency, formatDate } from '@/utils/currency';
+import { exportSODetailPDF } from '@/utils/pdfExport';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type RouteProps = RouteProp<MoreStackParamList, 'SalesOrderDetail'>;
@@ -86,6 +89,13 @@ export default function SalesOrderDetailScreen() {
       <View style={styles.header}>
         <BackButton />
         <Text style={styles.headerTitle} numberOfLines={1}>Sales Order</Text>
+        <TouchableOpacity
+          style={styles.headerBtn}
+          onPress={() => exportSODetailPDF(so)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Feather name="file-text" size={18} color={Colors.text} />
+        </TouchableOpacity>
         <BookmarkButton
           type="so"
           entityId={so.id}
@@ -209,6 +219,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   headerTitle: { flex: 1, ...Typography.h2 },
+  headerBtn: { padding: 4 },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },

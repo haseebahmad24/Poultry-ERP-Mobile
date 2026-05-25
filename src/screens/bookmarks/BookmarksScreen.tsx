@@ -20,6 +20,7 @@ import {
   type Bookmark,
   type BookmarkType,
 } from '@/utils/bookmarks';
+import { exportBookmarksPDF } from '@/utils/pdfExport';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList>;
@@ -214,13 +215,22 @@ export default function BookmarksScreen() {
           </Text>
         </View>
         {bookmarks.length > 0 && (
-          <TouchableOpacity
-            style={styles.clearBtn}
-            onPress={handleClearAll}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Text style={styles.clearBtnText}>Clear all</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.headerIconBtn}
+              onPress={() => exportBookmarksPDF(bookmarks)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Feather name="file-text" size={18} color={Colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.clearBtn}
+              onPress={handleClearAll}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.clearBtnText}>Clear all</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
@@ -279,6 +289,8 @@ const styles = StyleSheet.create({
   headerText: { flex: 1 },
   headerTitle: { ...Typography.h3 },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  headerIconBtn: { padding: Spacing.xs },
   clearBtn: { padding: Spacing.xs },
   clearBtnText: { fontSize: 13, color: Colors.textSecondary },
 
