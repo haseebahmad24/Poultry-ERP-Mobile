@@ -21,6 +21,7 @@ import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
+import { exportVendorDetailPDF } from '@/utils/pdfExport';
 
 type Props = NativeStackScreenProps<FinanceStackParamList, 'VendorDetail'>;
 
@@ -91,6 +92,20 @@ export default function VendorDetailScreen({ route }: Props) {
           <Text style={styles.headerTitle} numberOfLines={1}>{vendorName ?? `Vendor ${vendorId}`}</Text>
           <Text style={styles.headerSub}>Vendor · Accounts Payable</Text>
         </View>
+        {bills.length > 0 && (
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() => exportVendorDetailPDF({
+              vendorName: vendorName ?? `Vendor ${vendorId}`,
+              bills,
+              totalOutstanding,
+              overdue: overdue ?? 0,
+            })}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Feather name="file-text" size={18} color={Colors.text} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.summaryRow}>
@@ -249,6 +264,7 @@ const styles = StyleSheet.create({
   headerText: { flex: 1 },
   headerTitle: { ...Typography.h2 },
   headerSub: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 1 },
+  headerBtn: { padding: 4 },
 
   summaryRow: {
     flexDirection: 'row',

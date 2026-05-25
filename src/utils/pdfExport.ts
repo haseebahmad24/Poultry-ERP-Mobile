@@ -1143,3 +1143,185 @@ export async function exportMaterialDetailPDF(params: {
   const filename = materialName.replace(/[^a-zA-Z0-9-]/g, '-') + '-material.pdf';
   await printAndShare(wrapHtml(`Material — ${materialName}`, body), filename);
 }
+
+// ─── Vendor Detail PDF (AP bills) ────────────────────────────────────────────
+
+export interface VendorBillRow {
+  id: number;
+  bill_number?: string;
+  dt?: string;
+  due_date?: string;
+  amount?: number;
+  paid?: number;
+  outstanding?: number;
+  status?: string;
+}
+
+export async function exportVendorDetailPDF(params: {
+  vendorName: string;
+  bills: VendorBillRow[];
+  totalOutstanding: number;
+  overdue: number;
+}): Promise<void> {
+  const { vendorName, bills, totalOutstanding, overdue } = params;
+  const totalBilled = bills.reduce((s, b) => s + (b.amount ?? 0), 0);
+  const totalPaid = bills.reduce((s, b) => s + (b.paid ?? 0), 0);
+
+  const rows = bills
+    .map(
+      (b) => `<tr>
+        <td>${b.bill_number ?? `Bill-${b.id}`}</td>
+        <td>${b.dt ? formatDate(b.dt) : '—'}</td>
+        <td>${b.due_date ? formatDate(b.due_date) : '—'}</td>
+        <td>${b.status ?? '—'}</td>
+        <td class="right">${b.amount != null ? formatCurrency(b.amount) : '—'}</td>
+        <td class="right">${b.paid != null ? formatCurrency(b.paid) : '—'}</td>
+        <td class="right">${b.outstanding != null ? formatCurrency(b.outstanding) : '—'}</td>
+      </tr>`,
+    )
+    .join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">${vendorName}</div>
+      <div class="report-meta">Vendor · Accounts Payable &nbsp;·&nbsp; ${new Date().toLocaleDateString()}</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalOutstanding)}</div>
+        <div class="label">Outstanding</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(overdue)}</div>
+        <div class="label">Overdue</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalBilled)}</div>
+        <div class="label">Total Billed</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${bills.length}</div>
+        <div class="label">Bills</div>
+      </div>
+    </div>
+
+    <div class="section-label">Bills (${bills.length})</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Bill #</th>
+          <th>Date</th>
+          <th>Due Date</th>
+          <th>Status</th>
+          <th class="right">Amount</th>
+          <th class="right">Paid</th>
+          <th class="right">Outstanding</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows || '<tr><td colspan="7" class="muted">No bills found</td></tr>'}
+        ${bills.length > 0 ? `<tr class="total">
+          <td colspan="4">TOTAL</td>
+          <td class="right">${formatCurrency(totalBilled)}</td>
+          <td class="right">${formatCurrency(totalPaid)}</td>
+          <td class="right">${formatCurrency(totalOutstanding)}</td>
+        </tr>` : ''}
+      </tbody>
+    </table>
+  `;
+
+  const filename = vendorName.replace(/[^a-zA-Z0-9-]/g, '-') + '-ap-bills.pdf';
+  await printAndShare(wrapHtml(`Vendor AP — ${vendorName}`, body), filename);
+}
+
+// ─── Customer Detail PDF (AR invoices) ───────────────────────────────────────
+
+export interface CustomerInvoiceRow {
+  id: number;
+  invoice_number?: string;
+  dt?: string;
+  due_date?: string;
+  amount?: number;
+  paid?: number;
+  outstanding?: number;
+  status?: string;
+}
+
+export async function exportCustomerDetailPDF(params: {
+  customerName: string;
+  invoices: CustomerInvoiceRow[];
+  totalOutstanding: number;
+  overdue: number;
+}): Promise<void> {
+  const { customerName, invoices, totalOutstanding, overdue } = params;
+  const totalBilled = invoices.reduce((s, i) => s + (i.amount ?? 0), 0);
+  const totalPaid = invoices.reduce((s, i) => s + (i.paid ?? 0), 0);
+
+  const rows = invoices
+    .map(
+      (i) => `<tr>
+        <td>${i.invoice_number ?? `Inv-${i.id}`}</td>
+        <td>${i.dt ? formatDate(i.dt) : '—'}</td>
+        <td>${i.due_date ? formatDate(i.due_date) : '—'}</td>
+        <td>${i.status ?? '—'}</td>
+        <td class="right">${i.amount != null ? formatCurrency(i.amount) : '—'}</td>
+        <td class="right">${i.paid != null ? formatCurrency(i.paid) : '—'}</td>
+        <td class="right">${i.outstanding != null ? formatCurrency(i.outstanding) : '—'}</td>
+      </tr>`,
+    )
+    .join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">${customerName}</div>
+      <div class="report-meta">Customer · Accounts Receivable &nbsp;·&nbsp; ${new Date().toLocaleDateString()}</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalOutstanding)}</div>
+        <div class="label">Outstanding</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(overdue)}</div>
+        <div class="label">Overdue</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalBilled)}</div>
+        <div class="label">Total Billed</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${invoices.length}</div>
+        <div class="label">Invoices</div>
+      </div>
+    </div>
+
+    <div class="section-label">Invoices (${invoices.length})</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Invoice #</th>
+          <th>Date</th>
+          <th>Due Date</th>
+          <th>Status</th>
+          <th class="right">Amount</th>
+          <th class="right">Paid</th>
+          <th class="right">Outstanding</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows || '<tr><td colspan="7" class="muted">No invoices found</td></tr>'}
+        ${invoices.length > 0 ? `<tr class="total">
+          <td colspan="4">TOTAL</td>
+          <td class="right">${formatCurrency(totalBilled)}</td>
+          <td class="right">${formatCurrency(totalPaid)}</td>
+          <td class="right">${formatCurrency(totalOutstanding)}</td>
+        </tr>` : ''}
+      </tbody>
+    </table>
+  `;
+
+  const filename = customerName.replace(/[^a-zA-Z0-9-]/g, '-') + '-ar-invoices.pdf';
+  await printAndShare(wrapHtml(`Customer AR — ${customerName}`, body), filename);
+}

@@ -21,6 +21,7 @@ import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
+import { exportCustomerDetailPDF } from '@/utils/pdfExport';
 
 type Props = NativeStackScreenProps<FinanceStackParamList, 'CustomerDetail'>;
 
@@ -90,6 +91,20 @@ export default function CustomerDetailScreen({ route }: Props) {
           <Text style={styles.headerTitle} numberOfLines={1}>{customerName ?? `Customer ${customerId}`}</Text>
           <Text style={styles.headerSub}>Customer · Accounts Receivable</Text>
         </View>
+        {invoices.length > 0 && (
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() => exportCustomerDetailPDF({
+              customerName: customerName ?? `Customer ${customerId}`,
+              invoices,
+              totalOutstanding,
+              overdue: overdue ?? 0,
+            })}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Feather name="file-text" size={18} color={Colors.text} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.summaryRow}>
@@ -248,6 +263,7 @@ const styles = StyleSheet.create({
   headerText: { flex: 1 },
   headerTitle: { ...Typography.h2 },
   headerSub: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 1 },
+  headerBtn: { padding: 4 },
 
   summaryRow: {
     flexDirection: 'row',
