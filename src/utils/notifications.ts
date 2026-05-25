@@ -6,6 +6,7 @@ import {
   getNotifyArOverdue,
   getNotifyLowStock,
 } from '@/utils/settings';
+import { logNotificationEvent } from '@/utils/notificationLog';
 
 const KEY_NOTIFICATIONS_ENABLED = 'setting:notificationsEnabled';
 const IDENTIFIER_OVERDUE = 'poultry-erp-overdue-reminder';
@@ -85,6 +86,12 @@ export async function scheduleOverdueReminder(params: {
         data: { type: 'overdue' },
       },
       trigger: { date: trigger } as any,
+    });
+    // Log to in-app inbox every time an overdue reminder is scheduled
+    await logNotificationEvent({
+      apCount: effectiveAP,
+      arCount: effectiveAR,
+      stockCount: effectiveStock,
     });
   } catch {
     // Scheduling can fail in Expo Go or without valid credentials — ignore silently

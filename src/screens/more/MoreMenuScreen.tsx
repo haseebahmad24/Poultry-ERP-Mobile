@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
@@ -17,6 +18,7 @@ import { MoreStackParamList } from '@/navigation/MoreNavigator';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
 import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
 import { useOverdue } from '@/context/OverdueContext';
+import { getUnreadCount } from '@/utils/notificationLog';
 
 type MoreNav = NativeStackNavigationProp<MoreStackParamList, 'MoreMenu'>;
 type TabNav = BottomTabNavigationProp<AppTabParamList>;
@@ -123,12 +125,14 @@ function MenuRow({
   subtitle,
   onPress,
   hasBorder,
+  badge,
 }: {
   icon: string;
   label: string;
   subtitle: string;
   onPress: () => void;
   hasBorder: boolean;
+  badge?: number;
 }) {
   return (
     <TouchableOpacity
@@ -143,6 +147,11 @@ function MenuRow({
         <Text style={styles.menuLabel}>{label}</Text>
         <Text style={styles.menuSubtitle}>{subtitle}</Text>
       </View>
+      {badge != null && badge > 0 && (
+        <View style={styles.menuBadge}>
+          <Text style={styles.menuBadgeText}>{badge > 99 ? '99+' : badge}</Text>
+        </View>
+      )}
       <Feather name="chevron-right" size={16} color={Colors.textMuted} />
     </TouchableOpacity>
   );
@@ -152,6 +161,11 @@ export default function MoreMenuScreen() {
   const moreNav = useNavigation<MoreNav>();
   const tabNav = moreNav.getParent<TabNav>();
   const { totalAlerts, apOverdue, arOverdue, lowStock } = useOverdue();
+  const [inboxUnread, setInboxUnread] = useState(0);
+
+  useFocusEffect(useCallback(() => {
+    getUnreadCount().then(setInboxUnread);
+  }, []));
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -179,40 +193,66 @@ export default function MoreMenuScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Alerts banner — always shown, prominent when alerts exist */}
-        <TouchableOpacity
-          style={[styles.alertBanner, totalAlerts > 0 && styles.alertBannerActive]}
-          activeOpacity={0.7}
-          onPress={() => moreNav.navigate('Alerts')}
-        >
-          <View style={styles.alertBannerIcon}>
-            <Feather name="bell" size={18} color={Colors.text} />
-            {totalAlerts > 0 && (
-              <View style={styles.bellBadge}>
-                <Text style={styles.bellBadgeText}>{totalAlerts > 99 ? '99+' : totalAlerts}</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.alertBannerBody}>
-            <Text style={styles.alertBannerTitle}>
-              {totalAlerts > 0 ? `${totalAlerts} Active Alert${totalAlerts !== 1 ? 's' : ''}` : 'Alerts'}
-            </Text>
-            {totalAlerts > 0 ? (
-              <Text style={styles.alertBannerSub}>
-                {[
-                  apOverdue > 0 && `${apOverdue} overdue bill${apOverdue !== 1 ? 's' : ''}`,
-                  arOverdue > 0 && `${arOverdue} overdue invoice${arOverdue !== 1 ? 's' : ''}`,
-                  lowStock > 0 && `${lowStock} low-stock item${lowStock !== 1 ? 's' : ''}`,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
+        {/* Alerts + Inbox row — side by side at top */}
+        <View style={styles.bannerRow}>
+          {/* Alerts banner */}
+          <TouchableOpacity
+            style={[styles.alertBanner, styles.alertBannerFlex, totalAlerts > 0 && styles.alertBannerActive]}
+            activeOpacity={0.7}
+            onPress={() => moreNav.navigate('Alerts')}
+          >
+            <View style={styles.alertBannerIcon}>
+              <Feather name="bell" size={18} color={Colors.text} />
+              {totalAlerts > 0 && (
+                <View style={styles.bellBadge}>
+                  <Text style={styles.bellBadgeText}>{totalAlerts > 99 ? '99+' : totalAlerts}</Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.alertBannerBody}>
+              <Text style={styles.alertBannerTitle}>
+                {totalAlerts > 0 ? `${totalAlerts} Alert${totalAlerts !== 1 ? 's' : ''}` : 'Alerts'}
               </Text>
-            ) : (
-              <Text style={styles.alertBannerSub}>Overdue bills, invoices, and low stock</Text>
-            )}
-          </View>
-          <Feather name="chevron-right" size={16} color={Colors.textMuted} />
-        </TouchableOpacity>
+              {totalAlerts > 0 ? (
+                <Text style={styles.alertBannerSub} numberOfLines={1}>
+                  {[
+                    apOverdue > 0 && `${apOverdue} AP`,
+                    arOverdue > 0 && `${arOverdue} AR`,
+                    lowStock > 0 && `${lowStock} stock`,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Text>
+              ) : (
+                <Text style={styles.alertBannerSub}>Overdue + low stock</Text>
+              )}
+            </View>
+            <Feather name="chevron-right" size={14} color={Colors.textMuted} />
+          </TouchableOpacity>
+
+          {/* Inbox banner */}
+          <TouchableOpacity
+            style={[styles.alertBanner, styles.inboxBanner, inboxUnread > 0 && styles.alertBannerActive]}
+            activeOpacity={0.7}
+            onPress={() => moreNav.navigate('Inbox')}
+          >
+            <View style={styles.alertBannerIcon}>
+              <Feather name="inbox" size={18} color={Colors.text} />
+              {inboxUnread > 0 && (
+                <View style={styles.bellBadge}>
+                  <Text style={styles.bellBadgeText}>{inboxUnread > 99 ? '99+' : inboxUnread}</Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.alertBannerBody}>
+              <Text style={styles.alertBannerTitle}>Inbox</Text>
+              <Text style={styles.alertBannerSub}>
+                {inboxUnread > 0 ? `${inboxUnread} unread` : 'History'}
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={14} color={Colors.textMuted} />
+          </TouchableOpacity>
+        </View>
 
         <Text style={styles.sectionTitle}>OPERATIONS</Text>
         <View style={styles.sectionCard}>
@@ -297,6 +337,12 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.md, paddingHorizontal: Spacing.md },
 
+  bannerRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+
   alertBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -304,16 +350,17 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
-    padding: Spacing.md,
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
+    padding: Spacing.sm + 2,
+    gap: Spacing.sm,
   },
+  alertBannerFlex: { flex: 1.4 },
+  inboxBanner: { flex: 1 },
   alertBannerActive: {
     borderColor: Colors.text,
   },
   alertBannerIcon: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
@@ -335,8 +382,8 @@ const styles = StyleSheet.create({
   },
   bellBadgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
   alertBannerBody: { flex: 1 },
-  alertBannerTitle: { fontSize: 14, fontWeight: '700', color: Colors.text },
-  alertBannerSub: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  alertBannerTitle: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  alertBannerSub: { fontSize: 11, color: Colors.textMuted, marginTop: 1 },
 
   sectionTitle: {
     ...Typography.label,
@@ -376,4 +423,15 @@ const styles = StyleSheet.create({
   menuInfo: { flex: 1 },
   menuLabel: { ...Typography.h4 },
   menuSubtitle: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
+
+  menuBadge: {
+    backgroundColor: Colors.text,
+    borderRadius: Radius.full,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  menuBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
 });

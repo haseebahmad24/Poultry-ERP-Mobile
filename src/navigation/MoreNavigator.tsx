@@ -15,6 +15,7 @@ import SettingsScreen from '@/screens/settings/SettingsScreen';
 import AlertsScreen from '@/screens/alerts/AlertsScreen';
 import SearchScreen from '@/screens/search/SearchScreen';
 import MaterialDetailScreen from '@/screens/materials/MaterialDetailScreen';
+import InboxScreen from '@/screens/inbox/InboxScreen';
 
 export type MoreStackParamList = {
   MoreMenu: undefined;
@@ -45,6 +46,7 @@ export type MoreStackParamList = {
   Companies: undefined;
   Settings: undefined;
   Alerts: undefined;
+  Inbox: undefined;
 };
 
 const Stack = createNativeStackNavigator<MoreStackParamList>();
@@ -127,6 +129,11 @@ export default function MoreNavigator() {
       <Stack.Screen
         name="Alerts"
         component={AlertsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Inbox"
+        component={InboxScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

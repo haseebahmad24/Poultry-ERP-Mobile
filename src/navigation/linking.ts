@@ -38,6 +38,7 @@ const linking: LinkingOptions<any> = {
               Companies: 'companies',
               Settings: 'settings',
               Search: 'search',
+              Inbox: 'inbox',
             },
           },
         },
