@@ -12,6 +12,7 @@ import { RouteProp, useRoute } from '@react-navigation/native';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchSODetail, SalesOrder, SOItem } from '@/api/salesOrders';
 import BackButton from '@/components/BackButton';
+import BookmarkButton from '@/components/BookmarkButton';
 import DetailSkeleton from '@/components/DetailSkeleton';
 import ErrorView from '@/components/ErrorView';
 import OfflineBanner from '@/components/OfflineBanner';
@@ -84,7 +85,14 @@ export default function SalesOrderDetailScreen() {
 
       <View style={styles.header}>
         <BackButton />
-        <Text style={styles.headerTitle}>Sales Order</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>Sales Order</Text>
+        <BookmarkButton
+          type="so"
+          entityId={so.id}
+          title={so.so_number ?? `SO-${so.id}`}
+          subtitle={so.customer}
+          meta={so.total != null ? formatCurrency(so.total) : undefined}
+        />
       </View>
 
       <OfflineBanner visible={!!(stale && error)} />
@@ -200,7 +208,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
-  headerTitle: { ...Typography.h2 },
+  headerTitle: { flex: 1, ...Typography.h2 },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },

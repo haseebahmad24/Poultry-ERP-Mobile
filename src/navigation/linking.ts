@@ -39,6 +39,7 @@ const linking: LinkingOptions<any> = {
               Settings: 'settings',
               Search: 'search',
               Inbox: 'inbox',
+              Bookmarks: 'bookmarks',
             },
           },
         },

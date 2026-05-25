@@ -90,6 +90,11 @@ const QUICK_ACTIONS: QuickAction[] = [
     icon: 'inbox',
     navigate: (nav) => nav.navigate('More', { screen: 'Inbox' } as any),
   },
+  {
+    label: 'Bookmarks',
+    icon: 'bookmark',
+    navigate: (nav) => nav.navigate('More', { screen: 'Bookmarks' } as any),
+  },
 ];
 
 export default function DashboardScreen() {

@@ -112,6 +112,12 @@ const ADMIN_ITEMS: {
     screen: 'Companies',
   },
   {
+    icon: 'bookmark',
+    label: 'Bookmarks',
+    subtitle: 'Saved POs, SOs, partners, and materials',
+    screen: 'Bookmarks',
+  },
+  {
     icon: 'settings',
     label: 'Settings',
     subtitle: 'Low-stock threshold, cache, and preferences',

@@ -12,6 +12,7 @@ import { Feather } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
+import BookmarkButton from '@/components/BookmarkButton';
 import DetailSkeleton from '@/components/DetailSkeleton';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
@@ -138,6 +139,21 @@ export default function MaterialDetailScreen({ route }: Props) {
             </View>
           ) : null}
         </View>
+        <BookmarkButton
+          type="material"
+          entityId={materialId}
+          title={materialName}
+          subtitle={materialType}
+          meta={materialUnit}
+          navParams={{
+            materialCode,
+            materialType,
+            materialUnit,
+            materialCategory,
+            materialStatus,
+            materialDescription,
+          }}
+        />
       </View>
 
       {/* Meta row */}

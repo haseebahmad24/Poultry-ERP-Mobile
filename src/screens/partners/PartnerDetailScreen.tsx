@@ -13,6 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
+import BookmarkButton from '@/components/BookmarkButton';
 import DetailSkeleton from '@/components/DetailSkeleton';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
@@ -100,6 +101,13 @@ export default function PartnerDetailScreen({ route, navigation }: Props) {
           <Text style={styles.headerTitle} numberOfLines={1}>{partnerName}</Text>
           <Text style={styles.headerSub}>{roles.join(' · ')}</Text>
         </View>
+        <BookmarkButton
+          type="partner"
+          entityId={partnerId}
+          title={partnerName}
+          subtitle={roles.join(' · ')}
+          navParams={{ isVendor, isCustomer }}
+        />
       </View>
 
       {/* Summary tiles */}

@@ -12,6 +12,7 @@ import { RouteProp, useRoute } from '@react-navigation/native';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchPODetail, PurchaseOrder, POItem } from '@/api/purchaseOrders';
 import BackButton from '@/components/BackButton';
+import BookmarkButton from '@/components/BookmarkButton';
 import DetailSkeleton from '@/components/DetailSkeleton';
 import ErrorView from '@/components/ErrorView';
 import OfflineBanner from '@/components/OfflineBanner';
@@ -90,7 +91,14 @@ export default function PurchaseOrderDetailScreen() {
 
       <View style={styles.header}>
         <BackButton />
-        <Text style={styles.headerTitle}>Purchase Order</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>Purchase Order</Text>
+        <BookmarkButton
+          type="po"
+          entityId={po.id}
+          title={po.po_number ?? `PO-${po.id}`}
+          subtitle={po.vendor}
+          meta={po.total != null ? formatCurrency(po.total) : undefined}
+        />
       </View>
 
       <OfflineBanner visible={!!(stale && error)} />
@@ -237,7 +245,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
-  headerTitle: { ...Typography.h2 },
+  headerTitle: { flex: 1, ...Typography.h2 },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },

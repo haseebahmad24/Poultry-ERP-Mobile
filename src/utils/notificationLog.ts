@@ -64,6 +64,11 @@ export async function markAllRead(): Promise<void> {
   await writeEntries(updated);
 }
 
+export async function deleteInboxEntry(id: string): Promise<void> {
+  const entries = await readEntries();
+  await writeEntries(entries.filter((e) => e.id !== id));
+}
+
 export async function clearInbox(): Promise<void> {
   await AsyncStorage.removeItem(KEY);
 }

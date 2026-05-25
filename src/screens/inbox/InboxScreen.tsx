@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   FlatList,
+  PanResponder,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,10 +17,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import {
   clearInbox,
+  deleteInboxEntry,
   getInboxEntries,
   markAllRead,
   type InboxEntry,
 } from '@/utils/notificationLog';
+
+const SWIPE_THRESHOLD = -80;
+const DELETE_BUTTON_WIDTH = 72;
 
 function timeAgo(ts: number): string {
   const diff = Math.floor((Date.now() - ts) / 1000);
@@ -37,46 +43,105 @@ function entryBody(entry: InboxEntry): string {
   return parts.join(' · ') || 'No alerts';
 }
 
-function EntryRow({ entry }: { entry: InboxEntry }) {
+interface EntryRowProps {
+  entry: InboxEntry;
+  onDelete: (id: string) => void;
+}
+
+function SwipeableEntryRow({ entry, onDelete }: EntryRowProps) {
+  const translateX = useRef(new Animated.Value(0)).current;
   const total = entry.apCount + entry.arCount + entry.stockCount;
 
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dx) > 8 && Math.abs(gestureState.dy) < 20;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const dx = Math.min(0, gestureState.dx);
+        translateX.setValue(Math.max(-DELETE_BUTTON_WIDTH, dx));
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx < SWIPE_THRESHOLD) {
+          // Snap open to show delete button
+          Animated.spring(translateX, {
+            toValue: -DELETE_BUTTON_WIDTH,
+            useNativeDriver: true,
+            bounciness: 4,
+          }).start();
+        } else {
+          // Snap back
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 4,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  const handleDelete = () => {
+    Animated.timing(translateX, {
+      toValue: -400,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      onDelete(entry.id);
+    });
+  };
+
   return (
-    <View style={[styles.entryCard, !entry.read && styles.entryCardUnread]}>
-      <View style={styles.entryIcon}>
-        <Feather name="bell" size={16} color={Colors.text} />
-        {!entry.read && <View style={styles.unreadDot} />}
+    <View style={styles.rowContainer}>
+      {/* Delete action behind the card */}
+      <View style={styles.deleteAction}>
+        <TouchableOpacity style={styles.deleteActionBtn} onPress={handleDelete}>
+          <Feather name="trash-2" size={18} color="#fff" />
+          <Text style={styles.deleteActionText}>Delete</Text>
+        </TouchableOpacity>
       </View>
-      <View style={styles.entryBody}>
-        <View style={styles.entryHeader}>
-          <Text style={[styles.entryTitle, !entry.read && styles.entryTitleUnread]}>
-            Action required
-          </Text>
-          <Text style={styles.entryTime}>{timeAgo(entry.timestamp)}</Text>
+
+      {/* Swipeable card */}
+      <Animated.View
+        style={[styles.entryCard, !entry.read && styles.entryCardUnread, { transform: [{ translateX }] }]}
+        {...panResponder.panHandlers}
+      >
+        <View style={styles.entryIcon}>
+          <Feather name="bell" size={16} color={Colors.text} />
+          {!entry.read && <View style={styles.unreadDot} />}
         </View>
-        <Text style={styles.entryText}>{entryBody(entry)}</Text>
-        <View style={styles.chipRow}>
-          {entry.apCount > 0 && (
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>AP {entry.apCount}</Text>
-            </View>
-          )}
-          {entry.arCount > 0 && (
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>AR {entry.arCount}</Text>
-            </View>
-          )}
-          {entry.stockCount > 0 && (
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>Stock {entry.stockCount}</Text>
-            </View>
-          )}
-          {total === 0 && (
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>Clear</Text>
-            </View>
-          )}
+        <View style={styles.entryBody}>
+          <View style={styles.entryHeader}>
+            <Text style={[styles.entryTitle, !entry.read && styles.entryTitleUnread]}>
+              Action required
+            </Text>
+            <Text style={styles.entryTime}>{timeAgo(entry.timestamp)}</Text>
+          </View>
+          <Text style={styles.entryText}>{entryBody(entry)}</Text>
+          <View style={styles.chipRow}>
+            {entry.apCount > 0 && (
+              <View style={styles.chip}>
+                <Text style={styles.chipText}>AP {entry.apCount}</Text>
+              </View>
+            )}
+            {entry.arCount > 0 && (
+              <View style={styles.chip}>
+                <Text style={styles.chipText}>AR {entry.arCount}</Text>
+              </View>
+            )}
+            {entry.stockCount > 0 && (
+              <View style={styles.chip}>
+                <Text style={styles.chipText}>Stock {entry.stockCount}</Text>
+              </View>
+            )}
+            {total === 0 && (
+              <View style={styles.chip}>
+                <Text style={styles.chipText}>Clear</Text>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -90,13 +155,17 @@ export default function InboxScreen() {
     const data = await getInboxEntries();
     setEntries(data);
     setLoading(false);
-    // Mark all read when screen opens
     await markAllRead();
   }, []);
 
   useFocusEffect(useCallback(() => {
     load();
   }, [load]));
+
+  const handleDelete = useCallback(async (id: string) => {
+    await deleteInboxEntry(id);
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+  }, []);
 
   const handleClearAll = () => {
     Alert.alert(
@@ -130,7 +199,9 @@ export default function InboxScreen() {
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Inbox</Text>
-          <Text style={styles.headerSub}>Notification history</Text>
+          <Text style={styles.headerSub}>
+            {entries.length > 0 ? 'Swipe left to delete' : 'Notification history'}
+          </Text>
         </View>
         {entries.length > 0 && (
           <TouchableOpacity
@@ -157,7 +228,9 @@ export default function InboxScreen() {
         <FlatList
           data={entries}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <EntryRow entry={item} />}
+          renderItem={({ item }) => (
+            <SwipeableEntryRow entry={item} onDelete={handleDelete} />
+          )}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           showsVerticalScrollIndicator={false}
@@ -188,6 +261,32 @@ const styles = StyleSheet.create({
   clearBtnText: { fontSize: 13, color: Colors.textSecondary },
 
   listContent: { padding: Spacing.md, gap: Spacing.sm },
+
+  rowContainer: {
+    position: 'relative',
+    overflow: 'hidden',
+    borderRadius: Radius.md,
+  },
+
+  deleteAction: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: DELETE_BUTTON_WIDTH,
+    backgroundColor: Colors.text,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteActionBtn: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  deleteActionText: { color: '#fff', fontSize: 11, fontWeight: '600' },
 
   entryCard: {
     backgroundColor: Colors.surface,
