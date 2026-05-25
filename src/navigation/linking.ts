@@ -40,6 +40,7 @@ const linking: LinkingOptions<any> = {
               Search: 'search',
               Inbox: 'inbox',
               Bookmarks: 'bookmarks',
+              Comparison: 'comparison',
             },
           },
         },

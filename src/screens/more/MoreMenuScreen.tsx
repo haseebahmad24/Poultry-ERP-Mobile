@@ -118,6 +118,12 @@ const ADMIN_ITEMS: {
     screen: 'Bookmarks',
   },
   {
+    icon: 'layers',
+    label: 'Company Comparison',
+    subtitle: 'Side-by-side KPI ranking across all companies',
+    screen: 'Comparison',
+  },
+  {
     icon: 'settings',
     label: 'Settings',
     subtitle: 'Low-stock threshold, cache, and preferences',
