@@ -5,6 +5,7 @@ import type { TrialBalanceRow } from '@/api/trialBalance';
 import type { JournalEntry } from '@/api/journalEntries';
 import type { PurchaseOrder, POItem } from '@/api/purchaseOrders';
 import type { SalesOrder, SOItem } from '@/api/salesOrders';
+import type { StockBalance, StockLedgerEntry } from '@/api/inventory';
 import type { Bookmark, BookmarkType } from '@/utils/bookmarks';
 import { formatCurrency, formatDate } from '@/utils/currency';
 
@@ -942,4 +943,203 @@ export async function exportBookmarksPDF(bookmarks: Bookmark[]): Promise<void> {
   `;
 
   await printAndShare(wrapHtml('Bookmarks', body), 'bookmarks.pdf');
+}
+
+// ─── Partner Detail PDF ──────────────────────────────────────────────────────
+
+export async function exportPartnerDetailPDF(params: {
+  partnerName: string;
+  roles: string[];
+  pos: PurchaseOrder[];
+  sos: SalesOrder[];
+}): Promise<void> {
+  const { partnerName, roles, pos, sos } = params;
+  const poTotal = pos.reduce((s, p) => s + (p.total ?? 0), 0);
+  const soTotal = sos.reduce((s, s2) => s + (s2.total ?? 0), 0);
+
+  const poRows = pos
+    .map(
+      (p) => `<tr>
+        <td>${p.po_number ?? `PO-${p.id}`}</td>
+        <td>${p.dt ? formatDate(p.dt) : '—'}</td>
+        <td>${p.status ?? '—'}</td>
+        <td class="right">${p.total != null ? formatCurrency(p.total) : '—'}</td>
+      </tr>`,
+    )
+    .join('');
+
+  const soRows = sos
+    .map(
+      (s) => `<tr>
+        <td>${s.so_number ?? `SO-${s.id}`}</td>
+        <td>${s.dt ? formatDate(s.dt) : '—'}</td>
+        <td>${s.status ?? '—'}</td>
+        <td class="right">${s.total != null ? formatCurrency(s.total) : '—'}</td>
+      </tr>`,
+    )
+    .join('');
+
+  const summaryBlocks = [
+    pos.length > 0
+      ? `<div class="summary-block">
+          <div class="value">${formatCurrency(poTotal)}</div>
+          <div class="label">Total POs (${pos.length})</div>
+        </div>`
+      : '',
+    sos.length > 0
+      ? `<div class="summary-block">
+          <div class="value">${formatCurrency(soTotal)}</div>
+          <div class="label">Total SOs (${sos.length})</div>
+        </div>`
+      : '',
+  ].join('');
+
+  const poSection =
+    pos.length > 0
+      ? `<div class="section-label">Purchase Orders (${pos.length})</div>
+         <table>
+           <thead><tr><th>PO Number</th><th>Date</th><th>Status</th><th class="right">Amount</th></tr></thead>
+           <tbody>
+             ${poRows}
+             <tr class="total"><td colspan="3">TOTAL</td><td class="right">${formatCurrency(poTotal)}</td></tr>
+           </tbody>
+         </table>`
+      : '';
+
+  const soSection =
+    sos.length > 0
+      ? `<div class="section-label">Sales Orders (${sos.length})</div>
+         <table>
+           <thead><tr><th>SO Number</th><th>Date</th><th>Status</th><th class="right">Amount</th></tr></thead>
+           <tbody>
+             ${soRows}
+             <tr class="total"><td colspan="3">TOTAL</td><td class="right">${formatCurrency(soTotal)}</td></tr>
+           </tbody>
+         </table>`
+      : '';
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">${partnerName}</div>
+      <div class="report-meta">${roles.join(' · ')} &nbsp;·&nbsp; ${new Date().toLocaleDateString()}</div>
+    </div>
+
+    <div class="summary-grid">${summaryBlocks}</div>
+
+    ${poSection}
+    ${soSection}
+    ${!poSection && !soSection ? '<div class="warning">No order history found.</div>' : ''}
+  `;
+
+  const filename = partnerName.replace(/[^a-zA-Z0-9-]/g, '-') + '-partner.pdf';
+  await printAndShare(wrapHtml(`Partner — ${partnerName}`, body), filename);
+}
+
+// ─── Material Detail PDF ─────────────────────────────────────────────────────
+
+export async function exportMaterialDetailPDF(params: {
+  materialName: string;
+  materialCode?: string;
+  materialType?: string;
+  materialUnit?: string;
+  materialCategory?: string;
+  materialStatus?: string;
+  stock: StockBalance[];
+  ledger: StockLedgerEntry[];
+}): Promise<void> {
+  const {
+    materialName,
+    materialCode,
+    materialType,
+    materialUnit,
+    materialCategory,
+    materialStatus,
+    stock,
+    ledger,
+  } = params;
+
+  const totalQty = stock.reduce((s, b) => s + (Number(b.qty) || 0), 0);
+  const totalIn = ledger.reduce((s, e) => s + (Number(e.qty_in) || 0), 0);
+  const totalOut = ledger.reduce((s, e) => s + (Number(e.qty_out) || 0), 0);
+  const unit = stock[0]?.unit ?? materialUnit ?? '';
+
+  const stockRows = stock
+    .map(
+      (b) => `<tr>
+        <td>${b.warehouse_name ?? '—'}</td>
+        <td class="right">${Number(b.qty).toLocaleString()}</td>
+        <td>${b.unit ?? unit}</td>
+        ${b.qty <= 0 ? '<td class="muted">Out of Stock</td>' : b.qty < 100 ? '<td class="muted">Low Stock</td>' : '<td></td>'}
+      </tr>`,
+    )
+    .join('');
+
+  const ledgerRows = ledger
+    .map(
+      (e) => `<tr>
+        <td>${e.dt ? formatDate(e.dt) : '—'}</td>
+        <td>${e.voucher_type ?? '—'}</td>
+        <td>${e.voucher_no ?? '—'}</td>
+        <td>${e.warehouse_name ?? '—'}</td>
+        <td class="right">${e.qty_in ? `+${Number(e.qty_in).toLocaleString()}` : ''}</td>
+        <td class="right">${e.qty_out ? `-${Number(e.qty_out).toLocaleString()}` : ''}</td>
+        <td class="right">${e.balance != null ? Number(e.balance).toLocaleString() : ''}</td>
+      </tr>`,
+    )
+    .join('');
+
+  const meta = [materialType, materialCategory, materialStatus].filter(Boolean).join(' · ');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">${materialName}${materialCode ? ` — ${materialCode}` : ''}</div>
+      <div class="report-meta">${meta || 'Material'} &nbsp;·&nbsp; ${new Date().toLocaleDateString()}</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${totalQty.toLocaleString()} ${unit}</div>
+        <div class="label">Total Stock</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${stock.length}</div>
+        <div class="label">Warehouses</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">+${totalIn.toLocaleString()}</div>
+        <div class="label">Total In</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">-${totalOut.toLocaleString()}</div>
+        <div class="label">Total Out</div>
+      </div>
+    </div>
+
+    ${stock.length > 0 ? `
+    <div class="section-label">Stock by Warehouse (${stock.length})</div>
+    <table>
+      <thead><tr><th>Warehouse</th><th class="right">Qty</th><th>Unit</th><th>Status</th></tr></thead>
+      <tbody>${stockRows}</tbody>
+    </table>` : ''}
+
+    ${ledger.length > 0 ? `
+    <div class="section-label">Transactions (${ledger.length})</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Voucher</th>
+          <th>Warehouse</th>
+          <th class="right">In</th>
+          <th class="right">Out</th>
+          <th class="right">Balance</th>
+        </tr>
+      </thead>
+      <tbody>${ledgerRows}</tbody>
+    </table>` : ''}
+  `;
+
+  const filename = materialName.replace(/[^a-zA-Z0-9-]/g, '-') + '-material.pdf';
+  await printAndShare(wrapHtml(`Material — ${materialName}`, body), filename);
 }

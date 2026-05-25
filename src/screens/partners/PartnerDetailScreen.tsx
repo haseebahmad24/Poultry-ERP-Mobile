@@ -20,6 +20,7 @@ import SectionHeader from '@/components/SectionHeader';
 import { fetchPurchaseOrders, PurchaseOrder } from '@/api/purchaseOrders';
 import { fetchSalesOrders, SalesOrder } from '@/api/salesOrders';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
+import { exportPartnerDetailPDF } from '@/utils/pdfExport';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type Props = NativeStackScreenProps<MoreStackParamList, 'PartnerDetail'>;
@@ -101,6 +102,13 @@ export default function PartnerDetailScreen({ route, navigation }: Props) {
           <Text style={styles.headerTitle} numberOfLines={1}>{partnerName}</Text>
           <Text style={styles.headerSub}>{roles.join(' · ')}</Text>
         </View>
+        <TouchableOpacity
+          style={styles.headerBtn}
+          onPress={() => exportPartnerDetailPDF({ partnerName, roles, pos, sos })}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Feather name="file-text" size={18} color={Colors.text} />
+        </TouchableOpacity>
         <BookmarkButton
           type="partner"
           entityId={partnerId}
@@ -282,6 +290,7 @@ const styles = StyleSheet.create({
   headerInfo: { flex: 1 },
   headerTitle: { ...Typography.h2 },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 1 },
+  headerBtn: { padding: 4 },
 
   summaryRow: {
     flexDirection: 'row',

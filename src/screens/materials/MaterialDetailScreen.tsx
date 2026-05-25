@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +22,7 @@ import { fetchStockBalances, fetchStockLedger, StockBalance, StockLedgerEntry } 
 import { formatShortDate } from '@/utils/currency';
 import { useCompany } from '@/context/CompanyContext';
 import { getCached, setCached } from '@/utils/cache';
+import { exportMaterialDetailPDF } from '@/utils/pdfExport';
 import type { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type Props = NativeStackScreenProps<MoreStackParamList, 'MaterialDetail'>;
@@ -139,6 +141,22 @@ export default function MaterialDetailScreen({ route }: Props) {
             </View>
           ) : null}
         </View>
+        <TouchableOpacity
+          style={styles.headerBtn}
+          onPress={() => exportMaterialDetailPDF({
+            materialName,
+            materialCode,
+            materialType,
+            materialUnit,
+            materialCategory,
+            materialStatus,
+            stock,
+            ledger,
+          })}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Feather name="file-text" size={18} color={Colors.text} />
+        </TouchableOpacity>
         <BookmarkButton
           type="material"
           entityId={materialId}
@@ -326,6 +344,7 @@ const styles = StyleSheet.create({
   },
   headerInfo: { flex: 1 },
   headerTitle: { ...Typography.h3 },
+  headerBtn: { padding: 4 },
   codeBadge: {
     marginTop: 4,
     alignSelf: 'flex-start',
