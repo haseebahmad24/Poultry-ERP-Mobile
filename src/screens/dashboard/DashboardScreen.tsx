@@ -27,6 +27,7 @@ import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import { getAutoRefreshInterval } from '@/utils/settings';
+import { getUnreadCount } from '@/utils/notificationLog';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
 
 type Nav = BottomTabNavigationProp<AppTabParamList>;
@@ -84,6 +85,11 @@ const QUICK_ACTIONS: QuickAction[] = [
     icon: 'bell',
     navigate: (nav) => nav.navigate('More', { screen: 'Alerts' } as any),
   },
+  {
+    label: 'Inbox',
+    icon: 'inbox',
+    navigate: (nav) => nav.navigate('More', { screen: 'Inbox' } as any),
+  },
 ];
 
 export default function DashboardScreen() {
@@ -102,6 +108,7 @@ export default function DashboardScreen() {
   const [isStale, setIsStale] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [autoRefreshInterval, setAutoRefreshInterval] = useState(0);
+  const [inboxUnread, setInboxUnread] = useState(0);
   const [, setTick] = useState(0);
 
   const cacheKey = `dashboard:${selectedCompany?.id ?? 'all'}`;
@@ -150,9 +157,10 @@ export default function DashboardScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Re-read auto-refresh interval whenever Dashboard comes into focus (user may have changed it in Settings)
+  // Re-read auto-refresh interval and inbox unread count on focus
   useFocusEffect(useCallback(() => {
     getAutoRefreshInterval().then(setAutoRefreshInterval);
+    getUnreadCount().then(setInboxUnread);
   }, []));
 
   useEffect(() => {
@@ -347,11 +355,33 @@ export default function DashboardScreen() {
           </>
         )}
 
+        {/* Inbox unread banner — shown when notification history has unread entries */}
+        {inboxUnread > 0 && (
+          <TouchableOpacity
+            style={styles.inboxBanner}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('More', { screen: 'Inbox' } as any)}
+          >
+            <View style={styles.inboxBannerIcon}>
+              <Feather name="inbox" size={15} color={Colors.text} />
+              <View style={styles.inboxBannerDot} />
+            </View>
+            <Text style={styles.inboxBannerText}>
+              {inboxUnread === 1
+                ? '1 unread notification in your inbox'
+                : `${inboxUnread} unread notifications in your inbox`}
+            </Text>
+            <Feather name="chevron-right" size={14} color={Colors.textMuted} />
+          </TouchableOpacity>
+        )}
+
         {/* Quick Actions */}
         <SectionHeader title="Quick Actions" />
         <View style={styles.quickGrid}>
           {QUICK_ACTIONS.map((qa) => {
             const isAlerts = qa.label === 'Alerts';
+            const isInbox = qa.label === 'Inbox';
+            const badgeCount = isAlerts ? totalAlerts : isInbox ? inboxUnread : 0;
             return (
               <TouchableOpacity
                 key={qa.label}
@@ -361,9 +391,9 @@ export default function DashboardScreen() {
               >
                 <View style={styles.quickIconWrap}>
                   <Feather name={qa.icon as any} size={22} color={Colors.text} />
-                  {isAlerts && totalAlerts > 0 && (
+                  {badgeCount > 0 && (
                     <View style={styles.quickBadge}>
-                      <Text style={styles.quickBadgeText}>{totalAlerts > 9 ? '9+' : totalAlerts}</Text>
+                      <Text style={styles.quickBadgeText}>{badgeCount > 9 ? '9+' : badgeCount}</Text>
                     </View>
                   )}
                 </View>
@@ -579,6 +609,39 @@ const styles = StyleSheet.create({
   financeStatusCount: { fontSize: 22, fontWeight: '700', color: Colors.text },
   financeStatusLabel: { fontSize: 13, fontWeight: '600', color: Colors.text },
   financeStatusSub: { fontSize: 11, color: Colors.textMuted },
+
+  inboxBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    marginBottom: Spacing.sm,
+  },
+  inboxBannerIcon: {
+    position: 'relative',
+    width: 26,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inboxBannerDot: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 7,
+    height: 7,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.text,
+    borderWidth: 1,
+    borderColor: Colors.surface,
+  },
+  inboxBannerText: { flex: 1, fontSize: 12, color: Colors.textSecondary },
 
   quickGrid: {
     flexDirection: 'row',
