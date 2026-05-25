@@ -196,7 +196,7 @@ export default function MaterialDetailScreen({ route }: Props) {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.textMuted} />}
       >
         {/* Summary tiles */}
         <View style={styles.tileRow}>
