@@ -345,6 +345,227 @@ export async function exportBSPDF(params: {
   await printAndShare(wrapHtml('Balance Sheet', body), 'balance-sheet.pdf');
 }
 
+// ─── Combined Financial Reports PDF ─────────────────────────────────────────
+
+function classifyRow(
+  row: TrialBalanceRow,
+): 'revenue' | 'expense' | 'asset' | 'liability' | 'equity' | null {
+  const type = (row.account_type ?? row.account_name ?? '').toLowerCase();
+  if (type.includes('revenue') || type.includes('income') || type.includes('sales')) return 'revenue';
+  if (type.includes('expense') || type.includes('cost') || type.includes('cogs')) return 'expense';
+  if (
+    type.includes('asset') ||
+    type.includes('receivable') ||
+    type.includes('inventory') ||
+    type.includes('cash')
+  )
+    return 'asset';
+  if (type.includes('liability') || type.includes('payable') || type.includes('loan'))
+    return 'liability';
+  if (type.includes('equity') || type.includes('capital') || type.includes('retained'))
+    return 'equity';
+  return null;
+}
+
+const COMBINED_EXTRA_CSS = `
+  .page-break { page-break-before: always; margin: 48px 0 0; border-top: 2px solid #0a0a0a; padding-top: 32px; }
+  .report-bundle-cover {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 200px;
+    border: 1px solid #0a0a0a;
+    border-radius: 8px;
+    padding: 32px 36px;
+    margin-bottom: 32px;
+  }
+  .bundle-title { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px; }
+  .bundle-meta { font-size: 12px; color: #555; line-height: 1.8; }
+  .toc { margin-top: 20px; }
+  .toc-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 12px;
+  }
+  .toc-num { font-weight: 700; color: #888; width: 20px; }
+  .toc-label { flex: 1; }
+`;
+
+export async function exportCombinedReportPDF(params: {
+  rows: TrialBalanceRow[];
+  companyName: string;
+  asOf: string;
+  totalDebit: number;
+  totalCredit: number;
+}): Promise<void> {
+  const { rows, companyName, asOf, totalDebit, totalCredit } = params;
+
+  // Classify rows
+  const revenues = rows.filter((r) => classifyRow(r) === 'revenue');
+  const expenses = rows.filter((r) => classifyRow(r) === 'expense');
+  const assets = rows.filter((r) => classifyRow(r) === 'asset');
+  const liabilities = rows.filter((r) => classifyRow(r) === 'liability');
+  const equity = rows.filter((r) => classifyRow(r) === 'equity');
+
+  const totalRevenue = revenues.reduce((s, r) => s + Math.abs(r.balance ?? r.credit - r.debit), 0);
+  const totalExpense = expenses.reduce((s, r) => s + Math.abs(r.balance ?? r.debit - r.credit), 0);
+  const netIncome = totalRevenue - totalExpense;
+  const totalAssets = assets.reduce((s, r) => s + Math.abs(r.balance ?? r.debit - r.credit), 0);
+  const totalLiabilities = liabilities.reduce(
+    (s, r) => s + Math.abs(r.balance ?? r.credit - r.debit),
+    0,
+  );
+  const totalEquity = equity.reduce((s, r) => s + Math.abs(r.balance ?? r.credit - r.debit), 0);
+  const le = totalLiabilities + totalEquity;
+  const isTBBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
+  const isBSBalanced = Math.abs(totalAssets - le) < 0.01;
+
+  // TB rows HTML
+  const tbRowsHtml = rows
+    .map((r) => {
+      const indent = (r.level ?? 0) * 16;
+      const name = r.account_code
+        ? `${r.account_code} — ${r.account_name ?? ''}`
+        : (r.account_name ?? '');
+      const dr = r.debit > 0 ? formatCurrency(r.debit) : '';
+      const cr = r.credit > 0 ? formatCurrency(r.credit) : '';
+      return `<tr${r.is_group ? ' class="group"' : ''}>
+        <td style="padding-left:${10 + indent}px">${name}</td>
+        <td class="right${!r.debit ? ' muted' : ''}">${dr || '—'}</td>
+        <td class="right${!r.credit ? ' muted' : ''}">${cr || '—'}</td>
+      </tr>`;
+    })
+    .join('');
+
+  // Helper for single-amount account rows
+  const accountRows = (accs: TrialBalanceRow[], totalLabel: string, total: number) => {
+    const rows2 = accs
+      .map(
+        (r) => `<tr>
+        <td>${r.account_code ? `${r.account_code} — ` : ''}${r.account_name ?? ''}</td>
+        <td class="right">${formatCurrency(Math.abs(r.balance ?? Math.abs(r.debit - r.credit)))}</td>
+      </tr>`,
+      )
+      .join('');
+    return `<table>
+      <thead><tr><th>Account</th><th class="right">Amount</th></tr></thead>
+      <tbody>
+        ${rows2 || '<tr><td colspan="2" class="muted">No accounts</td></tr>'}
+        <tr class="total"><td>${totalLabel}</td><td class="right">${formatCurrency(total)}</td></tr>
+      </tbody>
+    </table>`;
+  };
+
+  const meta = `Company: ${companyName} &nbsp;·&nbsp; As of: ${asOf}`;
+
+  const body = `
+    <!-- Cover -->
+    <div class="report-bundle-cover">
+      <div class="bundle-title">Financial Reports Bundle</div>
+      <div class="bundle-meta">
+        <div>Company: <strong>${companyName}</strong></div>
+        <div>As of: <strong>${asOf}</strong></div>
+        <div>Generated: ${new Date().toLocaleDateString()}</div>
+      </div>
+      <div class="toc">
+        <div class="toc-item"><span class="toc-num">1</span><span class="toc-label">Trial Balance</span></div>
+        <div class="toc-item"><span class="toc-num">2</span><span class="toc-label">Profit &amp; Loss Statement</span></div>
+        <div class="toc-item"><span class="toc-num">3</span><span class="toc-label">Balance Sheet</span></div>
+      </div>
+    </div>
+
+    <!-- 1. Trial Balance -->
+    <div class="report-header">
+      <div class="report-title">1 &nbsp; Trial Balance</div>
+      <div class="report-meta">${meta}</div>
+    </div>
+    ${!isTBBalanced ? `<div class="warning">Out of balance by ${formatCurrency(Math.abs(totalDebit - totalCredit))}</div>` : ''}
+    <table>
+      <thead><tr><th>Account</th><th class="right">Debit</th><th class="right">Credit</th></tr></thead>
+      <tbody>
+        ${tbRowsHtml}
+        <tr class="total">
+          <td>TOTAL</td>
+          <td class="right">${formatCurrency(totalDebit)}</td>
+          <td class="right">${formatCurrency(totalCredit)}</td>
+        </tr>
+      </tbody>
+    </table>
+    ${isTBBalanced ? '<div class="warning" style="background:#f0faf0">✓ Balanced</div>' : ''}
+
+    <!-- 2. Profit & Loss -->
+    <div class="page-break">
+      <div class="report-title">2 &nbsp; Profit &amp; Loss Statement</div>
+      <div class="report-meta">${meta}</div>
+    </div>
+    <div class="summary-grid" style="margin-top:16px">
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalRevenue)}</div>
+        <div class="label">Total Revenue</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalExpense)}</div>
+        <div class="label">Total Expenses</div>
+      </div>
+    </div>
+    <div class="net-row">
+      <span class="net-label">Net Income</span>
+      <span class="net-value">${formatCurrency(netIncome)}</span>
+    </div>
+    <div class="section-label">Revenue</div>
+    ${accountRows(revenues, 'Total Revenue', totalRevenue)}
+    <div class="section-label">Expenses</div>
+    ${accountRows(expenses, 'Total Expenses', totalExpense)}
+
+    <!-- 3. Balance Sheet -->
+    <div class="page-break">
+      <div class="report-title">3 &nbsp; Balance Sheet</div>
+      <div class="report-meta">${meta}</div>
+    </div>
+    <div class="summary-grid" style="margin-top:16px">
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalAssets)}</div>
+        <div class="label">Total Assets</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(le)}</div>
+        <div class="label">Liabilities + Equity</div>
+      </div>
+    </div>
+    ${!isBSBalanced ? `<div class="warning">Out of balance by ${formatCurrency(Math.abs(totalAssets - le))}</div>` : ''}
+    <div class="section-label">Assets</div>
+    ${accountRows(assets, 'Total Assets', totalAssets)}
+    <div class="section-label">Liabilities</div>
+    ${accountRows(liabilities, 'Total Liabilities', totalLiabilities)}
+    <div class="section-label">Equity</div>
+    ${accountRows(equity, 'Total Equity', totalEquity)}
+    <div class="net-row">
+      <span class="net-label">Total L + E</span>
+      <span class="net-value">${formatCurrency(le)}</span>
+    </div>
+  `;
+
+  // Inject extra CSS into the combined wrapper
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Financial Reports Bundle</title>
+  <style>${BASE_CSS}${COMBINED_EXTRA_CSS}</style>
+</head>
+<body>
+  ${body}
+  <div class="footer">Generated by Poultry ERP Mobile · ${new Date().toLocaleString()}</div>
+</body>
+</html>`;
+
+  await printAndShare(html, 'financial-reports-bundle.pdf');
+}
+
 // ─── Journal Entries PDF ─────────────────────────────────────────────────────
 
 export async function exportJournalEntriesPDF(params: {

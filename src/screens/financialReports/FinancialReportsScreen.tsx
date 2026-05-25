@@ -23,7 +23,7 @@ import CompanySelector from '@/components/CompanySelector';
 import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 import { formatCurrency } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
-import { exportPLPDF, exportBSPDF } from '@/utils/pdfExport';
+import { exportPLPDF, exportBSPDF, exportCombinedReportPDF } from '@/utils/pdfExport';
 
 type ReportTab = 'pl' | 'bs';
 
@@ -135,6 +135,19 @@ export default function FinancialReportsScreen() {
     }
   };
 
+  const handleExportBundlePDF = async () => {
+    const company = ctxCompany?.name ?? 'All Companies';
+    const totalDebit = rows.reduce((s, r) => s + (r.debit ?? 0), 0);
+    const totalCredit = rows.reduce((s, r) => s + (r.credit ?? 0), 0);
+    await exportCombinedReportPDF({
+      rows,
+      companyName: company,
+      asOf,
+      totalDebit,
+      totalCredit,
+    });
+  };
+
   const handleExport = async () => {
     const line = '─'.repeat(50);
     const company = ctxCompany?.name ?? 'All Companies';
@@ -176,6 +189,10 @@ export default function FinancialReportsScreen() {
         <Text style={styles.headerTitle}>Financial Reports</Text>
         {!loading && rows.length > 0 && (
           <>
+            <TouchableOpacity style={styles.exportBtn} onPress={handleExportBundlePDF}>
+              <Feather name="layers" size={13} color={Colors.text} />
+              <Text style={styles.exportBtnText}>Bundle</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.exportBtn} onPress={handleExportPDF}>
               <Feather name="file-text" size={13} color={Colors.text} />
               <Text style={styles.exportBtnText}>PDF</Text>

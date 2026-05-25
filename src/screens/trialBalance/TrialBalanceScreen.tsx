@@ -24,7 +24,7 @@ import CompanySelector from '@/components/CompanySelector';
 import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 import { formatCurrency } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
-import { exportTrialBalancePDF } from '@/utils/pdfExport';
+import { exportTrialBalancePDF, exportCombinedReportPDF } from '@/utils/pdfExport';
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -96,6 +96,16 @@ export default function TrialBalanceScreen() {
     });
   };
 
+  const handleExportBundlePDF = async () => {
+    await exportCombinedReportPDF({
+      rows: result.rows,
+      companyName: ctxCompany?.name ?? 'All Companies',
+      asOf,
+      totalDebit,
+      totalCredit,
+    });
+  };
+
   const handleExport = async () => {
     const colW = 30;
     const amtW = 16;
@@ -135,6 +145,10 @@ export default function TrialBalanceScreen() {
         {!loading && <Text style={styles.headerSub}>{filteredRows.length} accounts</Text>}
         {!loading && result.rows.length > 0 && (
           <>
+            <TouchableOpacity style={styles.exportBtn} onPress={handleExportBundlePDF}>
+              <Feather name="layers" size={13} color={Colors.text} />
+              <Text style={styles.exportBtnText}>Bundle</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.exportBtn} onPress={handleExportPDF}>
               <Feather name="file-text" size={13} color={Colors.text} />
               <Text style={styles.exportBtnText}>PDF</Text>
