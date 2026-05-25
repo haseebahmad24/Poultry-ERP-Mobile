@@ -238,6 +238,8 @@
 
 ### UI Polish Log (Monochrome)
 
+**2026-05-25** — `BiometricLockOverlay`: replaced hardcoded `borderRadius: 40` on `iconWrap` with `Radius.full` — the only remaining numeric borderRadius literal introduced by the Session 17 build. Full post-build audit confirms all 28 screens and all shared components are clean: no emojis, no semantic hex colors, no hardcoded borderRadius, no shadow spreads; only `'#fff'` (white text on black button/chip — intentional monochrome) remains as a literal.
+
 **2026-05-23** — Detail screen loading states: replaced 7 hardcoded `backgroundColor:'#fafafa'` inline styles with `Colors.background` token in `PurchaseOrderDetailScreen`, `PODetailScreen`, `SalesOrderDetailScreen`, `VendorDetailScreen`, `CustomerDetailScreen`, `ItemLedgerScreen`, `PartnerDetailScreen`. These were introduced by the Session 12 skeleton loading migration; all skeleton SafeAreaView wrappers now reference the theme token instead of a literal.
 
 **2026-05-22** — Replaced all hardcoded `borderRadius` literals with Radius theme tokens across 5 screens: `AlertsScreen` (totalBadge→Radius.full, alertIcon→Radius.md, daysBadge→Radius.sm), `MoreMenuScreen` (alertBannerIcon→Radius.md, bellBadge→Radius.full, menuIconWrap→Radius.md), `FinanceMenuScreen` (menuIconWrap→Radius.md, alertBadge→Radius.full), `SearchScreen` (resultIconWrap→Radius.md), `SettingsScreen` (actionIconWrap→Radius.md). Zero hardcoded numeric borderRadius values remain in any screen or component.

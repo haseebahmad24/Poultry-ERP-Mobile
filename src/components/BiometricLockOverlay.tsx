@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   iconWrap: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: Radius.full,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     backgroundColor: Colors.background,
