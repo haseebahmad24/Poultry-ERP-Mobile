@@ -1,5 +1,49 @@
 # Mobile App Progress
 
+## Session 18 — 2026-05-25
+
+### Completed This Session
+
+**Bookmarks System** (`src/utils/bookmarks.ts`, `src/components/BookmarkButton.tsx`, `src/screens/bookmarks/BookmarksScreen.tsx`)
+- `bookmarks.ts`: AsyncStorage-backed bookmark registry (max 100 entries, sorted by addedAt desc)
+  - Types: `BookmarkType = 'po' | 'so' | 'partner' | 'material'`; Bookmark stores `entityId`, `title`, `subtitle`, `meta`, `navParams`, `addedAt`
+  - `addBookmark()`, `removeBookmark()`, `isBookmarked()`, `getBookmarks()`, `clearBookmarks()`
+  - `navParams` field for extra navigation params (e.g. `isVendor`/`isCustomer` for partners)
+- `BookmarkButton`: toggle Feather bookmark icon; reads initial state on mount via `isBookmarked()`; persists on press; opacity-dim when unsaved; accepts optional `color` prop for dark headers
+- `BookmarksScreen`: FlatList grouped by type section headers (Purchase Orders, Sales Orders, Partners, Materials)
+  - Tapping any row navigates to the appropriate detail screen with all required params
+  - X button per row with confirmation alert; Clear All with destructive confirmation
+  - Empty state with bookmark icon and instruction text
+- Navigation: `Bookmarks` route added to `MoreNavigator`; deep link `poultryerp://bookmarks`
+- `MoreMenuScreen`: "Bookmarks" item in ADMIN section (Feather bookmark icon)
+- BookmarkButton wired into 4 detail screen headers:
+  - `PurchaseOrderDetailScreen` — type=po, title=po_number, subtitle=vendor, meta=total amount
+  - `SalesOrderDetailScreen` — type=so, title=so_number, subtitle=customer, meta=total amount
+  - `PartnerDetailScreen` — type=partner, title=partnerName, subtitle=roles, navParams={isVendor, isCustomer}
+  - `MaterialDetailScreen` — type=material, title=materialName, subtitle=type, meta=unit, navParams={all route params}
+- `DashboardScreen`: Bookmarks added as 9th quick action tile (Feather bookmark icon)
+
+**Inbox Swipe-to-Delete** (`src/screens/inbox/InboxScreen.tsx`, `src/utils/notificationLog.ts`)
+- `notificationLog.ts`: added `deleteInboxEntry(id: string)` — filters entry by id and writes back
+- `InboxScreen`: replaced `EntryRow` with `SwipeableEntryRow` using `PanResponder` + `Animated.Value`
+  - Swipe left ≥ 80px snaps open a 72px dark delete action button (Feather trash-2 + "Delete" label)
+  - Tap the action button: card animates off-screen (200ms) then removes from state + AsyncStorage
+  - Swipe < threshold snaps back with spring animation (bounciness: 4)
+  - Header subtitle shows "Swipe left to delete" when entries are present; "Notification history" when empty
+
+**Multi-Company KPI Comparison** (`src/screens/comparison/ComparisonScreen.tsx`)
+- Fetches `fetchDashboardData(companyId)` for every company in parallel on mount and on pull-to-refresh
+- Company status chip row: green dot (loaded) / spinner (loading) / alert-circle (failed) per company
+- Summary tiles: total companies / loaded count / loading count (if > 0) / failed count (if > 0)
+- 9 ranked metric sections — each shows all companies ranked by value with proportional horizontal bars:
+  - Net Income (revenue − expenses), Revenue MTD, Expenses MTD, Cash Balance
+  - Accounts Receivable, Accounts Payable, Vouchers MTD, Working Capital (AR − AP)
+  - Also: per-company bar width = |value| / max; #1 rank uses full-weight bar + bold value text
+  - Negative values use muted-color bar; "lower is better" metrics (expenses, AP) rank lowest first
+- Navigation: `Comparison` route in `MoreNavigator`; "Company Comparison" in MoreMenuScreen ADMIN; `poultryerp://comparison` deep link
+
+---
+
 ## Session 17 — 2026-05-25
 
 ### Completed This Session
@@ -660,16 +704,15 @@
 
 ---
 
-## What's Next (Session 18+)
+## What's Next (Session 19+)
 
-Sessions 1–17 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
+Sessions 1–18 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
 
 1. **Purchase Order creation** — Draft PO form with item line entry (requires POST API endpoint on web app)
 2. **Widget support** — Expo WidgetKit for home screen KPI summary (iOS 17+)
 3. **Universal links** — Associate poultryerp:// scheme with a web domain (requires associated-domains entitlement + server-side apple-app-site-association)
-4. **Favorites/Bookmarks** — Pin frequently accessed POs, SOs, or Partners to a quick-access home screen section
-5. **Multi-company KPI comparison** — Side-by-side KPI cards for all companies in one view
-6. **Swipe-to-delete on Inbox entries** — Per-entry deletion using gesture handler
+4. **Export bookmarks** — Share a list of bookmarks as a formatted text/PDF report
+5. **Bookmark count badge** — Show count of saved bookmarks on the Bookmarks quick-action tile
 
 ---
 
@@ -742,6 +785,11 @@ Sessions 1–17 are complete. All roadmap screens + polish + key enhancements ar
 | Inbox unread banner + tile on Dashboard | ✅ Done |
 | Batch PDF export (TB + P&L + BS combined) | ✅ Done |
 | Stock balances PDF export | ✅ Done |
+| Bookmarks system (save POs, SOs, partners, materials) | ✅ Done |
+| BookmarkButton on PO/SO/Partner/Material detail headers | ✅ Done |
+| BookmarksScreen — grouped list, tap to navigate, per-entry delete | ✅ Done |
+| Inbox swipe-to-delete (per-entry PanResponder gesture) | ✅ Done |
+| Multi-company KPI comparison screen (ranked metrics, proportional bars) | ✅ Done |
 
 ---
 
