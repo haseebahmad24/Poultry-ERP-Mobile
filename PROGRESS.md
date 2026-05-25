@@ -1,5 +1,46 @@
 # Mobile App Progress
 
+## Session 17 — 2026-05-25
+
+### Completed This Session
+
+**In-App Notification Inbox** (`src/utils/notificationLog.ts`, `src/screens/inbox/InboxScreen.tsx`)
+- `notificationLog.ts`: new AsyncStorage-backed inbox log (max 50 entries)
+  - `logNotificationEvent({ apCount, arCount, stockCount })` — prepends a timestamped entry
+  - `getInboxEntries()` / `getUnreadCount()` / `markAllRead()` / `clearInbox()`
+- `notifications.ts`: `scheduleOverdueReminder` now calls `logNotificationEvent` after every successful schedule
+- `InboxScreen`: FlatList of notification history
+  - Unread entries: bold border + dot indicator on icon
+  - Breakdown chips per entry (AP N / AR N / Stock N)
+  - "Time ago" relative timestamps (Just now / Xm ago / Xh ago / X days ago)
+  - Marks all read on screen open; "Clear all" with destructive confirmation
+  - Empty state with Feather `inbox` icon
+- `MoreNavigator`: Inbox route added; `linking.ts`: `poultryerp://inbox` deep link
+- `MoreMenuScreen`: split single Alerts banner into side-by-side Alerts + Inbox banners; Inbox shows unread count badge; unread reloads via `useFocusEffect`
+- `AppNavigator`: More tab `tabBarBadge` shows `inboxUnread` count; refreshed on mount + on foreground (`AppState` active) transitions
+
+**Dashboard Inbox Integration** (`src/screens/dashboard/DashboardScreen.tsx`)
+- Inbox added as 8th Quick Action tile (Feather `inbox`) with unread count badge overlay
+- Inbox unread banner shown between Finance Status and Quick Actions when `inboxUnread > 0`; tapping navigates to Inbox
+- `inboxUnread` state loaded from `getUnreadCount()` on every `useFocusEffect` (Dashboard focus)
+
+**Batch PDF Export — Combined Reports** (`src/utils/pdfExport.ts`)
+- `exportCombinedReportPDF()`: generates a single PDF combining all three financial reports
+  - Cover page with TOC (3 numbered entries: Trial Balance / P&L / Balance Sheet)
+  - Page-break dividers between sections with section numbers
+  - `COMBINED_EXTRA_CSS`: `.page-break`, `.report-bundle-cover`, `.toc-item` styles for print layout
+  - `classifyRow()` helper embedded in pdfExport.ts to avoid importing from FinancialReportsScreen
+  - Derives P&L and BS from raw TB rows internally; no double API call needed
+- `TrialBalanceScreen`: "Bundle" button (Feather `layers`) added alongside existing PDF + Share buttons; uses raw `result.rows` (unfiltered) for full combined export
+- `FinancialReportsScreen`: same "Bundle" button; derives `totalDebit/Credit` from current `rows`
+
+**Stock Balances PDF Export** (`src/utils/pdfExport.ts`, `src/screens/inventory/InventoryScreen.tsx`)
+- `exportStockBalancePDF()`: generates item/warehouse/qty/unit table with 2-summary grid (item count + total qty)
+- `InventoryScreen`: PDF button in header visible on Stock tab when data loaded; exports `filteredStock` (respects current search + low/out-of-stock filter)
+- `selectedCompany` destructured from `useCompany()` for company name in PDF header
+
+---
+
 ## Session 16 — 2026-05-24
 
 ### Completed This Session
@@ -617,15 +658,16 @@
 
 ---
 
-## What's Next (Session 17+)
+## What's Next (Session 18+)
 
-Sessions 1–16 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
+Sessions 1–17 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
 
 1. **Purchase Order creation** — Draft PO form with item line entry (requires POST API endpoint on web app)
 2. **Widget support** — Expo WidgetKit for home screen KPI summary (iOS 17+)
 3. **Universal links** — Associate poultryerp:// scheme with a web domain (requires associated-domains entitlement + server-side apple-app-site-association)
-4. **In-app notifications** — Show a notification bell/inbox within the app showing history of auto-generated alerts
-5. **Batch PDF export** — Export multiple reports into a single combined PDF
+4. **Favorites/Bookmarks** — Pin frequently accessed POs, SOs, or Partners to a quick-access home screen section
+5. **Multi-company KPI comparison** — Side-by-side KPI cards for all companies in one view
+6. **Swipe-to-delete on Inbox entries** — Per-entry deletion using gesture handler
 
 ---
 
@@ -693,6 +735,11 @@ Sessions 1–16 are complete. All roadmap screens + polish + key enhancements ar
 | PDF export — Trial Balance | ✅ Done |
 | PDF export — P&L + Balance Sheet | ✅ Done |
 | PDF export — Journal Entries | ✅ Done |
+| In-app notification inbox (history log) | ✅ Done |
+| Inbox unread badge on More tab | ✅ Done |
+| Inbox unread banner + tile on Dashboard | ✅ Done |
+| Batch PDF export (TB + P&L + BS combined) | ✅ Done |
+| Stock balances PDF export | ✅ Done |
 
 ---
 
