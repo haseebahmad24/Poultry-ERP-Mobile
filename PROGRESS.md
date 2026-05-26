@@ -1,5 +1,46 @@
 # Mobile App Progress
 
+## Session 21 — 2026-05-26
+
+### Completed This Session
+
+**Journal Entry Detail Screen** (`src/screens/journalEntries/JournalEntryDetailScreen.tsx`)
+- Full-page view for any journal entry tapped in the JE list
+- Header: BackButton + voucher type badge + voucher number + Share icon + PDF export icon
+- Body: info card (voucher no/type/date/status badge), narration card (italic), debit/credit amount blocks
+- Journal lines table: Account | Debit | Credit columns, line narration sub-text, totals row with thick border
+- `exportJournalEntryDetailPDF()` added to `pdfExport.ts`: 2-tile summary, full lines table with column headers and total row
+
+**JournalEntriesScreen — navigation upgrade**
+- Cards now navigate to `JournalEntryDetail` on tap (chevron-right + "N lines" hint replaces expand chevron)
+- Screen accepts `{ account?, accountName? }` route params; passes `account` to API for server-side filtering
+- Account filter banner shown between header and CompanySelector when opened from TrialBalance drill-down
+- Cache key updated to include `accountFilter` so filtered views cache independently
+
+**Trial Balance → JE Drill-down** (`src/screens/trialBalance/TrialBalanceScreen.tsx`)
+- Non-group account rows are now tappable (wrapped in `TouchableOpacity`)
+- Each tappable row shows a `chevron-right` icon (12px, textMuted) at the right edge
+- Tap navigates to `JournalEntries` with `{ account: row.account_code ?? row.account_name, accountName: row.account_name }`
+- Group rows (subtotals/headers) remain non-interactive (no chevron)
+
+**AP Summary PDF Export** (`src/utils/pdfExport.ts` `exportAPSummaryPDF`, `src/screens/finance/AccountsPayableScreen.tsx`)
+- 4-tile summary grid: Total Outstanding / Total Overdue / Vendors count / Bills count
+- Aging analysis table: 5 buckets with progressively darker gray background
+- Top Vendors table (up to 30) and Bills list (up to 50) with all key columns
+- PDF button added to AccountsPayableScreen header; only visible when bills data is loaded
+
+**AR Summary PDF Export** (`src/utils/pdfExport.ts` `exportARSummaryPDF`, `src/screens/finance/AccountsReceivableScreen.tsx`)
+- Same structure as AP export: 4-tile summary, aging table, customers table, invoices list
+- PDF button added to AccountsReceivableScreen header; only visible when invoices loaded
+
+### Next Session
+- Consider: Cash Flow PDF export
+- Consider: ComparisonScreen PDF export
+- Consider: Settings screen enhancements (default company picker, date format)
+- Consider: Stock alert threshold configuration
+
+---
+
 ## Session 20 — 2026-05-26
 
 ### Completed This Session
@@ -871,6 +912,10 @@ Sessions 1–20 are complete. All roadmap screens + polish + key enhancements ar
 | PDF export — GRN Goods Receipt (progress + per-PO line items) | ✅ Done |
 | Cash Flow screen (outstanding AP/AR grouped by due date period) | ✅ Done |
 | Dashboard Quick Actions expanded to 12 tiles (Cash Flow, Partners, Reports added) | ✅ Done |
+| Journal Entry Detail Screen (full-page view: lines table, share, PDF export) | ✅ Done |
+| Trial Balance → JE drill-down (tap account row → filtered Journal Entries) | ✅ Done |
+| PDF export — AP Summary (aging analysis + vendor table + bills list) | ✅ Done |
+| PDF export — AR Summary (aging analysis + customer table + invoices list) | ✅ Done |
 
 ---
 
