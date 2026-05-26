@@ -41,6 +41,13 @@ const MENU_ITEMS: MenuItem[] = [
     available: true,
   },
   {
+    icon: 'trending-up',
+    label: 'Cash Flow',
+    subtitle: 'Upcoming payments and collections by period',
+    screen: 'CashFlow',
+    available: true,
+  },
+  {
     icon: 'book-open',
     label: 'Journal Entries',
     subtitle: 'Voucher list filtered by type or account',

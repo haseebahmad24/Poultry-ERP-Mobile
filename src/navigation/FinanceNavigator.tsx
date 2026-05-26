@@ -6,6 +6,7 @@ import AccountsPayableScreen from '@/screens/finance/AccountsPayableScreen';
 import AccountsReceivableScreen from '@/screens/finance/AccountsReceivableScreen';
 import VendorDetailScreen from '@/screens/finance/VendorDetailScreen';
 import CustomerDetailScreen from '@/screens/finance/CustomerDetailScreen';
+import CashFlowScreen from '@/screens/finance/CashFlowScreen';
 import JournalEntriesScreen from '@/screens/journalEntries/JournalEntriesScreen';
 import TrialBalanceScreen from '@/screens/trialBalance/TrialBalanceScreen';
 import FinancialReportsScreen from '@/screens/financialReports/FinancialReportsScreen';
@@ -16,6 +17,7 @@ export type FinanceStackParamList = {
   AccountsReceivable: undefined;
   VendorDetail: { vendorId: number; vendorName: string; outstanding?: number; overdue?: number };
   CustomerDetail: { customerId: number; customerName: string; outstanding?: number; overdue?: number };
+  CashFlow: undefined;
   JournalEntries: undefined;
   TrialBalance: undefined;
   FinancialReports: undefined;
@@ -56,6 +58,11 @@ export default function FinanceNavigator() {
       <Stack.Screen
         name="CustomerDetail"
         component={CustomerDetailScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="CashFlow"
+        component={CashFlowScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen
