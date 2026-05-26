@@ -21,6 +21,7 @@ const linking: LinkingOptions<any> = {
               FinanceMenu: 'finance',
               AccountsPayable: 'finance/ap',
               AccountsReceivable: 'finance/ar',
+              CashFlow: 'finance/cash-flow',
               JournalEntries: 'finance/journal',
               TrialBalance: 'finance/trial-balance',
               FinancialReports: 'finance/reports',

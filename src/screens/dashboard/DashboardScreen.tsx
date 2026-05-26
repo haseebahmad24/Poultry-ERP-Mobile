@@ -96,6 +96,21 @@ const QUICK_ACTIONS: QuickAction[] = [
     icon: 'bookmark',
     navigate: (nav) => nav.navigate('More', { screen: 'Bookmarks' } as any),
   },
+  {
+    label: 'Cash Flow',
+    icon: 'trending-up',
+    navigate: (nav) => nav.navigate('Finance', { screen: 'CashFlow' } as any),
+  },
+  {
+    label: 'Partners',
+    icon: 'users',
+    navigate: (nav) => nav.navigate('More', { screen: 'Partners' } as any),
+  },
+  {
+    label: 'Reports',
+    icon: 'pie-chart',
+    navigate: (nav) => nav.navigate('Finance', { screen: 'FinancialReports' } as any),
+  },
 ];
 
 export default function DashboardScreen() {
