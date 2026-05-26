@@ -1,5 +1,36 @@
 # Mobile App Progress
 
+## Session 20 — 2026-05-26
+
+### Completed This Session
+
+**Item Ledger PDF Export** (`src/screens/inventory/ItemLedgerScreen.tsx`, `src/utils/pdfExport.ts`)
+- `exportItemLedgerPDF()`: item name + code in report header, date range shown when filter is active, 4-tile summary (Total In / Total Out / Current Balance / Transactions), full movement log table (Type | Voucher # | Date | Warehouse | In | Out | Balance | Unit)
+- `ItemLedgerScreen`: Feather `file-text` PDF button in header; visible only when entries are loaded; passes live entries + current dateRange + selectedCompany name
+
+**GRN Goods Receipt PDF Export** (`src/screens/grn/GRNScreen.tsx`, `src/utils/pdfExport.ts`)
+- `exportGRNPDF()`: 4-tile summary (Total POs / Complete / Overall % / Value Received), per-PO table with inline CSS progress bar, line item sub-rows showing item name + received/ordered quantities + percentage
+- `GRNScreen`: `useCompany` added for company name; Feather `file-text` PDF button in header; only visible when orders are loaded; header `alignItems: 'baseline'` → `'center'` with `flex: 1` on subtitle to accommodate the button
+
+**Cash Flow Screen** (`src/screens/finance/CashFlowScreen.tsx`)
+- New screen under Finance tab showing all outstanding AP bills + AR invoices grouped by time period relative to today's date
+- Periods: Overdue | Due This Week | Due Next Week | Due in 2–3 Weeks | Due in 3–4 Weeks | Due in 30+ Days | No Due Date
+- Summary tiles: Total Payable (outstanding AP bills count) / Total Receivable (outstanding AR invoices count)
+- Net Cash Position card: large value with darker border/background when net is negative; contextual hint text
+- Per-period sections: TO PAY group (bills) and TO COLLECT group (invoices), each item shows party name, reference number, outstanding amount, and due date; Overdue groups get bold `borderColor: Colors.text` treatment
+- Period Net row at bottom of each section
+- 24h offline cache per company (`cash-flow:<companyId>`); `CompanySelector`; `OfflineBanner`; `ErrorView`; `ListScreenSkeleton` loading state; pull-to-refresh
+- Wired: `CashFlow` route in `FinanceNavigator` + `FinanceMenuScreen` (Feather `trending-up` icon, between AR and Journal Entries)
+- Deep link: `poultryerp://finance/cash-flow` added to `linking.ts`
+
+**Dashboard Quick Actions expanded to 12 tiles** (`src/screens/dashboard/DashboardScreen.tsx`)
+- 3 new tiles added to bring grid from 9 to 12 (4 complete rows of 3):
+  - `Cash Flow` (Feather `trending-up`) → Finance > CashFlow
+  - `Partners` (Feather `users`) → More > Partners
+  - `Reports` (Feather `pie-chart`) → Finance > FinancialReports
+
+---
+
 ## Session 19 — 2026-05-25
 
 ### Completed This Session
@@ -742,15 +773,15 @@
 
 ---
 
-## What's Next (Session 20+)
+## What's Next (Session 21+)
 
-Sessions 1–19 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
+Sessions 1–20 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
 
 1. **Purchase Order creation** — Draft PO form with item line entry (requires POST API endpoint on web app)
 2. **Widget support** — Expo WidgetKit for home screen KPI summary (iOS 17+)
 3. **Universal links** — Associate poultryerp:// scheme with a web domain (requires associated-domains entitlement + server-side apple-app-site-association)
-4. **Inventory PDF export** — Print material ledger or warehouse stock report from ItemLedgerScreen
-5. **GRN PDF export** — Print goods receipt summary with progress bars per PO
+4. **Cash Flow PDF export** — Add PDF export button to CashFlowScreen
+5. **Warehouse PDF export** — Print warehouse list from InventoryScreen Warehouses tab
 
 ---
 
@@ -836,6 +867,10 @@ Sessions 1–19 are complete. All roadmap screens + polish + key enhancements ar
 | PDF export — Material Detail (stock + ledger) | ✅ Done |
 | PDF export — Vendor Detail (AP bills) | ✅ Done |
 | PDF export — Customer Detail (AR invoices) | ✅ Done |
+| PDF export — Item Ledger (movement log + summary) | ✅ Done |
+| PDF export — GRN Goods Receipt (progress + per-PO line items) | ✅ Done |
+| Cash Flow screen (outstanding AP/AR grouped by due date period) | ✅ Done |
+| Dashboard Quick Actions expanded to 12 tiles (Cash Flow, Partners, Reports added) | ✅ Done |
 
 ---
 
