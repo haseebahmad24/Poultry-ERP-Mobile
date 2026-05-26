@@ -13,6 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchStockLedger, StockLedgerEntry } from '@/api/inventory';
+import { exportItemLedgerPDF } from '@/utils/pdfExport';
 import DetailSkeleton from '@/components/DetailSkeleton';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
@@ -27,7 +28,7 @@ type RouteType = RouteProp<InventoryStackParamList, 'ItemLedger'>;
 export default function ItemLedgerScreen() {
   const route = useRoute<RouteType>();
   const { item_id, item_name, item_code } = route.params;
-  const { companyId } = useCompany();
+  const { companyId, selectedCompany } = useCompany();
 
   const [entries, setEntries] = useState<StockLedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +64,19 @@ export default function ItemLedgerScreen() {
   const totalOut = entries.reduce((s, e) => s + (e.qty_out ?? 0), 0);
   const latestBalance = entries.length > 0 ? entries[entries.length - 1].balance ?? null : null;
 
+  const handleExportPDF = async () => {
+    await exportItemLedgerPDF({
+      itemName: item_name,
+      itemCode: item_code,
+      companyName: selectedCompany?.name ?? 'Company',
+      dateRange: { from: dateRange.from, to: dateRange.to },
+      entries,
+      totalIn,
+      totalOut,
+      currentBalance: latestBalance,
+    });
+  };
+
   if (loading) return <SafeAreaView style={{flex:1,backgroundColor:Colors.background}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={3} listCount={6} /></SafeAreaView>;
   if (error && entries.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
@@ -76,6 +90,11 @@ export default function ItemLedgerScreen() {
           <Text style={styles.headerTitle} numberOfLines={1}>{item_name}</Text>
           {item_code && <Text style={styles.headerSub}>{item_code}</Text>}
         </View>
+        {entries.length > 0 && (
+          <TouchableOpacity style={styles.pdfBtn} onPress={handleExportPDF}>
+            <Feather name="file-text" size={18} color={Colors.text} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.summaryBar}>
@@ -254,6 +273,8 @@ const styles = StyleSheet.create({
   qtyPillLabel: { fontSize: 10, fontWeight: '700', color: Colors.textMuted },
   qtyPillValue: { ...Typography.body, fontWeight: '700', color: Colors.text },
   qtyUnit: { ...Typography.bodySmall, color: Colors.textMuted },
+
+  pdfBtn: { padding: 4 },
 
   emptyState: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: Spacing.sm },
   emptyText: { ...Typography.body, color: Colors.textMuted },

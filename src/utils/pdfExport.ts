@@ -1325,3 +1325,204 @@ export async function exportCustomerDetailPDF(params: {
   const filename = customerName.replace(/[^a-zA-Z0-9-]/g, '-') + '-ar-invoices.pdf';
   await printAndShare(wrapHtml(`Customer AR — ${customerName}`, body), filename);
 }
+
+// ─── Item Ledger PDF ──────────────────────────────────────────────────────────
+
+export async function exportItemLedgerPDF(params: {
+  itemName: string;
+  itemCode?: string;
+  companyName: string;
+  dateRange?: { from?: string; to?: string };
+  entries: StockLedgerEntry[];
+  totalIn: number;
+  totalOut: number;
+  currentBalance: number | null;
+}): Promise<void> {
+  const { itemName, itemCode, companyName, dateRange, entries, totalIn, totalOut, currentBalance } = params;
+
+  const dateInfo =
+    dateRange?.from || dateRange?.to
+      ? `${dateRange.from || 'Start'} → ${dateRange.to || 'Today'} &nbsp;·&nbsp; `
+      : '';
+
+  const rows = entries
+    .map((e) => {
+      const vtype = e.voucher_type ?? '';
+      const qtyIn = e.qty_in ?? 0;
+      const qtyOut = e.qty_out ?? 0;
+      return `<tr>
+        <td><span style="font-size:10px;font-weight:700;border:1px solid #e8e8e8;padding:1px 5px;border-radius:3px">${vtype || 'TXN'}</span></td>
+        <td>${e.voucher_no ?? '—'}</td>
+        <td>${e.dt ? formatDate(e.dt) : '—'}</td>
+        <td>${e.warehouse_name ?? '—'}</td>
+        <td class="right">${qtyIn > 0 ? `+${qtyIn.toLocaleString()}` : '—'}</td>
+        <td class="right">${qtyOut > 0 ? `-${qtyOut.toLocaleString()}` : '—'}</td>
+        <td class="right">${e.balance != null ? e.balance.toLocaleString() : '—'}</td>
+        <td>${e.unit ?? '—'}</td>
+      </tr>`;
+    })
+    .join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">${itemName}${itemCode ? ` <span style="font-size:12px;color:#888">(${itemCode})</span>` : ''}</div>
+      <div class="report-meta">${dateInfo}Company: ${companyName} &nbsp;·&nbsp; ${new Date().toLocaleDateString()}</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">+${totalIn.toLocaleString()}</div>
+        <div class="label">Total In</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">-${totalOut.toLocaleString()}</div>
+        <div class="label">Total Out</div>
+      </div>
+      ${
+        currentBalance != null
+          ? `<div class="summary-block">
+        <div class="value">${currentBalance.toLocaleString()}</div>
+        <div class="label">Current Balance</div>
+      </div>`
+          : ''
+      }
+      <div class="summary-block">
+        <div class="value">${entries.length}</div>
+        <div class="label">Transactions</div>
+      </div>
+    </div>
+
+    <div class="section-label">Movement Log (${entries.length} entries)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Voucher #</th>
+          <th>Date</th>
+          <th>Warehouse</th>
+          <th class="right">In</th>
+          <th class="right">Out</th>
+          <th class="right">Balance</th>
+          <th>Unit</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows || '<tr><td colspan="8" class="muted">No transactions found</td></tr>'}
+      </tbody>
+    </table>
+  `;
+
+  const filename = itemName.replace(/[^a-zA-Z0-9-]/g, '-') + '-ledger.pdf';
+  await printAndShare(wrapHtml(`Item Ledger — ${itemName}`, body), filename);
+}
+
+// ─── GRN (Goods Receipt) PDF ──────────────────────────────────────────────────
+
+export async function exportGRNPDF(params: {
+  companyName: string;
+  orders: PurchaseOrder[];
+}): Promise<void> {
+  const { companyName, orders } = params;
+
+  const totalReceived = orders.reduce((s, o) => s + (o.received ?? 0), 0);
+  const totalOrdered = orders.reduce((s, o) => s + (o.total ?? 0), 0);
+  const overallPct = totalOrdered > 0 ? Math.min((totalReceived / totalOrdered) * 100, 100) : 0;
+  const completePOs = orders.filter((o) => {
+    const r = o.received ?? 0;
+    const t = o.total ?? 0;
+    return t > 0 && r / t >= 1;
+  }).length;
+
+  const poRows = orders
+    .map((po) => {
+      const received = po.received ?? 0;
+      const total = po.total ?? 0;
+      const pct = total > 0 ? Math.min((received / total) * 100, 100) : 0;
+      const isComplete = pct >= 100;
+      const statusLabel = isComplete
+        ? 'COMPLETE'
+        : pct > 0
+        ? 'PARTIAL'
+        : (po.status ?? '').toUpperCase() || 'OPEN';
+
+      const barHtml = `<div style="height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden;margin-top:3px"><div style="height:100%;width:${Math.round(pct)}%;background:#0a0a0a;border-radius:3px"></div></div>`;
+
+      const lineItemsHtml =
+        po.items && po.items.length > 0
+          ? po.items
+              .map(
+                (item) => {
+                  const ir = item.qty_received ?? 0;
+                  const io = item.qty_ordered ?? 0;
+                  const ip = io > 0 ? Math.min((ir / io) * 100, 100) : 0;
+                  return `<tr style="background:#fafafa">
+                  <td style="padding-left:28px;color:#666">${item.item_name ?? '—'}</td>
+                  <td></td><td></td><td></td>
+                  <td class="right">${ir.toLocaleString()} ${item.unit ?? ''}</td>
+                  <td class="right">${io.toLocaleString()} ${item.unit ?? ''}</td>
+                  <td class="right">${Math.round(ip)}%</td>
+                </tr>`;
+                },
+              )
+              .join('')
+          : '';
+
+      return `<tr class="group">
+        <td>${po.po_number ?? `PO-${po.id}`}</td>
+        <td>${po.vendor ?? '—'}</td>
+        <td>${po.dt ? formatDate(po.dt) : '—'}</td>
+        <td>${statusLabel}</td>
+        <td class="right">${formatCurrency(received)}</td>
+        <td class="right">${formatCurrency(total)}</td>
+        <td class="right">${Math.round(pct)}%${barHtml}</td>
+      </tr>${lineItemsHtml}`;
+    })
+    .join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Goods Receipt Report</div>
+      <div class="report-meta">Company: ${companyName} &nbsp;·&nbsp; ${new Date().toLocaleDateString()}</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${orders.length}</div>
+        <div class="label">Total POs</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${completePOs}</div>
+        <div class="label">Complete</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${Math.round(overallPct)}%</div>
+        <div class="label">Overall Received</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalReceived)}</div>
+        <div class="label">Value Received</div>
+      </div>
+    </div>
+
+    <div class="section-label">Receipt Status by Purchase Order</div>
+    <table>
+      <thead>
+        <tr>
+          <th>PO #</th>
+          <th>Vendor</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th class="right">Received</th>
+          <th class="right">Ordered</th>
+          <th class="right">Progress</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${poRows || '<tr><td colspan="7" class="muted">No GRN data found</td></tr>'}
+      </tbody>
+    </table>
+  `;
+
+  const filename = `grn-report-${new Date().toISOString().split('T')[0]}.pdf`;
+  await printAndShare(wrapHtml('Goods Receipt Report', body), filename);
+}

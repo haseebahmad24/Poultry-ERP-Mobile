@@ -14,6 +14,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchPurchaseOrders, PurchaseOrder } from '@/api/purchaseOrders';
+import { exportGRNPDF } from '@/utils/pdfExport';
+import { useCompany } from '@/context/CompanyContext';
 import ErrorView from '@/components/ErrorView';
 import ListScreenSkeleton from '@/components/ListScreenSkeleton';
 import OfflineBanner from '@/components/OfflineBanner';
@@ -27,6 +29,7 @@ type GRNNavProp = NativeStackNavigationProp<MoreStackParamList, 'GRN'>;
 
 export default function GRNScreen() {
   const navigation = useNavigation<GRNNavProp>();
+  const { selectedCompany } = useCompany();
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -67,6 +70,13 @@ export default function GRNScreen() {
     ? Math.min((totalReceived / totalOrdered) * 100, 100)
     : 0;
 
+  const handleExportPDF = async () => {
+    await exportGRNPDF({
+      companyName: selectedCompany?.name ?? 'All Companies',
+      orders,
+    });
+  };
+
   if (error && orders.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (
@@ -77,6 +87,11 @@ export default function GRNScreen() {
         <BackButton />
         <Text style={styles.headerTitle}>Goods Receipt</Text>
         {!loading && <Text style={styles.headerSub}>{orders.length} POs</Text>}
+        {!loading && orders.length > 0 && (
+          <TouchableOpacity style={styles.pdfBtn} onPress={handleExportPDF}>
+            <Feather name="file-text" size={18} color={Colors.text} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <OfflineBanner visible={!!(stale && error)} />
@@ -229,11 +244,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     gap: Spacing.sm,
   },
   headerTitle: { ...Typography.h2 },
-  headerSub: { ...Typography.bodySmall, color: Colors.textMuted },
+  headerSub: { ...Typography.bodySmall, color: Colors.textMuted, flex: 1 },
+  pdfBtn: { padding: 4 },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },
