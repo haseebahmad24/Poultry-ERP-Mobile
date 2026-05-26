@@ -8,8 +8,10 @@ import VendorDetailScreen from '@/screens/finance/VendorDetailScreen';
 import CustomerDetailScreen from '@/screens/finance/CustomerDetailScreen';
 import CashFlowScreen from '@/screens/finance/CashFlowScreen';
 import JournalEntriesScreen from '@/screens/journalEntries/JournalEntriesScreen';
+import JournalEntryDetailScreen from '@/screens/journalEntries/JournalEntryDetailScreen';
 import TrialBalanceScreen from '@/screens/trialBalance/TrialBalanceScreen';
 import FinancialReportsScreen from '@/screens/financialReports/FinancialReportsScreen';
+import type { JournalEntry } from '@/api/journalEntries';
 
 export type FinanceStackParamList = {
   FinanceMenu: undefined;
@@ -18,7 +20,8 @@ export type FinanceStackParamList = {
   VendorDetail: { vendorId: number; vendorName: string; outstanding?: number; overdue?: number };
   CustomerDetail: { customerId: number; customerName: string; outstanding?: number; overdue?: number };
   CashFlow: undefined;
-  JournalEntries: undefined;
+  JournalEntries: { account?: string; accountName?: string } | undefined;
+  JournalEntryDetail: { entry: JournalEntry };
   TrialBalance: undefined;
   FinancialReports: undefined;
 };
@@ -68,6 +71,11 @@ export default function FinanceNavigator() {
       <Stack.Screen
         name="JournalEntries"
         component={JournalEntriesScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="JournalEntryDetail"
+        component={JournalEntryDetailScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen

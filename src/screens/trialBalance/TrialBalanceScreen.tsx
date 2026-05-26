@@ -12,8 +12,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchTrialBalance, TrialBalanceRow, TrialBalanceResult } from '@/api/trialBalance';
+import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
 import { useCompany } from '@/context/CompanyContext';
 import BackButton from '@/components/BackButton';
 import ErrorView from '@/components/ErrorView';
@@ -26,12 +29,15 @@ import { formatCurrency } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import { exportTrialBalancePDF, exportCombinedReportPDF } from '@/utils/pdfExport';
 
+type NavProp = NativeStackNavigationProp<FinanceStackParamList>;
+
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
 export default function TrialBalanceScreen() {
   const { companyId, selectedCompany: ctxCompany } = useCompany();
+  const navigation = useNavigation<NavProp>();
   const [result, setResult] = useState<TrialBalanceResult>({ rows: [] });
   const [asOf, setAsOf] = useState(todayISO());
   const [dateRange, setDateRange] = useState<DateRangeValue>({ from: todayISO(), to: '' });
@@ -238,6 +244,10 @@ export default function TrialBalanceScreen() {
                 key={row.account_id ?? idx}
                 row={row}
                 isLast={idx === filteredRows.length - 1}
+                onPress={!row.is_group ? () => navigation.navigate('JournalEntries', {
+                  account: row.account_code ?? row.account_name,
+                  accountName: row.account_name,
+                }) : undefined}
               />
             ))}
 
@@ -260,11 +270,19 @@ export default function TrialBalanceScreen() {
   );
 }
 
-function TBRow({ row, isLast }: { row: TrialBalanceRow; isLast: boolean }) {
+function TBRow({
+  row,
+  isLast,
+  onPress,
+}: {
+  row: TrialBalanceRow;
+  isLast: boolean;
+  onPress?: () => void;
+}) {
   const isGroup = row.is_group;
   const indent = (row.level ?? 0) * 12;
 
-  return (
+  const content = (
     <View style={[
       styles.tableRow,
       !isLast && styles.tableRowBorder,
@@ -287,8 +305,20 @@ function TBRow({ row, isLast }: { row: TrialBalanceRow; isLast: boolean }) {
       <Text style={[styles.colAmount, !row.credit && styles.colAmountMuted]}>
         {row.credit > 0 ? formatCurrency(row.credit) : '—'}
       </Text>
+      {!isGroup && (
+        <Feather name="chevron-right" size={12} color={Colors.textMuted} style={styles.rowChevron} />
+      )}
     </View>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+        {content}
+      </TouchableOpacity>
+    );
+  }
+  return content;
 }
 
 const styles = StyleSheet.create({
@@ -411,6 +441,7 @@ const styles = StyleSheet.create({
   colAccount: { flex: 2, paddingRight: Spacing.xs },
   colAmount: { flex: 1, fontSize: 12, fontWeight: '500', color: Colors.text, textAlign: 'right' },
   colAmountMuted: { color: Colors.textMuted },
+  rowChevron: { marginLeft: 4 },
 
   accountName: { fontSize: 12, color: Colors.text },
   accountNameGroup: { fontWeight: '700', fontSize: 13 },

@@ -7,6 +7,8 @@ import type { PurchaseOrder, POItem } from '@/api/purchaseOrders';
 import type { SalesOrder, SOItem } from '@/api/salesOrders';
 import type { StockBalance, StockLedgerEntry } from '@/api/inventory';
 import type { Bookmark, BookmarkType } from '@/utils/bookmarks';
+import type { APSummary, APBill, APVendor } from '@/api/accountsPayable';
+import type { ARSummary, ARInvoice, ARCustomer } from '@/api/accountsReceivable';
 import { formatCurrency, formatDate } from '@/utils/currency';
 
 // ─── shared HTML helpers ───────────────────────────────────────────────────
@@ -1525,4 +1527,253 @@ export async function exportGRNPDF(params: {
 
   const filename = `grn-report-${new Date().toISOString().split('T')[0]}.pdf`;
   await printAndShare(wrapHtml('Goods Receipt Report', body), filename);
+}
+
+// ─── Single Journal Entry Detail PDF ─────────────────────────────────────────
+
+export async function exportJournalEntryDetailPDF(entry: JournalEntry, companyName?: string): Promise<void> {
+  const vtype = entry.voucher_type ?? 'JV';
+  const lineRows = (entry.lines ?? []).map((l) => `
+    <tr>
+      <td>${l.account ?? '—'}</td>
+      <td class="right">${(l.debit ?? 0) > 0 ? formatCurrency(l.debit!) : ''}</td>
+      <td class="right">${(l.credit ?? 0) > 0 ? formatCurrency(l.credit!) : ''}</td>
+      ${l.narration ? `<td style="color:#777;font-style:italic">${l.narration}</td>` : '<td></td>'}
+    </tr>`).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">${vtype} ${entry.voucher_no ?? ''}</div>
+      <div class="report-meta">${[companyName, entry.dt, entry.status].filter(Boolean).join(' &nbsp;·&nbsp; ')}</div>
+    </div>
+
+    ${entry.narration ? `<div style="margin-bottom:16px;padding:10px 14px;border:1px solid #e8e8e8;border-radius:6px;color:#444;font-style:italic">${entry.narration}</div>` : ''}
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${formatCurrency(entry.total_debit ?? 0)}</div>
+        <div class="label">Total Debit</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(entry.total_credit ?? 0)}</div>
+        <div class="label">Total Credit</div>
+      </div>
+    </div>
+
+    <div class="section-label">Journal Lines</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Account</th>
+          <th class="right">Debit</th>
+          <th class="right">Credit</th>
+          <th>Line Narration</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${lineRows || '<tr><td colspan="4" class="muted">No line details available</td></tr>'}
+        <tr style="border-top:2px solid #0a0a0a;font-weight:700">
+          <td>TOTAL</td>
+          <td class="right">${formatCurrency(entry.total_debit ?? 0)}</td>
+          <td class="right">${formatCurrency(entry.total_credit ?? 0)}</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  `;
+
+  const filename = `je-${(entry.voucher_no ?? entry.id).toString().replace(/[^a-z0-9]/gi, '-')}.pdf`;
+  await printAndShare(wrapHtml('Journal Entry', body), filename);
+}
+
+// ─── Accounts Payable Summary PDF ────────────────────────────────────────────
+
+export async function exportAPSummaryPDF(params: {
+  summary: APSummary;
+  bills: APBill[];
+  vendors: APVendor[];
+  companyName: string;
+}): Promise<void> {
+  const { summary, bills, vendors, companyName } = params;
+  const aging = summary.aging ?? {};
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const agingRows = [
+    { label: 'Current (0–30 days)', val: aging.current ?? 0 },
+    { label: '31–60 days', val: aging.days_30 ?? 0 },
+    { label: '61–90 days', val: aging.days_60 ?? 0 },
+    { label: '91–120 days', val: aging.days_90 ?? 0 },
+    { label: 'Over 120 days', val: aging.over_90 ?? 0 },
+  ];
+
+  const agingHtml = agingRows.map((r, i) => {
+    const shade = ['#f5f5f5', '#ebebeb', '#d8d8d8', '#c5c5c5', '#a0a0a0'][i];
+    return `<tr><td>${r.label}</td><td class="right" style="background:${shade};font-weight:600">${formatCurrency(r.val)}</td></tr>`;
+  }).join('');
+
+  const billRows = bills.slice(0, 50).map((b) => `
+    <tr>
+      <td>${b.bill_number ?? `#${b.id}`}</td>
+      <td>${b.vendor ?? '—'}</td>
+      <td>${b.dt ?? ''}</td>
+      <td>${b.due_date ?? ''}</td>
+      <td class="right">${formatCurrency(b.amount ?? 0)}</td>
+      <td class="right">${formatCurrency(b.outstanding ?? 0)}</td>
+      <td>${b.status ?? ''}</td>
+    </tr>`).join('');
+
+  const vendorRows = vendors.slice(0, 30).map((v) => `
+    <tr>
+      <td>${v.name ?? '—'}</td>
+      <td class="right">${v.bills_count ?? 0}</td>
+      <td class="right">${formatCurrency(v.outstanding ?? 0)}</td>
+      <td class="right">${formatCurrency(v.overdue ?? 0)}</td>
+    </tr>`).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Accounts Payable Summary</div>
+      <div class="report-meta">${companyName} &nbsp;·&nbsp; As of ${todayStr}</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${formatCurrency(summary.total_outstanding ?? 0)}</div>
+        <div class="label">Total Outstanding</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(summary.total_overdue ?? 0)}</div>
+        <div class="label">Total Overdue</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${summary.vendors_count ?? vendors.length}</div>
+        <div class="label">Vendors</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${summary.bills_count ?? bills.length}</div>
+        <div class="label">Bills</div>
+      </div>
+    </div>
+
+    <div class="section-label">Aging Analysis</div>
+    <table>
+      <thead><tr><th>Period</th><th class="right">Amount</th></tr></thead>
+      <tbody>${agingHtml}</tbody>
+    </table>
+
+    <div class="section-label">Top Vendors</div>
+    <table>
+      <thead>
+        <tr><th>Vendor</th><th class="right">Bills</th><th class="right">Outstanding</th><th class="right">Overdue</th></tr>
+      </thead>
+      <tbody>${vendorRows || '<tr><td colspan="4" class="muted">No vendor data</td></tr>'}</tbody>
+    </table>
+
+    <div class="section-label">Bills (latest ${Math.min(bills.length, 50)})</div>
+    <table>
+      <thead>
+        <tr><th>Bill #</th><th>Vendor</th><th>Date</th><th>Due</th><th class="right">Amount</th><th class="right">Outstanding</th><th>Status</th></tr>
+      </thead>
+      <tbody>${billRows || '<tr><td colspan="7" class="muted">No bills</td></tr>'}</tbody>
+    </table>
+  `;
+
+  const filename = `ap-summary-${todayStr}.pdf`;
+  await printAndShare(wrapHtml('Accounts Payable Summary', body), filename);
+}
+
+// ─── Accounts Receivable Summary PDF ─────────────────────────────────────────
+
+export async function exportARSummaryPDF(params: {
+  summary: ARSummary;
+  invoices: ARInvoice[];
+  customers: ARCustomer[];
+  companyName: string;
+}): Promise<void> {
+  const { summary, invoices, customers, companyName } = params;
+  const aging = summary.aging ?? {};
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const agingRows = [
+    { label: 'Current (0–30 days)', val: aging.current ?? 0 },
+    { label: '31–60 days', val: aging.days_30 ?? 0 },
+    { label: '61–90 days', val: aging.days_60 ?? 0 },
+    { label: '91–120 days', val: aging.days_90 ?? 0 },
+    { label: 'Over 120 days', val: aging.over_90 ?? 0 },
+  ];
+
+  const agingHtml = agingRows.map((r, i) => {
+    const shade = ['#f5f5f5', '#ebebeb', '#d8d8d8', '#c5c5c5', '#a0a0a0'][i];
+    return `<tr><td>${r.label}</td><td class="right" style="background:${shade};font-weight:600">${formatCurrency(r.val)}</td></tr>`;
+  }).join('');
+
+  const invoiceRows = invoices.slice(0, 50).map((inv) => `
+    <tr>
+      <td>${inv.invoice_number ?? `#${inv.id}`}</td>
+      <td>${inv.customer ?? '—'}</td>
+      <td>${inv.dt ?? ''}</td>
+      <td>${inv.due_date ?? ''}</td>
+      <td class="right">${formatCurrency(inv.amount ?? 0)}</td>
+      <td class="right">${formatCurrency(inv.outstanding ?? 0)}</td>
+      <td>${inv.status ?? ''}</td>
+    </tr>`).join('');
+
+  const customerRows = customers.slice(0, 30).map((c) => `
+    <tr>
+      <td>${c.name ?? '—'}</td>
+      <td class="right">${c.invoices_count ?? 0}</td>
+      <td class="right">${formatCurrency(c.outstanding ?? 0)}</td>
+      <td class="right">${formatCurrency(c.overdue ?? 0)}</td>
+    </tr>`).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Accounts Receivable Summary</div>
+      <div class="report-meta">${companyName} &nbsp;·&nbsp; As of ${todayStr}</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${formatCurrency(summary.total_outstanding ?? 0)}</div>
+        <div class="label">Total Outstanding</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(summary.total_overdue ?? 0)}</div>
+        <div class="label">Total Overdue</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${summary.customers_count ?? customers.length}</div>
+        <div class="label">Customers</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${summary.invoices_count ?? invoices.length}</div>
+        <div class="label">Invoices</div>
+      </div>
+    </div>
+
+    <div class="section-label">Aging Analysis</div>
+    <table>
+      <thead><tr><th>Period</th><th class="right">Amount</th></tr></thead>
+      <tbody>${agingHtml}</tbody>
+    </table>
+
+    <div class="section-label">Top Customers</div>
+    <table>
+      <thead>
+        <tr><th>Customer</th><th class="right">Invoices</th><th class="right">Outstanding</th><th class="right">Overdue</th></tr>
+      </thead>
+      <tbody>${customerRows || '<tr><td colspan="4" class="muted">No customer data</td></tr>'}</tbody>
+    </table>
+
+    <div class="section-label">Invoices (latest ${Math.min(invoices.length, 50)})</div>
+    <table>
+      <thead>
+        <tr><th>Invoice #</th><th>Customer</th><th>Date</th><th>Due</th><th class="right">Amount</th><th class="right">Outstanding</th><th>Status</th></tr>
+      </thead>
+      <tbody>${invoiceRows || '<tr><td colspan="7" class="muted">No invoices</td></tr>'}</tbody>
+    </table>
+  `;
+
+  const filename = `ar-summary-${todayStr}.pdf`;
+  await printAndShare(wrapHtml('Accounts Receivable Summary', body), filename);
 }

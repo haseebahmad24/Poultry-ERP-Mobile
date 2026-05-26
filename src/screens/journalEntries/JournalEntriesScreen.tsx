@@ -12,8 +12,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchJournalEntries, JournalEntry } from '@/api/journalEntries';
+import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
 import ErrorView from '@/components/ErrorView';
 import ListScreenSkeleton from '@/components/ListScreenSkeleton';
 import SectionHeader from '@/components/SectionHeader';
@@ -26,27 +29,33 @@ import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import { exportJournalEntriesPDF } from '@/utils/pdfExport';
 
+type RouteType = RouteProp<FinanceStackParamList, 'JournalEntries'>;
+type NavProp = NativeStackNavigationProp<FinanceStackParamList>;
+
 const VOUCHER_TYPES = ['All', 'JV', 'GRN', 'PAY', 'REC', 'INV', 'SO', 'PO', 'DN'];
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export default function JournalEntriesScreen() {
   const { companyId, selectedCompany } = useCompany();
+  const navigation = useNavigation<NavProp>();
+  const route = useRoute<RouteType>();
+  const accountFilter = route.params?.account;
+  const accountFilterName = route.params?.accountName;
+
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('All');
-  const [expanded, setExpanded] = useState<number | null>(null);
   const [dateRange, setDateRange] = useState<DateRangeValue>({ from: '', to: '' });
   const [isStale, setIsStale] = useState(false);
 
   const validFrom = DATE_RE.test(dateRange.from) ? dateRange.from : undefined;
   const validTo = DATE_RE.test(dateRange.to) ? dateRange.to : undefined;
 
-  // Only cache the unfiltered (no date range) view per company+type for simplicity
-  const cacheKey = `journal-entries:${companyId ?? 'all'}:${selectedType}`;
+  const cacheKey = `journal-entries:${companyId ?? 'all'}:${selectedType}:${accountFilter ?? ''}`;
   const useCache = !validFrom && !validTo;
 
   const load = useCallback(async (isRefresh = false) => {
@@ -73,6 +82,7 @@ export default function JournalEntriesScreen() {
         type: selectedType !== 'All' ? selectedType : undefined,
         from: validFrom,
         to: validTo,
+        account: accountFilter,
       });
       setEntries(data);
       setIsStale(false);
@@ -89,7 +99,7 @@ export default function JournalEntriesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedType, companyId, cacheKey, useCache, validFrom, validTo]);
+  }, [selectedType, companyId, cacheKey, useCache, validFrom, validTo, accountFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -134,8 +144,10 @@ export default function JournalEntriesScreen() {
 
       <View style={styles.header}>
         <BackButton />
-        <Text style={styles.headerTitle}>Journal Entries</Text>
-        {!loading && <Text style={styles.headerSub}>{filtered.length} entries</Text>}
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {accountFilterName ? `JEs — ${accountFilterName}` : 'Journal Entries'}
+        </Text>
+        {!loading && <Text style={styles.headerSub}>{filtered.length}</Text>}
         {!loading && filtered.length > 0 && (
           <>
             <TouchableOpacity style={styles.exportBtn} onPress={handleExportPDF}>
@@ -149,6 +161,15 @@ export default function JournalEntriesScreen() {
           </>
         )}
       </View>
+
+      {accountFilterName && (
+        <View style={styles.accountFilterBanner}>
+          <Feather name="filter" size={12} color={Colors.textMuted} />
+          <Text style={styles.accountFilterText}>
+            Account: <Text style={styles.accountFilterName}>{accountFilterName}</Text>
+          </Text>
+        </View>
+      )}
 
       <CompanySelector showAll />
       <OfflineBanner visible={!!(isStale && !refreshing)} />
@@ -197,8 +218,8 @@ export default function JournalEntriesScreen() {
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -220,8 +241,7 @@ export default function JournalEntriesScreen() {
                   <JECard
                     key={entry.id}
                     entry={entry}
-                    isExpanded={expanded === entry.id}
-                    onToggle={() => setExpanded(expanded === entry.id ? null : entry.id)}
+                    onPress={() => navigation.navigate('JournalEntryDetail', { entry })}
                   />
                 ))}
               </View>
@@ -237,20 +257,19 @@ export default function JournalEntriesScreen() {
 
 function JECard({
   entry,
-  isExpanded,
-  onToggle,
+  onPress,
 }: {
   entry: JournalEntry;
-  isExpanded: boolean;
-  onToggle: () => void;
+  onPress: () => void;
 }) {
   const vtype = entry.voucher_type ?? 'JV';
   const statusKey = (entry.status ?? '').toUpperCase();
   const isDraft = statusKey === 'DRAFT';
   const isVoid = statusKey === 'VOID';
+  const hasLines = (entry.lines?.length ?? 0) > 0;
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onToggle} activeOpacity={0.8}>
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.cardHeader}>
         <View style={styles.voucherBadge}>
           <Text style={styles.voucherBadgeText}>{vtype}</Text>
@@ -258,7 +277,7 @@ function JECard({
         <View style={styles.cardInfo}>
           <Text style={styles.voucherNo}>{entry.voucher_no ?? `#${entry.id}`}</Text>
           {entry.narration && (
-            <Text style={styles.narration} numberOfLines={isExpanded ? undefined : 1}>
+            <Text style={styles.narration} numberOfLines={1}>
               {entry.narration}
             </Text>
           )}
@@ -284,30 +303,13 @@ function JECard({
           <Text style={styles.amtLabel}>Credit</Text>
           <Text style={styles.amtValue}>{formatCurrency(entry.total_credit ?? 0)}</Text>
         </View>
-        <Feather
-          name={isExpanded ? 'chevron-up' : 'chevron-down'}
-          size={14}
-          color={Colors.textMuted}
-          style={styles.expandHint}
-        />
-      </View>
-
-      {isExpanded && entry.lines && entry.lines.length > 0 && (
-        <View style={styles.linesContainer}>
-          <Text style={styles.linesTitle}>Journal Lines</Text>
-          {entry.lines.map((line, idx) => (
-            <View key={line.id ?? idx} style={styles.lineRow}>
-              <Text style={styles.lineAccount} numberOfLines={1}>{line.account ?? '—'}</Text>
-              <Text style={styles.lineDebit}>
-                {(line.debit ?? 0) > 0 ? formatCurrency(line.debit!) : ''}
-              </Text>
-              <Text style={styles.lineCredit}>
-                {(line.credit ?? 0) > 0 ? formatCurrency(line.credit!) : ''}
-              </Text>
-            </View>
-          ))}
+        <View style={styles.cardFooter}>
+          {hasLines && (
+            <Text style={styles.linesHint}>{entry.lines!.length} lines</Text>
+          )}
+          <Feather name="chevron-right" size={14} color={Colors.textMuted} />
         </View>
-      )}
+      </View>
     </TouchableOpacity>
   );
 }
@@ -325,8 +327,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  headerTitle: { ...Typography.h2 },
-  headerSub: { ...Typography.bodySmall, color: Colors.textMuted, flex: 1 },
+  headerTitle: { ...Typography.h2, flex: 1 },
+  headerSub: { ...Typography.bodySmall, color: Colors.textMuted },
 
   exportBtn: {
     flexDirection: 'row',
@@ -339,6 +341,19 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   exportBtnText: { fontSize: 11, fontWeight: '500', color: Colors.textSecondary },
+
+  accountFilterBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    backgroundColor: Colors.surfaceHover,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  accountFilterText: { fontSize: 12, color: Colors.textSecondary },
+  accountFilterName: { fontWeight: '600', color: Colors.text },
 
   searchContainer: {
     flexDirection: 'row',
@@ -421,19 +436,8 @@ const styles = StyleSheet.create({
   amountRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
   amtLabel: { ...Typography.label },
   amtValue: { fontSize: 14, fontWeight: '700', color: Colors.text },
-  expandHint: { marginLeft: 'auto' },
-
-  linesContainer: {
-    backgroundColor: Colors.background,
-    borderRadius: Radius.sm,
-    padding: Spacing.sm,
-    gap: Spacing.xs,
-  },
-  linesTitle: { ...Typography.label, marginBottom: 4 },
-  lineRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  lineAccount: { flex: 1, fontSize: 12, color: Colors.text },
-  lineDebit: { fontSize: 12, fontWeight: '600', minWidth: 80, textAlign: 'right', color: Colors.text },
-  lineCredit: { fontSize: 12, fontWeight: '600', minWidth: 80, textAlign: 'right', color: Colors.text },
+  cardFooter: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  linesHint: { fontSize: 11, color: Colors.textMuted },
 
   emptyState: {
     marginHorizontal: Spacing.md,
@@ -446,5 +450,4 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   emptyText: { ...Typography.body, color: Colors.textMuted },
-
 });

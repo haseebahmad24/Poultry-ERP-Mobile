@@ -34,6 +34,7 @@ import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import OfflineBanner from '@/components/OfflineBanner';
 import { useOverdue } from '@/context/OverdueContext';
+import { exportAPSummaryPDF } from '@/utils/pdfExport';
 
 type APNavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
@@ -54,7 +55,7 @@ function daysOverdue(dueDate: string | undefined, status: string | undefined): n
 }
 
 export default function AccountsPayableScreen() {
-  const { companyId } = useCompany();
+  const { companyId, selectedCompany } = useCompany();
   const { setAPOverdue } = useOverdue();
   const navigation = useNavigation<APNavProp>();
   const [activeTab, setActiveTab] = useState<Tab>('summary');
@@ -152,6 +153,15 @@ export default function AccountsPayableScreen() {
     { label: 'Over 90 days', shortLabel: '90d+',     amount: aging.over_90  ?? 0, fill: AGING_FILLS[4] },
   ];
 
+  const handleExportPDF = async () => {
+    await exportAPSummaryPDF({
+      summary,
+      bills,
+      vendors,
+      companyName: selectedCompany?.name ?? 'All Companies',
+    });
+  };
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
@@ -159,6 +169,12 @@ export default function AccountsPayableScreen() {
       <View style={styles.header}>
         <BackButton />
         <Text style={styles.headerTitle}>Accounts Payable</Text>
+        {!loading && bills.length > 0 && (
+          <TouchableOpacity style={styles.exportBtn} onPress={handleExportPDF}>
+            <Feather name="file-text" size={13} color={Colors.text} />
+            <Text style={styles.exportBtnText}>PDF</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <CompanySelector />
@@ -434,6 +450,17 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   headerTitle: { ...Typography.h2, flex: 1 },
+  exportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  exportBtnText: { fontSize: 11, fontWeight: '500', color: Colors.textSecondary },
 
   tabBar: {
     flexDirection: 'row',
