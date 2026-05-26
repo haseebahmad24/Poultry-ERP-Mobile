@@ -118,7 +118,7 @@ const ADMIN_ITEMS: {
     screen: 'Bookmarks',
   },
   {
-    icon: 'layers',
+    icon: 'bar-chart',
     label: 'Company Comparison',
     subtitle: 'Side-by-side KPI ranking across all companies',
     screen: 'Comparison',
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.surfaceHover,
   },
   menuInfo: { flex: 1 },
   menuLabel: { ...Typography.h4 },

@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.surfaceHover,
   },
   menuInfo: { flex: 1 },
   menuLabel: { ...Typography.h4 },
