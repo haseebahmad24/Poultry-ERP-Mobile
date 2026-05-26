@@ -3,18 +3,17 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Feather } from '@expo/vector-icons';
 import { fetchPODetail, PODetail, POLine } from '@/api/purchaseOrders';
 import ErrorView from '@/components/ErrorView';
 import DetailSkeleton from '@/components/DetailSkeleton';
 import OfflineBanner from '@/components/OfflineBanner';
+import BackButton from '@/components/BackButton';
 import { getCached, setCached } from '@/utils/cache';
-import { Colors, Radius, Spacing } from '@/theme';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { formatCurrency, formatDate } from '@/utils/currency';
 
 const MUTED_STATUSES = new Set(['closed', 'cancelled']);
@@ -67,16 +66,13 @@ export default function PODetailScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Feather name="chevron-left" size={24} color="#fff" />
-        </TouchableOpacity>
+        <BackButton />
         <Text style={styles.headerTitle} numberOfLines={1}>
           {po.po_number ?? `PO #${po.id}`}
         </Text>
-        <View style={{ width: 40 }} />
       </View>
 
       <OfflineBanner visible={!!(stale && error)} />
@@ -213,14 +209,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.text,
+    backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.xs,
-    paddingBottom: Spacing.md,
+    paddingVertical: Spacing.sm + 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    gap: Spacing.sm,
   },
-  backBtn: { width: 40, height: 40, justifyContent: 'center' },
-  headerTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: '#fff', textAlign: 'center' },
+  headerTitle: { flex: 1, ...Typography.h2 },
 
   scroll: { flex: 1 },
   scrollContent: { padding: Spacing.md, gap: 12 },
