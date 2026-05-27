@@ -2009,3 +2009,128 @@ export async function exportWarehousesPDF(params: {
   const filename = `warehouses-${todayStr}.pdf`;
   await printAndShare(wrapHtml('Warehouse List', body), filename);
 }
+
+// ─── Company KPI Comparison PDF ─────────────────────────────────────────────
+
+interface ComparisonSnapshot {
+  company: { id: string; name: string; code: string | null };
+  kpis: {
+    revenue: number;
+    expenses: number;
+    cash: number;
+    vouchersMonth: number;
+    vouchersToday: number;
+    totalAR: number;
+    totalAP: number;
+  };
+  loading: boolean;
+  error: boolean;
+}
+
+interface ComparisonMetric {
+  key: keyof ComparisonSnapshot['kpis'];
+  label: string;
+  higherIsBetter?: boolean;
+}
+
+const COMPARISON_METRICS: ComparisonMetric[] = [
+  { key: 'revenue', label: 'Revenue (MTD)', higherIsBetter: true },
+  { key: 'expenses', label: 'Expenses (MTD)', higherIsBetter: false },
+  { key: 'cash', label: 'Cash Balance', higherIsBetter: true },
+  { key: 'totalAR', label: 'Accounts Receivable', higherIsBetter: true },
+  { key: 'totalAP', label: 'Accounts Payable', higherIsBetter: false },
+  { key: 'vouchersMonth', label: 'Vouchers (MTD)', higherIsBetter: true },
+];
+
+function renderMetricSection(
+  label: string,
+  values: { name: string; value: number }[],
+  higherIsBetter: boolean,
+  isVouchers = false,
+): string {
+  if (values.length === 0) return '';
+  const maxAbs = Math.max(...values.map((v) => Math.abs(v.value)), 1);
+  const sorted = [...values].sort((a, b) =>
+    higherIsBetter ? b.value - a.value : a.value - b.value,
+  );
+  const rows = sorted
+    .map((item, idx) => {
+      const pct = Math.max(2, (Math.abs(item.value) / maxAbs) * 100);
+      const isTop = idx === 0;
+      const isNeg = item.value < 0;
+      const barColor = isNeg ? '#9ca3af' : isTop ? '#0a0a0a' : '#d1d5db';
+      const val = isVouchers ? item.value.toLocaleString() : formatCurrency(item.value);
+      return `<tr>
+        <td style="width:24px;font-weight:700;color:#9ca3af;text-align:center">${idx + 1}</td>
+        <td>
+          <div style="font-weight:${isTop ? '700' : '500'};margin-bottom:4px">${item.name}</div>
+          <div style="height:4px;background:#e5e7eb;border-radius:9px;overflow:hidden">
+            <div style="width:${pct}%;height:100%;background:${barColor};border-radius:9px"></div>
+          </div>
+        </td>
+        <td class="right" style="font-weight:${isTop ? '700' : '400'};white-space:nowrap">${val}</td>
+      </tr>`;
+    })
+    .join('');
+  return `
+    <div class="section-label">${label}</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:24px">#</th>
+          <th>Company</th>
+          <th class="right">Value</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+export async function exportComparisonPDF(snapshots: ComparisonSnapshot[]): Promise<void> {
+  const loaded = snapshots.filter((s) => !s.loading && !s.error);
+  if (loaded.length === 0) return;
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const failed = snapshots.filter((s) => s.error).length;
+
+  const netIncomeValues = loaded.map((s) => ({
+    name: s.company.name,
+    value: s.kpis.revenue - s.kpis.expenses,
+  }));
+  const workingCapitalValues = loaded.map((s) => ({
+    name: s.company.name,
+    value: s.kpis.totalAR - s.kpis.totalAP,
+  }));
+
+  const metricSections = COMPARISON_METRICS.map((m) => {
+    const values = loaded.map((s) => ({ name: s.company.name, value: s.kpis[m.key] as number }));
+    return renderMetricSection(m.label, values, m.higherIsBetter ?? true, m.key === 'vouchersMonth');
+  }).join('');
+
+  const summaryTiles = `
+    <div class="summary-grid" style="grid-template-columns:repeat(${failed > 0 ? 3 : 2},1fr)">
+      <div class="summary-block">
+        <div class="value">${snapshots.length}</div>
+        <div class="label">Companies</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${loaded.length}</div>
+        <div class="label">Loaded</div>
+      </div>
+      ${failed > 0 ? `<div class="summary-block"><div class="value">${failed}</div><div class="label">Failed</div></div>` : ''}
+    </div>`;
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Company KPI Comparison</div>
+      <div class="report-meta">As of ${todayStr}</div>
+    </div>
+    ${summaryTiles}
+    ${renderMetricSection('Net Income (MTD)', netIncomeValues, true)}
+    ${metricSections}
+    ${renderMetricSection('Working Capital (AR − AP)', workingCapitalValues, true)}
+  `;
+
+  const filename = `company-comparison-${todayStr}.pdf`;
+  await printAndShare(wrapHtml('Company KPI Comparison', body), filename);
+}

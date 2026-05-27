@@ -16,6 +16,7 @@ import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { useCompany } from '@/context/CompanyContext';
 import { fetchDashboardData, type Company, type KPIs } from '@/api/dashboard';
 import { formatCurrency } from '@/utils/currency';
+import { exportComparisonPDF } from '@/utils/pdfExport';
 
 interface CompanySnapshot {
   company: Company;
@@ -250,6 +251,7 @@ export default function ComparisonScreen() {
   const { companies } = useCompany();
   const [snapshots, setSnapshots] = useState<CompanySnapshot[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const initSnapshots = useCallback((force = false) => {
     const initial: CompanySnapshot[] = companies.map((c) => ({
@@ -337,6 +339,16 @@ export default function ComparisonScreen() {
   }, [companies, snapshots]);
 
   const allLoading = snapshots.length > 0 && snapshots.every((s) => s.loading);
+  const hasLoaded = snapshots.some((s) => !s.loading && !s.error);
+
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      await exportComparisonPDF(snapshots);
+    } finally {
+      setExporting(false);
+    }
+  }, [snapshots]);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -356,6 +368,19 @@ export default function ComparisonScreen() {
         </View>
         {allLoading && (
           <ActivityIndicator size="small" color={Colors.textMuted} />
+        )}
+        {!allLoading && hasLoaded && (
+          exporting ? (
+            <ActivityIndicator size="small" color={Colors.textMuted} />
+          ) : (
+            <TouchableOpacity
+              onPress={handleExport}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.exportBtn}
+            >
+              <Feather name="file-text" size={18} color={Colors.text} />
+            </TouchableOpacity>
+          )
         )}
       </View>
 
@@ -427,6 +452,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   backBtn: { padding: 2 },
+  exportBtn: { padding: 2 },
   headerText: { flex: 1 },
   headerTitle: { ...Typography.h3 },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted },
