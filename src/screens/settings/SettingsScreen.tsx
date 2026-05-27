@@ -15,6 +15,7 @@ import { Feather } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
+import { useCompany } from '@/context/CompanyContext';
 import {
   getLowStockThreshold,
   setLowStockThreshold,
@@ -69,6 +70,7 @@ const TIMEOUT_OPTIONS: { label: string; value: number }[] = [
 ];
 
 export default function SettingsScreen() {
+  const { companies, selectedCompany, setSelectedCompany } = useCompany();
   const [threshold, setThreshold] = useState('100');
   const [thresholdSaved, setThresholdSaved] = useState(false);
   const [cacheCleared, setCacheCleared] = useState(false);
@@ -201,6 +203,55 @@ export default function SettingsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Default Company */}
+        {companies.length > 0 && (
+          <>
+            <Text style={styles.sectionLabel}>DEFAULT COMPANY</Text>
+            <View style={styles.card}>
+              <View style={[styles.settingRow, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight }]}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>Active company</Text>
+                  <Text style={styles.settingDesc}>
+                    The selected company is used as the default filter across all screens and is restored on next launch.
+                  </Text>
+                </View>
+              </View>
+              {companies.map((company, idx) => {
+                const isSelected = selectedCompany?.id === company.id;
+                const isLast = idx === companies.length - 1;
+                return (
+                  <TouchableOpacity
+                    key={company.id}
+                    style={[
+                      styles.companyRow,
+                      !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight },
+                    ]}
+                    onPress={() => setSelectedCompany(company)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.companyRowLeft}>
+                      <View style={styles.companyIconWrap}>
+                        <Feather name="briefcase" size={14} color={Colors.text} />
+                      </View>
+                      <View>
+                        <Text style={[styles.companyName, isSelected && styles.companyNameActive]}>
+                          {company.name}
+                        </Text>
+                        {company.code ? (
+                          <Text style={styles.companyCode}>{company.code}</Text>
+                        ) : null}
+                      </View>
+                    </View>
+                    {isSelected && (
+                      <Feather name="check" size={16} color={Colors.text} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
+        )}
+
         {/* Inventory */}
         <Text style={styles.sectionLabel}>INVENTORY</Text>
         <View style={styles.card}>
@@ -562,4 +613,31 @@ const styles = StyleSheet.create({
   actionInfo: { flex: 1 },
   actionTitle: { ...Typography.h4 },
   actionDesc: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
+
+  companyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 12,
+  },
+  companyRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    flex: 1,
+  },
+  companyIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surfaceHover,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  companyName: { fontSize: 14, fontWeight: '500', color: Colors.textSecondary },
+  companyNameActive: { fontWeight: '700', color: Colors.text },
+  companyCode: { fontSize: 11, color: Colors.textMuted, marginTop: 1 },
 });
