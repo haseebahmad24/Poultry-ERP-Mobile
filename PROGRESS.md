@@ -38,8 +38,17 @@
 - `exportPartnersListPDF()`: dynamic summary grid (Total/Vendors/Customers/Both), full table with Name/Code/Role/Email/Phone/Address (truncated 40 chars)
 - PDF button in PartnersScreen header; respects role filter (Customers/Vendors) + search filter
 
+**PO List PDF Export** (`src/utils/pdfExport.ts` `exportPOListPDF`, `src/screens/purchaseOrders/PurchaseOrdersScreen.tsx`)
+- `exportPOListPDF()`: 3-tile summary (Total Orders / Total Value / Statuses), By Status grid, full orders table (PO# / Vendor / Order Date / Delivery Date / Status / Total)
+- Alternating row background; filename includes active tab label (All / Open / In Progress)
+- PDF button added to PurchaseOrdersScreen header; respects search filter
+
+**SO List PDF Export** (`src/utils/pdfExport.ts` `exportSOListPDF`, `src/screens/salesOrders/SalesOrdersScreen.tsx`)
+- Same structure: summary tiles + By Status grid + full table (SO# / Customer / dates / Status / Total)
+- Filename includes active tab (All / Open / Approved / Closed)
+- PDF button added to SalesOrdersScreen header; respects search filter
+
 ### Next Session
-- Consider: PO list PDF export and SO list PDF export
 - Consider: Companies list PDF export
 - Consider: Date format setting (DD/MM/YYYY vs MM/DD/YYYY) with cached preference
 - Consider: Dashboard charts — revenue trend sparkline or month-over-month comparison
@@ -988,6 +997,8 @@ Sessions 1–22 are complete. All roadmap screens + polish + key enhancements ar
 | PDF export — Company KPI Comparison (8 metric sections, ranked tables) | ✅ Done |
 | PDF export — Materials List (type breakdown grid + full table) | ✅ Done |
 | PDF export — Partners List (role summary + full table) | ✅ Done |
+| PDF export — PO List (status breakdown + full orders table, tab-labeled) | ✅ Done |
+| PDF export — SO List (status breakdown + full orders table, tab-labeled) | ✅ Done |
 | Settings: Default company picker (explicit company selection in Settings) | ✅ Done |
 | InboxScreen pull-to-refresh (RefreshControl on FlatList + ScrollView empty state) | ✅ Done |
 | Recent search history in SearchScreen (AsyncStorage, max 8, per-item delete) | ✅ Done |
