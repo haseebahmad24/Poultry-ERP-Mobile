@@ -33,7 +33,7 @@ import { formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import OfflineBanner from '@/components/OfflineBanner';
 import { getLowStockThreshold } from '@/utils/settings';
-import { exportStockBalancePDF } from '@/utils/pdfExport';
+import { exportStockBalancePDF, exportWarehousesPDF } from '@/utils/pdfExport';
 import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 
 type Tab = 'stock' | 'ledger' | 'warehouses';
@@ -160,6 +160,11 @@ export default function InventoryScreen() {
     });
   };
 
+  const handleWarehouseExportPDF = async () => {
+    const companyName = selectedCompany?.name ?? 'All Companies';
+    await exportWarehousesPDF({ warehouses: filteredWarehouses, companyName });
+  };
+
   if (error && stockData.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (
@@ -171,6 +176,12 @@ export default function InventoryScreen() {
         {!loading && <Text style={styles.headerSub}>{tabMeta[activeTab]}</Text>}
         {!loading && activeTab === 'stock' && filteredStock.length > 0 && (
           <TouchableOpacity style={styles.exportBtn} onPress={handleExportPDF}>
+            <Feather name="file-text" size={13} color={Colors.text} />
+            <Text style={styles.exportBtnText}>PDF</Text>
+          </TouchableOpacity>
+        )}
+        {!loading && activeTab === 'warehouses' && filteredWarehouses.length > 0 && (
+          <TouchableOpacity style={styles.exportBtn} onPress={handleWarehouseExportPDF}>
             <Feather name="file-text" size={13} color={Colors.text} />
             <Text style={styles.exportBtnText}>PDF</Text>
           </TouchableOpacity>

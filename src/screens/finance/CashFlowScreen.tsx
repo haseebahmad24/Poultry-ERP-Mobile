@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +17,7 @@ import { fetchARInvoices, ARInvoice } from '@/api/accountsReceivable';
 import { useCompany } from '@/context/CompanyContext';
 import { getCached, setCached } from '@/utils/cache';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
+import { exportCashFlowPDF } from '@/utils/pdfExport';
 import CompanySelector from '@/components/CompanySelector';
 import SectionHeader from '@/components/SectionHeader';
 import BackButton from '@/components/BackButton';
@@ -68,13 +71,14 @@ interface PeriodData {
 }
 
 export default function CashFlowScreen() {
-  const { companyId } = useCompany();
+  const { companyId, selectedCompany } = useCompany();
   const [bills, setBills] = useState<APBill[]>([]);
   const [invoices, setInvoices] = useState<ARInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const cacheKey = `cash-flow:${companyId ?? 'all'}`;
 
@@ -115,6 +119,19 @@ export default function CashFlowScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const handleExportPDF = async () => {
+    setExporting(true);
+    try {
+      await exportCashFlowPDF({
+        bills,
+        invoices,
+        companyName: selectedCompany?.name ?? 'All Companies',
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const outstandingBills = bills.filter(
     (b) =>
@@ -172,6 +189,16 @@ export default function CashFlowScreen() {
           <Text style={styles.headerTitle}>Cash Flow</Text>
           <Text style={styles.headerSub}>Upcoming payments & collections</Text>
         </View>
+        {!loading && (bills.length > 0 || invoices.length > 0) && (
+          exporting ? (
+            <ActivityIndicator size="small" color={Colors.textMuted} />
+          ) : (
+            <TouchableOpacity style={styles.exportBtn} onPress={handleExportPDF}>
+              <Feather name="file-text" size={13} color={Colors.text} />
+              <Text style={styles.exportBtnText}>PDF</Text>
+            </TouchableOpacity>
+          )
+        )}
       </View>
 
       <CompanySelector />
@@ -348,6 +375,19 @@ const styles = StyleSheet.create({
   headerText: { flex: 1 },
   headerTitle: { ...Typography.h3, color: Colors.text },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
+
+  exportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 5,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  exportBtnText: { fontSize: 11, fontWeight: '600', color: Colors.text },
 
   scroll: { flex: 1 },
   scrollContent: { padding: Spacing.md, gap: Spacing.md },

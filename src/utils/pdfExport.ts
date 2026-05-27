@@ -5,7 +5,7 @@ import type { TrialBalanceRow } from '@/api/trialBalance';
 import type { JournalEntry } from '@/api/journalEntries';
 import type { PurchaseOrder, POItem } from '@/api/purchaseOrders';
 import type { SalesOrder, SOItem } from '@/api/salesOrders';
-import type { StockBalance, StockLedgerEntry } from '@/api/inventory';
+import type { StockBalance, StockLedgerEntry, Warehouse } from '@/api/inventory';
 import type { Bookmark, BookmarkType } from '@/utils/bookmarks';
 import type { APSummary, APBill, APVendor } from '@/api/accountsPayable';
 import type { ARSummary, ARInvoice, ARCustomer } from '@/api/accountsReceivable';
@@ -1776,4 +1776,236 @@ export async function exportARSummaryPDF(params: {
 
   const filename = `ar-summary-${todayStr}.pdf`;
   await printAndShare(wrapHtml('Accounts Receivable Summary', body), filename);
+}
+
+// ─── Cash Flow PDF ────────────────────────────────────────────────────────────
+
+type CashFlowPeriod = 'overdue' | 'this_week' | 'next_week' | 'week_3' | 'week_4' | 'later' | 'undated';
+
+const CASHFLOW_PERIOD_LABELS: Record<CashFlowPeriod, string> = {
+  overdue: 'Overdue',
+  this_week: 'Due This Week',
+  next_week: 'Due Next Week',
+  week_3: 'Due in 2–3 Weeks',
+  week_4: 'Due in 3–4 Weeks',
+  later: 'Due in 30+ Days',
+  undated: 'No Due Date',
+};
+
+const CASHFLOW_PERIOD_ORDER: CashFlowPeriod[] = [
+  'overdue', 'this_week', 'next_week', 'week_3', 'week_4', 'later', 'undated',
+];
+
+function getCashFlowPeriod(dueDateStr?: string): CashFlowPeriod {
+  if (!dueDateStr) return 'undated';
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDateStr); due.setHours(0, 0, 0, 0);
+  if (due < today) return 'overdue';
+  const diff = Math.floor((due.getTime() - today.getTime()) / 86400000);
+  if (diff <= 7) return 'this_week';
+  if (diff <= 14) return 'next_week';
+  if (diff <= 21) return 'week_3';
+  if (diff <= 28) return 'week_4';
+  return 'later';
+}
+
+export async function exportCashFlowPDF(params: {
+  bills: APBill[];
+  invoices: ARInvoice[];
+  companyName: string;
+}): Promise<void> {
+  const { bills, invoices, companyName } = params;
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const outstandingBills = bills.filter(
+    (b) => (b.outstanding ?? 0) > 0 && b.status?.toLowerCase() !== 'paid' && b.status?.toLowerCase() !== 'cancelled',
+  );
+  const outstandingInvoices = invoices.filter(
+    (i) => (i.outstanding ?? 0) > 0 && i.status?.toLowerCase() !== 'paid' && i.status?.toLowerCase() !== 'cancelled',
+  );
+
+  const totalOut = outstandingBills.reduce((s, b) => s + (b.outstanding ?? 0), 0);
+  const totalIn = outstandingInvoices.reduce((s, i) => s + (i.outstanding ?? 0), 0);
+  const netPosition = totalIn - totalOut;
+
+  type PeriodBucket = { bills: APBill[]; invoices: ARInvoice[]; totalOut: number; totalIn: number; net: number };
+  const periodMap = Object.fromEntries(
+    CASHFLOW_PERIOD_ORDER.map((p) => [p, { bills: [] as APBill[], invoices: [] as ARInvoice[], totalOut: 0, totalIn: 0, net: 0 }]),
+  ) as Record<CashFlowPeriod, PeriodBucket>;
+
+  for (const bill of outstandingBills) {
+    const p = getCashFlowPeriod(bill.due_date);
+    periodMap[p].bills.push(bill);
+    periodMap[p].totalOut += bill.outstanding ?? 0;
+  }
+  for (const inv of outstandingInvoices) {
+    const p = getCashFlowPeriod(inv.due_date);
+    periodMap[p].invoices.push(inv);
+    periodMap[p].totalIn += inv.outstanding ?? 0;
+  }
+  for (const p of CASHFLOW_PERIOD_ORDER) {
+    periodMap[p].net = periodMap[p].totalIn - periodMap[p].totalOut;
+  }
+
+  const activePeriods = CASHFLOW_PERIOD_ORDER.filter(
+    (p) => periodMap[p].bills.length > 0 || periodMap[p].invoices.length > 0,
+  );
+
+  const netSign = netPosition >= 0 ? '+' : '';
+  const netColor = netPosition >= 0 ? '#166534' : '#991b1b';
+
+  const periodsHtml = activePeriods.map((period) => {
+    const data = periodMap[period];
+    const label = CASHFLOW_PERIOD_LABELS[period];
+    const isOverdue = period === 'overdue';
+    const sectionBg = isOverdue ? '#fff1f2' : '#f9fafb';
+
+    const billsHtml = data.bills.length > 0 ? `
+      <div style="margin-bottom:6px">
+        <div style="font-size:9px;font-weight:700;color:#6b7280;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:3px">TO PAY · ${data.bills.length} bill${data.bills.length !== 1 ? 's' : ''}</div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:#f3f4f6">
+            <th style="text-align:left;padding:4px 6px;font-size:10px">Ref</th>
+            <th style="text-align:left;padding:4px 6px;font-size:10px">Vendor</th>
+            <th style="text-align:right;padding:4px 6px;font-size:10px">Amount</th>
+            <th style="text-align:right;padding:4px 6px;font-size:10px">Due</th>
+          </tr></thead>
+          <tbody>${data.bills.map((b) => `<tr style="border-bottom:1px solid #f3f4f6">
+            <td style="padding:3px 6px;font-size:10px">${b.bill_number ?? `#${b.id}`}</td>
+            <td style="padding:3px 6px;font-size:10px">${b.vendor ?? '—'}</td>
+            <td style="padding:3px 6px;font-size:10px;text-align:right;font-weight:600">${formatCurrency(b.outstanding ?? 0)}</td>
+            <td style="padding:3px 6px;font-size:10px;text-align:right;color:${isOverdue ? '#dc2626' : '#374151'}">${b.due_date ?? ''}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>` : '';
+
+    const invoicesHtml = data.invoices.length > 0 ? `
+      <div style="margin-bottom:6px">
+        <div style="font-size:9px;font-weight:700;color:#6b7280;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:3px">TO COLLECT · ${data.invoices.length} invoice${data.invoices.length !== 1 ? 's' : ''}</div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:#f3f4f6">
+            <th style="text-align:left;padding:4px 6px;font-size:10px">Ref</th>
+            <th style="text-align:left;padding:4px 6px;font-size:10px">Customer</th>
+            <th style="text-align:right;padding:4px 6px;font-size:10px">Amount</th>
+            <th style="text-align:right;padding:4px 6px;font-size:10px">Due</th>
+          </tr></thead>
+          <tbody>${data.invoices.map((inv) => `<tr style="border-bottom:1px solid #f3f4f6">
+            <td style="padding:3px 6px;font-size:10px">${inv.invoice_number ?? `#${inv.id}`}</td>
+            <td style="padding:3px 6px;font-size:10px">${inv.customer ?? '—'}</td>
+            <td style="padding:3px 6px;font-size:10px;text-align:right;font-weight:600">${formatCurrency(inv.outstanding ?? 0)}</td>
+            <td style="padding:3px 6px;font-size:10px;text-align:right;color:${isOverdue ? '#dc2626' : '#374151'}">${inv.due_date ?? ''}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>` : '';
+
+    const periodNetSign = data.net >= 0 ? '+' : '';
+    const periodNetColor = data.net >= 0 ? '#166534' : '#991b1b';
+
+    return `
+      <div style="margin-bottom:16px;padding:12px;background:${sectionBg};border-radius:6px;border:1px solid ${isOverdue ? '#fca5a5' : '#e5e7eb'}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-size:12px;font-weight:700;color:${isOverdue ? '#dc2626' : '#111'}">${label}</div>
+          <div style="font-size:10px;color:#6b7280">In ${formatCurrency(data.totalIn)} &nbsp;·&nbsp; Out ${formatCurrency(data.totalOut)}</div>
+        </div>
+        ${billsHtml}${invoicesHtml}
+        <div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid #d1d5db;margin-top:4px">
+          <span style="font-size:10px;font-weight:600;color:#6b7280">Period Net</span>
+          <span style="font-size:11px;font-weight:700;color:${periodNetColor}">${periodNetSign}${formatCurrency(data.net)}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Cash Flow Report</div>
+      <div class="report-meta">${companyName} &nbsp;·&nbsp; Generated ${todayStr}</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalOut)}</div>
+        <div class="label">Total Payable (${outstandingBills.length} bills)</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalIn)}</div>
+        <div class="label">Total Receivable (${outstandingInvoices.length} invoices)</div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border:2px solid #0a0a0a;border-radius:6px;margin:0 0 20px">
+      <div>
+        <div style="font-size:12px;font-weight:700">Net Cash Position</div>
+        <div style="font-size:10px;color:#888;margin-top:2px">${netPosition >= 0 ? 'Collections exceed payments outstanding' : 'Payments exceed collections outstanding'}</div>
+      </div>
+      <div style="font-size:18px;font-weight:800;color:${netColor}">${netSign}${formatCurrency(netPosition)}</div>
+    </div>
+
+    <div class="section-label">Period Breakdown</div>
+    ${activePeriods.length > 0 ? periodsHtml : '<p style="color:#888;font-size:11px">No outstanding bills or invoices.</p>'}
+  `;
+
+  const filename = `cash-flow-${todayStr}.pdf`;
+  await printAndShare(wrapHtml('Cash Flow Report', body), filename);
+}
+
+// ─── Warehouse List PDF ───────────────────────────────────────────────────────
+
+export async function exportWarehousesPDF(params: {
+  warehouses: Warehouse[];
+  companyName: string;
+}): Promise<void> {
+  const { warehouses, companyName } = params;
+  const todayStr = new Date().toISOString().split('T')[0];
+  const activeCount = warehouses.filter((w) => w.is_active !== false).length;
+
+  const warehouseRows = warehouses.map((wh) => {
+    const isActive = wh.is_active !== false;
+    const statusBg = isActive ? '#dcfce7' : '#f3f4f6';
+    const statusColor = isActive ? '#166534' : '#6b7280';
+    return `<tr>
+      <td>${wh.code ?? '—'}</td>
+      <td style="font-weight:600">${wh.name}</td>
+      <td>${wh.type ?? '—'}</td>
+      <td>${wh.address ?? '—'}</td>
+      <td><span style="background:${statusBg};color:${statusColor};padding:2px 6px;border-radius:9px;font-size:9px;font-weight:600">${isActive ? 'Active' : 'Inactive'}</span></td>
+      <td class="right">${wh.total_items != null ? wh.total_items.toLocaleString() : '—'}</td>
+      <td class="right">${wh.total_qty != null ? wh.total_qty.toLocaleString() : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Warehouse List</div>
+      <div class="report-meta">${companyName} &nbsp;·&nbsp; As of ${todayStr}</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${warehouses.length}</div>
+        <div class="label">Total Warehouses</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${activeCount}</div>
+        <div class="label">Active</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Address</th>
+          <th>Status</th>
+          <th class="right">Items</th>
+          <th class="right">Total Qty</th>
+        </tr>
+      </thead>
+      <tbody>${warehouseRows || '<tr><td colspan="7" class="muted">No warehouses</td></tr>'}</tbody>
+    </table>
+  `;
+
+  const filename = `warehouses-${todayStr}.pdf`;
+  await printAndShare(wrapHtml('Warehouse List', body), filename);
 }
