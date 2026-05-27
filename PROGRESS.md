@@ -1,5 +1,34 @@
 # Mobile App Progress
 
+## Session 24 — 2026-05-27
+
+### Completed This Session
+
+**Date Format Setting** (`src/utils/settings.ts`, `src/utils/currency.ts`, `src/screens/settings/SettingsScreen.tsx`, `App.tsx`)
+- New `DateFormat` type: `'natural'` (Jan 15, 2025) | `'dmy'` (DD/MM/YYYY) | `'mdy'` (MM/DD/YYYY)
+- Module-level `_dateFormatCache` initialized via `initDateFormat()` called in `App.tsx` on startup
+- `getDateFormatSync()` used synchronously in `formatDate()` and `formatShortDate()` — no async overhead at render time
+- New "DATE FORMAT" section in Settings screen with 3 chip-style option buttons; selection persists to AsyncStorage and immediately updates the in-memory cache
+- Changing format affects all date displays app-wide without a restart
+
+**Companies List PDF Export** (`src/utils/pdfExport.ts` `exportCompaniesPDF`, `src/screens/companies/CompaniesScreen.tsx`)
+- `exportCompaniesPDF()`: summary grid (total / active / inactive counts), table with Name, Code, Currency, Phone, Email, Status columns
+- PDF button (file-text icon) in CompaniesScreen header; shown when data is loaded; shows ActivityIndicator while generating
+- Exports the currently-filtered list (respects search and status filter)
+
+**Dashboard Month-over-Month Trend Indicators** (`src/api/dashboard.ts`, `src/components/KPICard.tsx`, `src/screens/dashboard/DashboardScreen.tsx`)
+- `fetchDashboardData` now fetches previous month's journal entries in parallel and computes `revenuePrevMonth` / `expensesPrevMonth`
+- `KPICard` gains optional `trendPct` (number | null) and `trendInverted` (boolean) props
+- Trend row shows trending-up/down icon + "±X.X% vs last mo" in green (good) or red (bad); hidden when prev-month data is unavailable
+- Revenue card: positive trend = green; Expenses card: `trendInverted=true` so positive trend = red
+
+### Next Session
+- Consider: Companies list PDF export already done; next: net-income trend on the Net Income KPI card
+- Consider: Voucher count trend (this month vs last month) on the Vouchers KPI card
+- Consider: Date format setting preview — show a sample date in Settings as user selects format
+
+---
+
 ## Session 23 — 2026-05-27
 
 ### Completed This Session

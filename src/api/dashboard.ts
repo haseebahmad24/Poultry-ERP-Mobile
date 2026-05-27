@@ -8,6 +8,8 @@ export type KPIs = {
   vouchersToday: number;
   totalAR: number;
   totalAP: number;
+  revenuePrevMonth: number | null;
+  expensesPrevMonth: number | null;
 };
 
 export type RecentVoucher = {
@@ -64,6 +66,32 @@ function startOfMonthISO(): string {
   return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
 }
 
+function prevMonthRangeISO(): { from: string; to: string } {
+  const d = new Date();
+  const firstOfCurrent = new Date(d.getFullYear(), d.getMonth(), 1);
+  const lastOfPrev = new Date(firstOfCurrent.getTime() - 86400000); // day before current month
+  const firstOfPrev = new Date(lastOfPrev.getFullYear(), lastOfPrev.getMonth(), 1);
+  return {
+    from: firstOfPrev.toISOString().slice(0, 10),
+    to: lastOfPrev.toISOString().slice(0, 10),
+  };
+}
+
+function sumRevenueExpenses(entries: JournalEntry[]): { revenue: number; expenses: number } {
+  let revenue = 0;
+  let expenses = 0;
+  for (const e of entries) {
+    for (const ln of e.lines ?? []) {
+      const code = String(ln.account_code ?? '');
+      const debit = Number(ln.debit) || 0;
+      const credit = Number(ln.credit) || 0;
+      if (code.startsWith('4')) revenue += credit - debit;
+      else if (code.startsWith('5')) expenses += debit - credit;
+    }
+  }
+  return { revenue, expenses };
+}
+
 export type VoucherTypeStat = { type: string; count: number; amount: number };
 
 export async function fetchDashboardData(companyId?: string): Promise<{
@@ -75,8 +103,9 @@ export async function fetchDashboardData(companyId?: string): Promise<{
   const cqOnly = companyId ? `?company_id=${encodeURIComponent(companyId)}` : '';
   const from = startOfMonthISO();
   const to = todayISO();
+  const prev = prevMonthRangeISO();
 
-  const [tbRes, arRes, apRes, jeRes] = await Promise.all([
+  const [tbRes, arRes, apRes, jeRes, jePrevRes] = await Promise.all([
     apiRequest<{ rows: TBRow[] }>(`/api/mobile/trial-balance${cqOnly}`).catch(() => ({ rows: [] })),
     apiRequest<{ totals: { total_ar: number } }>(
       `/api/mobile/accounts-receivable?view=summary${cq}`
@@ -87,6 +116,9 @@ export async function fetchDashboardData(companyId?: string): Promise<{
     apiRequest<{ entries: JournalEntry[] }>(
       `/api/mobile/journal-entries?from=${from}&to=${to}${cq}`
     ).catch(() => ({ entries: [] })),
+    apiRequest<{ entries: JournalEntry[] }>(
+      `/api/mobile/journal-entries?from=${prev.from}&to=${prev.to}${cq}`
+    ).catch(() => null),
   ]);
 
   const tbRows = tbRes.rows ?? [];
@@ -95,17 +127,15 @@ export async function fetchDashboardData(companyId?: string): Promise<{
     .reduce((s, r) => s + (Number(r.balance_debit) || 0) - (Number(r.balance_credit) || 0), 0);
 
   const entries = jeRes.entries ?? [];
+  const { revenue: revenueMTD, expenses: expensesMTD } = sumRevenueExpenses(entries);
 
-  let revenueMTD = 0;
-  let expensesMTD = 0;
-  for (const e of entries) {
-    for (const ln of e.lines ?? []) {
-      const code = String(ln.account_code ?? '');
-      const debit = Number(ln.debit) || 0;
-      const credit = Number(ln.credit) || 0;
-      if (code.startsWith('4')) revenueMTD += credit - debit;
-      else if (code.startsWith('5')) expensesMTD += debit - credit;
-    }
+  let revenuePrevMonth: number | null = null;
+  let expensesPrevMonth: number | null = null;
+  if (jePrevRes !== null) {
+    const prevEntries = jePrevRes.entries ?? [];
+    const prev = sumRevenueExpenses(prevEntries);
+    revenuePrevMonth = prev.revenue;
+    expensesPrevMonth = prev.expenses;
   }
 
   const vouchersMonth = entries.length;
@@ -145,6 +175,8 @@ export async function fetchDashboardData(companyId?: string): Promise<{
       vouchersToday,
       totalAR: Number(arRes.totals?.total_ar) || 0,
       totalAP: Number(apRes.totals?.total_ap) || 0,
+      revenuePrevMonth,
+      expensesPrevMonth,
     },
     recentVouchers,
     voucherTypeStats,

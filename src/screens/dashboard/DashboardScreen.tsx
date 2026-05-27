@@ -212,6 +212,13 @@ export default function DashboardScreen() {
 
   const netIncome = (kpis?.revenue ?? 0) - (kpis?.expenses ?? 0);
 
+  function trendPct(current: number, prev: number | null | undefined): number | null {
+    if (prev == null || prev === 0) return null;
+    return ((current - prev) / Math.abs(prev)) * 100;
+  }
+  const revenueTrend = trendPct(kpis?.revenue ?? 0, kpis?.revenuePrevMonth);
+  const expensesTrend = trendPct(kpis?.expenses ?? 0, kpis?.expensesPrevMonth);
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
@@ -289,12 +296,15 @@ export default function DashboardScreen() {
               label="Revenue"
               value={formatCurrency(kpis?.revenue ?? 0)}
               subtext="Month to date · tap"
+              trendPct={revenueTrend}
               onPress={() => navigation.navigate('Finance', { screen: 'FinancialReports' } as any)}
             />
             <KPICard
               label="Expenses"
               value={formatCurrency(kpis?.expenses ?? 0)}
               subtext="Month to date · tap"
+              trendPct={expensesTrend}
+              trendInverted
               onPress={() => navigation.navigate('Finance', { screen: 'JournalEntries' } as any)}
             />
           </View>

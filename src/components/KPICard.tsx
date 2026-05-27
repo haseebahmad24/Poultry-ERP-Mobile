@@ -9,9 +9,28 @@ type Props = {
   subtext?: string;
   valueColor?: string;
   onPress?: () => void;
+  /** Percentage change vs prior period. null = no comparison data available. */
+  trendPct?: number | null;
+  /** When true, a positive trend is bad (e.g. Expenses going up). */
+  trendInverted?: boolean;
 };
 
-export default function KPICard({ label, value, subtext, valueColor, onPress }: Props) {
+export default function KPICard({ label, value, subtext, valueColor, onPress, trendPct, trendInverted }: Props) {
+  let trendNode: React.ReactNode = null;
+  if (trendPct != null && isFinite(trendPct)) {
+    const up = trendPct >= 0;
+    const good = trendInverted ? !up : up;
+    const color = trendPct === 0 ? Colors.textMuted : good ? '#16a34a' : '#dc2626';
+    const icon: any = up ? 'trending-up' : 'trending-down';
+    const trendLabel = `${up ? '+' : ''}${trendPct.toFixed(1)}% vs last mo`;
+    trendNode = (
+      <View style={styles.trendRow}>
+        <Feather name={icon} size={10} color={color} />
+        <Text style={[styles.trendText, { color }]}>{trendLabel}</Text>
+      </View>
+    );
+  }
+
   const inner = (
     <>
       <View style={styles.labelRow}>
@@ -19,6 +38,7 @@ export default function KPICard({ label, value, subtext, valueColor, onPress }: 
         {onPress && <Feather name="chevron-right" size={11} color={Colors.textMuted} />}
       </View>
       <Text style={[styles.value, valueColor ? { color: valueColor } : null]}>{value}</Text>
+      {trendNode}
       {subtext ? <Text style={styles.subtext}>{subtext}</Text> : null}
     </>
   );
@@ -60,6 +80,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.text,
     marginBottom: 2,
+  },
+  trendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  trendText: {
+    fontSize: 10,
+    fontWeight: '500',
   },
   subtext: {
     ...Typography.bodySmall,
