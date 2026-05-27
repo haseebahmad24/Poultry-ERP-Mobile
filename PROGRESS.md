@@ -1,5 +1,51 @@
 # Mobile App Progress
 
+## Session 23 — 2026-05-27
+
+### Completed This Session
+
+**Company KPI Comparison PDF Export** (`src/utils/pdfExport.ts` `exportComparisonPDF`, `src/screens/comparison/ComparisonScreen.tsx`)
+- `exportComparisonPDF()`: renders all 8 metric sections (Net Income, Revenue, Expenses, Cash, AR, AP, Vouchers MTD, Working Capital) as ranked tables with inline CSS proportional bars
+- Summary tile grid shows total companies / loaded count / failed count
+- PDF button (file-text icon) added to ComparisonScreen header; visible only when at least one snapshot has loaded; shows ActivityIndicator while exporting
+
+**Settings Screen: Default Company Picker** (`src/screens/settings/SettingsScreen.tsx`)
+- New "DEFAULT COMPANY" section at the top of Settings (shown only when companies list is non-empty)
+- Lists all available companies as tappable rows with briefcase icon, company name, optional code subtext
+- Active (selected) company shows a check icon and bold name
+- Tapping any row calls `setSelectedCompany()` which persists the choice to AsyncStorage and restores it on next app launch
+
+**InboxScreen Pull-to-Refresh** (`src/screens/inbox/InboxScreen.tsx`)
+- `refreshing` state + `handleRefresh` callback added
+- FlatList gains `refreshControl` prop with `tintColor={Colors.textMuted}`
+- Empty state (inbox is empty) now uses `ScrollView` with `RefreshControl` so pull-to-refresh works even when list is empty
+- `emptyState` style: `flex → flexGrow` to work correctly as ScrollView `contentContainerStyle`
+
+**Recent Search History** (`src/screens/search/SearchScreen.tsx`)
+- AsyncStorage-backed recent search history (max 8 terms, deduplicates case-insensitively)
+- `loadSearchHistory` / `saveSearchHistory` / `clearSearchHistory` helpers added
+- `recentSearches` state loaded on mount alongside data
+- `commitSearch()` called on TextInput `onSubmitEditing` + before each result navigation
+- When no query typed and history is non-empty: shows "Recent" header with clock-icon history rows, individual × delete per row, and a "Clear" button
+- Tapping a history row populates the query to re-run that search
+- Falls back to original "Search everything" placeholder when history is empty
+
+**Materials List PDF Export** (`src/utils/pdfExport.ts` `exportMaterialsListPDF`, `src/screens/materials/MaterialsScreen.tsx`)
+- `exportMaterialsListPDF()`: 3-tile summary (Total/Active/Types), "By Type" breakdown grid (up to 4 types), full table with Code/Name/Type/Category/Unit/Status; inactive items at 0.6 opacity
+- PDF button in MaterialsScreen header; respects current type + search filters; passes filterLabel to report
+
+**Partners List PDF Export** (`src/utils/pdfExport.ts` `exportPartnersListPDF`, `src/screens/partners/PartnersScreen.tsx`)
+- `exportPartnersListPDF()`: dynamic summary grid (Total/Vendors/Customers/Both), full table with Name/Code/Role/Email/Phone/Address (truncated 40 chars)
+- PDF button in PartnersScreen header; respects role filter (Customers/Vendors) + search filter
+
+### Next Session
+- Consider: PO list PDF export and SO list PDF export
+- Consider: Companies list PDF export
+- Consider: Date format setting (DD/MM/YYYY vs MM/DD/YYYY) with cached preference
+- Consider: Dashboard charts — revenue trend sparkline or month-over-month comparison
+
+---
+
 ## Session 22 — 2026-05-27
 
 ### Completed This Session
@@ -937,6 +983,14 @@ Sessions 1–22 are complete. All roadmap screens + polish + key enhancements ar
 | Trial Balance → JE drill-down (tap account row → filtered Journal Entries) | ✅ Done |
 | PDF export — AP Summary (aging analysis + vendor table + bills list) | ✅ Done |
 | PDF export — AR Summary (aging analysis + customer table + invoices list) | ✅ Done |
+| PDF export — Cash Flow (per-period TO PAY / TO COLLECT tables) | ✅ Done |
+| PDF export — Warehouse List (summary + full table) | ✅ Done |
+| PDF export — Company KPI Comparison (8 metric sections, ranked tables) | ✅ Done |
+| PDF export — Materials List (type breakdown grid + full table) | ✅ Done |
+| PDF export — Partners List (role summary + full table) | ✅ Done |
+| Settings: Default company picker (explicit company selection in Settings) | ✅ Done |
+| InboxScreen pull-to-refresh (RefreshControl on FlatList + ScrollView empty state) | ✅ Done |
+| Recent search history in SearchScreen (AsyncStorage, max 8, per-item delete) | ✅ Done |
 
 ---
 
