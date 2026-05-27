@@ -9,6 +9,8 @@ import type { StockBalance, StockLedgerEntry, Warehouse } from '@/api/inventory'
 import type { Bookmark, BookmarkType } from '@/utils/bookmarks';
 import type { APSummary, APBill, APVendor } from '@/api/accountsPayable';
 import type { ARSummary, ARInvoice, ARCustomer } from '@/api/accountsReceivable';
+import type { Material } from '@/api/materials';
+import type { Partner } from '@/api/partners';
 import { formatCurrency, formatDate } from '@/utils/currency';
 
 // ─── shared HTML helpers ───────────────────────────────────────────────────
@@ -2133,4 +2135,160 @@ export async function exportComparisonPDF(snapshots: ComparisonSnapshot[]): Prom
 
   const filename = `company-comparison-${todayStr}.pdf`;
   await printAndShare(wrapHtml('Company KPI Comparison', body), filename);
+}
+
+// ─── Materials List PDF ──────────────────────────────────────────────────────
+
+export async function exportMaterialsListPDF(params: {
+  materials: Material[];
+  companyName: string;
+  filterLabel?: string;
+}): Promise<void> {
+  const { materials, companyName, filterLabel } = params;
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const activeCount = materials.filter((m) => (m.status ?? 'active').toLowerCase() === 'active').length;
+  const byType: Record<string, number> = {};
+  for (const m of materials) {
+    const t = m.type ?? 'Uncategorized';
+    byType[t] = (byType[t] ?? 0) + 1;
+  }
+  const topTypes = Object.entries(byType)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([t, n]) => `<div class="summary-block"><div class="value">${n}</div><div class="label">${t}</div></div>`)
+    .join('');
+
+  const rows = materials.map((m) => {
+    const isActive = (m.status ?? 'active').toLowerCase() === 'active';
+    const statusBg = isActive ? '#f5f5f5' : '#f5f5f5';
+    const statusColor = isActive ? '#0a0a0a' : '#9ca3af';
+    const statusOpacity = isActive ? '' : 'opacity:0.6;';
+    return `<tr style="${statusOpacity}">
+      <td style="font-weight:600">${m.code ?? '—'}</td>
+      <td>${m.name}</td>
+      <td>${m.type ?? '—'}</td>
+      <td>${m.category ?? '—'}</td>
+      <td>${m.unit ?? '—'}</td>
+      <td><span style="background:${statusBg};color:${statusColor};border:1px solid #e5e7eb;padding:2px 6px;border-radius:9px;font-size:9px;font-weight:600">${m.status ?? 'Active'}</span></td>
+    </tr>`;
+  }).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Materials List</div>
+      <div class="report-meta">${companyName}${filterLabel ? ` &nbsp;·&nbsp; ${filterLabel}` : ''} &nbsp;·&nbsp; ${todayStr}</div>
+    </div>
+
+    <div class="summary-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="summary-block">
+        <div class="value">${materials.length}</div>
+        <div class="label">Total Items</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${activeCount}</div>
+        <div class="label">Active</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${Object.keys(byType).length}</div>
+        <div class="label">Types</div>
+      </div>
+    </div>
+
+    ${Object.keys(byType).length > 0 ? `
+    <div class="section-label">By Type</div>
+    <div class="summary-grid" style="grid-template-columns:repeat(${Math.min(4, Object.keys(byType).length)},1fr)">
+      ${topTypes}
+    </div>` : ''}
+
+    <div class="section-label">All Materials</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Category</th>
+          <th>Unit</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>${rows || '<tr><td colspan="6" class="muted">No materials</td></tr>'}</tbody>
+    </table>
+  `;
+
+  const filename = `materials-${todayStr}.pdf`;
+  await printAndShare(wrapHtml('Materials List', body), filename);
+}
+
+// ─── Partners List PDF ───────────────────────────────────────────────────────
+
+export async function exportPartnersListPDF(params: {
+  partners: Partner[];
+  companyName: string;
+  filterLabel?: string;
+}): Promise<void> {
+  const { partners, companyName, filterLabel } = params;
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const vendorCount = partners.filter((p) => p.is_vendor).length;
+  const customerCount = partners.filter((p) => p.is_customer).length;
+  const bothCount = partners.filter((p) => p.is_vendor && p.is_customer).length;
+
+  const rows = partners.map((p) => {
+    const isVendor = p.is_vendor ?? false;
+    const isCustomer = p.is_customer ?? false;
+    const roles = [
+      isVendor ? 'Vendor' : null,
+      isCustomer ? 'Customer' : null,
+    ].filter(Boolean).join(' / ') || '—';
+    return `<tr>
+      <td style="font-weight:600">${p.name}</td>
+      <td>${p.code ?? '—'}</td>
+      <td>${roles}</td>
+      <td>${p.email ?? '—'}</td>
+      <td>${p.phone ?? '—'}</td>
+      <td>${p.address ? p.address.slice(0, 40) + (p.address.length > 40 ? '…' : '') : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Business Partners</div>
+      <div class="report-meta">${companyName}${filterLabel ? ` &nbsp;·&nbsp; ${filterLabel}` : ''} &nbsp;·&nbsp; ${todayStr}</div>
+    </div>
+
+    <div class="summary-grid" style="grid-template-columns:repeat(${bothCount > 0 ? 4 : 3},1fr)">
+      <div class="summary-block">
+        <div class="value">${partners.length}</div>
+        <div class="label">Total Partners</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${vendorCount}</div>
+        <div class="label">Vendors</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${customerCount}</div>
+        <div class="label">Customers</div>
+      </div>
+      ${bothCount > 0 ? `<div class="summary-block"><div class="value">${bothCount}</div><div class="label">Both</div></div>` : ''}
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Code</th>
+          <th>Role</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Address</th>
+        </tr>
+      </thead>
+      <tbody>${rows || '<tr><td colspan="6" class="muted">No partners</td></tr>'}</tbody>
+    </table>
+  `;
+
+  const filename = `partners-${todayStr}.pdf`;
+  await printAndShare(wrapHtml('Business Partners', body), filename);
 }

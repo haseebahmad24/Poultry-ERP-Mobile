@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -24,12 +25,13 @@ import BackButton from '@/components/BackButton';
 import OfflineBanner from '@/components/OfflineBanner';
 import { useCompany } from '@/context/CompanyContext';
 import { getCached, setCached } from '@/utils/cache';
+import { exportMaterialsListPDF } from '@/utils/pdfExport';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList>;
 
 export default function MaterialsScreen() {
   const navigation = useNavigation<Nav>();
-  const { companyId } = useCompany();
+  const { companyId, selectedCompany } = useCompany();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [types, setTypes] = useState<MaterialType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +40,7 @@ export default function MaterialsScreen() {
   const [stale, setStale] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState<number | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const cacheKey = `materials:${companyId ?? 'all'}:${selectedType ?? 'all'}`;
 
@@ -85,6 +88,21 @@ export default function MaterialsScreen() {
     );
   });
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const typeLabel = types.find((t) => t.id === selectedType)?.name;
+      const filterLabel = [typeLabel, search ? `"${search}"` : null].filter(Boolean).join(' · ') || undefined;
+      await exportMaterialsListPDF({
+        materials: filtered,
+        companyName: selectedCompany?.name ?? 'All Companies',
+        filterLabel,
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (error && materials.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (
@@ -95,6 +113,18 @@ export default function MaterialsScreen() {
         <BackButton />
         <Text style={styles.headerTitle}>Materials</Text>
         {!loading && <Text style={styles.headerSub}>{filtered.length} items</Text>}
+        {!loading && filtered.length > 0 && (
+          exporting ? (
+            <ActivityIndicator size="small" color={Colors.textMuted} />
+          ) : (
+            <TouchableOpacity
+              onPress={handleExport}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Feather name="file-text" size={18} color={Colors.text} />
+            </TouchableOpacity>
+          )
+        )}
       </View>
 
       <CompanySelector showAll />

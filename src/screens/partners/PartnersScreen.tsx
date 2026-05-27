@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -23,6 +24,7 @@ import BackButton from '@/components/BackButton';
 import OfflineBanner from '@/components/OfflineBanner';
 import { useCompany } from '@/context/CompanyContext';
 import { getCached, setCached } from '@/utils/cache';
+import { exportPartnersListPDF } from '@/utils/pdfExport';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'Partners'>;
@@ -30,7 +32,7 @@ type RoleFilter = 'all' | 'customer' | 'vendor';
 
 export default function PartnersScreen() {
   const navigation = useNavigation<Nav>();
-  const { companyId } = useCompany();
+  const { companyId, selectedCompany } = useCompany();
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -38,6 +40,7 @@ export default function PartnersScreen() {
   const [isStale, setIsStale] = useState(false);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
+  const [exporting, setExporting] = useState(false);
 
   const cacheKey = `partners:${companyId ?? 'all'}`;
 
@@ -84,6 +87,21 @@ export default function PartnersScreen() {
     return matchesSearch && matchesRole;
   });
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const roleLabel = roleFilter !== 'all' ? (roleFilter === 'customer' ? 'Customers' : 'Vendors') : undefined;
+      const filterLabel = [roleLabel, search ? `"${search}"` : null].filter(Boolean).join(' · ') || undefined;
+      await exportPartnersListPDF({
+        partners: filtered,
+        companyName: selectedCompany?.name ?? 'All Companies',
+        filterLabel,
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (error && partners.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (
@@ -94,6 +112,18 @@ export default function PartnersScreen() {
         <BackButton />
         <Text style={styles.headerTitle}>Business Partners</Text>
         {!loading && <Text style={styles.headerSub}>{filtered.length} records</Text>}
+        {!loading && filtered.length > 0 && (
+          exporting ? (
+            <ActivityIndicator size="small" color={Colors.textMuted} />
+          ) : (
+            <TouchableOpacity
+              onPress={handleExport}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Feather name="file-text" size={18} color={Colors.text} />
+            </TouchableOpacity>
+          )
+        )}
       </View>
 
       <OfflineBanner visible={!!(isStale && error)} />
