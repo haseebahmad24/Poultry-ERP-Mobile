@@ -1,5 +1,26 @@
 # Mobile App Progress
 
+## Session 22 — 2026-05-27
+
+### Completed This Session
+
+**Cash Flow PDF Export** (`src/utils/pdfExport.ts` `exportCashFlowPDF`, `src/screens/finance/CashFlowScreen.tsx`)
+- Full Cash Flow Report PDF with 2-tile summary (Total Payable / Total Receivable)
+- Net Cash Position banner with green/red color coding based on sign
+- Per-period breakdown sections (Overdue → This Week → Next Week → week_3 → week_4 → 30+ days → Undated)
+- Each period section shows TO PAY (bills table) and TO COLLECT (invoices table) with Ref, Party, Amount, Due Date columns
+- Period net row at the bottom of each section with color-coded value
+- PDF button appears in CashFlowScreen header when data is loaded and non-empty
+- Shows ActivityIndicator while export is in progress; uses selectedCompany name in report header
+
+**Warehouse List PDF Export** (`src/utils/pdfExport.ts` `exportWarehousesPDF`, `src/screens/inventory/InventoryScreen.tsx`)
+- Warehouse List PDF with 2-tile summary: Total Warehouses / Active count
+- Full table: Code | Name | Type | Address | Status (color-coded pill badge) | Items | Total Qty
+- PDF button added to InventoryScreen header when Warehouses tab is active and filteredWarehouses is non-empty
+- Reuses existing exportBtn/exportBtnText style classes from the Stock tab's PDF button
+
+---
+
 ## Session 21 — 2026-05-26
 
 ### Completed This Session
@@ -816,13 +837,13 @@
 
 ## What's Next (Session 21+)
 
-Sessions 1–20 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
+Sessions 1–22 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
 
 1. **Purchase Order creation** — Draft PO form with item line entry (requires POST API endpoint on web app)
 2. **Widget support** — Expo WidgetKit for home screen KPI summary (iOS 17+)
 3. **Universal links** — Associate poultryerp:// scheme with a web domain (requires associated-domains entitlement + server-side apple-app-site-association)
-4. **Cash Flow PDF export** — Add PDF export button to CashFlowScreen
-5. **Warehouse PDF export** — Print warehouse list from InventoryScreen Warehouses tab
+4. ~~**Cash Flow PDF export**~~ — ✅ Done (Session 22)
+5. ~~**Warehouse PDF export**~~ — ✅ Done (Session 22)
 
 ---
 
