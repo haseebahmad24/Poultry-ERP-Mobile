@@ -380,6 +380,6 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: Spacing.xl,
   },
-  allClearTitle: { fontSize: 20, fontWeight: '700', color: Colors.text },
-  allClearSub: { fontSize: 14, color: Colors.textMuted, textAlign: 'center' },
+  allClearTitle: { ...Typography.h2 },
+  allClearSub: { ...Typography.body, color: Colors.textMuted, textAlign: 'center' },
 });

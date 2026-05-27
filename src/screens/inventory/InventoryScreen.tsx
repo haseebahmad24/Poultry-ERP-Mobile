@@ -592,7 +592,7 @@ const styles = StyleSheet.create({
   cardCode: { ...Typography.bodySmall, color: Colors.textMuted },
   cardSub: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 2 },
 
-  qtyValue: { fontSize: 20, fontWeight: '700', color: Colors.text },
+  qtyValue: { ...Typography.h2 },
   qtyMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   qtyUnit: { ...Typography.label, color: Colors.textMuted },
 

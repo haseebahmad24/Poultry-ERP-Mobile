@@ -46,5 +46,5 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm + 2,
     borderRadius: Radius.md,
   },
-  buttonText: { ...Typography.h4, color: Colors.text },
+  buttonText: { ...Typography.h4 },
 });

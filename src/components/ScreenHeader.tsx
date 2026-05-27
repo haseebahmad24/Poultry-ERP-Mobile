@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { Colors, Spacing } from '@/theme';
+import { Colors, Spacing, Typography } from '@/theme';
 
 interface Props {
   title: string;
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   titleWrap: { flex: 1 },
-  title: { fontSize: 22, fontWeight: '700', color: Colors.text },
-  subtitle: { fontSize: 12, color: Colors.textMuted, marginTop: 1 },
+  title: { ...Typography.h1 },
+  subtitle: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 1 },
   right: {},
 });

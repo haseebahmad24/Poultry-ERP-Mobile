@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   headerText: { flex: 1 },
-  headerTitle: { ...Typography.h3, color: Colors.text },
+  headerTitle: { ...Typography.h3 },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
 
   summaryBar: {
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   },
   summaryItem: { flex: 1, alignItems: 'center' },
   summaryLabel: { ...Typography.bodySmall, color: Colors.textMuted },
-  summaryValue: { ...Typography.h4, fontWeight: '700', marginTop: 2, color: Colors.text },
+  summaryValue: { ...Typography.h4, fontWeight: '700', marginTop: 2 },
   summaryValueMuted: { color: Colors.textSecondary },
   summarySep: { width: StyleSheet.hairlineWidth, height: 32, backgroundColor: Colors.border },
 

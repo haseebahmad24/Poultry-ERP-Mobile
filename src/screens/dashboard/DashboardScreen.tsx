@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  financeStatusCount: { fontSize: 22, fontWeight: '700', color: Colors.text },
+  financeStatusCount: { ...Typography.h1 },
   financeStatusLabel: { fontSize: 13, fontWeight: '600', color: Colors.text },
   financeStatusSub: { fontSize: 11, color: Colors.textMuted },
 

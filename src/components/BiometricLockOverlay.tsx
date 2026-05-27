@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.sm,
   },
-  title: { ...Typography.h1, color: Colors.text },
+  title: { ...Typography.h1 },
   subtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center' },
   indicator: { marginTop: Spacing.sm },
   unlockBtn: {

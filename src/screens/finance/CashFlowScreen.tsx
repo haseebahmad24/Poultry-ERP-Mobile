@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     gap: 2,
   },
-  summaryValue: { ...Typography.h3, fontWeight: '700', color: Colors.text },
+  summaryValue: { ...Typography.h3, fontWeight: '700' },
   summaryLabel: { ...Typography.bodySmall, fontWeight: '600', color: Colors.textSecondary },
   summaryHint: { fontSize: 11, color: Colors.textMuted },
 
@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceHover,
   },
   netCardLeft: { flex: 1 },
-  netLabel: { ...Typography.h4, color: Colors.text },
+  netLabel: { ...Typography.h4 },
   netHint: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
   netValue: { fontSize: 20, fontWeight: '800', color: Colors.text },
   netValueNegative: { color: Colors.text },
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  emptyTitle: { ...Typography.h4, color: Colors.text },
+  emptyTitle: { ...Typography.h4 },
   emptyText: { ...Typography.body, color: Colors.textMuted },
 
   periodSection: { gap: Spacing.xs },

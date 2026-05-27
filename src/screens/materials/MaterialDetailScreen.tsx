@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   tileLabel: { fontSize: 11, fontWeight: '500', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  tileValue: { fontSize: 22, fontWeight: '700', color: Colors.text, marginTop: 4 },
+  tileValue: { ...Typography.h1, marginTop: 4 },
   tileSub: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
 
   cardList: { paddingHorizontal: Spacing.md, gap: Spacing.sm },

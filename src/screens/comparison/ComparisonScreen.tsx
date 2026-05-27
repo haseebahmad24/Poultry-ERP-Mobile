@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
   },
-  summaryValue: { fontSize: 22, fontWeight: '700', color: Colors.text },
+  summaryValue: { ...Typography.h1 },
   summaryLabel: { fontSize: 11, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
 
   metricCard: {

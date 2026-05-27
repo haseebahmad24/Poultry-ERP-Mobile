@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
 
   lineItemHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   lineItemName: { flex: 1, ...Typography.h4 },
-  lineItemAmount: { ...Typography.h4, color: Colors.text },
+  lineItemAmount: { ...Typography.h4 },
 
   lineItemMeta: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' },
   lineItemRate: { ...Typography.bodySmall, color: Colors.textSecondary },
