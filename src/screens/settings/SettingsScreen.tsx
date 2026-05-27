@@ -33,6 +33,10 @@ import {
   setNotifyArOverdue,
   getNotifyLowStock,
   setNotifyLowStock,
+  getDateFormat,
+  setDateFormat,
+  initDateFormat,
+  type DateFormat,
 } from '@/utils/settings';
 import {
   getNotificationsEnabled,
@@ -83,6 +87,7 @@ export default function SettingsScreen() {
   const [notifyAP, setNotifyAPState] = useState(true);
   const [notifyAR, setNotifyARState] = useState(true);
   const [notifyStock, setNotifyStockState] = useState(true);
+  const [dateFormat, setDateFormatState] = useState<DateFormat>('natural');
 
   useEffect(() => {
     getLowStockThreshold().then((v) => setThreshold(String(v)));
@@ -94,6 +99,7 @@ export default function SettingsScreen() {
     getNotifyApOverdue().then((v) => setNotifyAPState(v));
     getNotifyArOverdue().then((v) => setNotifyARState(v));
     getNotifyLowStock().then((v) => setNotifyStockState(v));
+    getDateFormat().then((v) => setDateFormatState(v));
     LocalAuthentication.hasHardwareAsync().then((has) => {
       if (has) LocalAuthentication.isEnrolledAsync().then((enrolled) => setBiometricAvailable(enrolled));
     });
@@ -168,6 +174,12 @@ export default function SettingsScreen() {
   const handleNotifyStockToggle = useCallback(async (value: boolean) => {
     setNotifyStockState(value);
     await setNotifyLowStock(value);
+  }, []);
+
+  const handleDateFormatChange = useCallback(async (fmt: DateFormat) => {
+    setDateFormatState(fmt);
+    await setDateFormat(fmt);
+    await initDateFormat();
   }, []);
 
   const handleClearCache = useCallback(() => {
@@ -251,6 +263,35 @@ export default function SettingsScreen() {
             </View>
           </>
         )}
+
+        {/* Date Format */}
+        <Text style={styles.sectionLabel}>DATE FORMAT</Text>
+        <View style={styles.card}>
+          <View style={[styles.settingRow, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight }]}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingTitle}>Date display format</Text>
+              <Text style={styles.settingDesc}>Controls how dates appear across all screens.</Text>
+            </View>
+          </View>
+          <View style={styles.refreshOptionsRow}>
+            {([
+              { label: 'Jan 15, 2025', value: 'natural' as DateFormat },
+              { label: 'DD/MM/YYYY', value: 'dmy' as DateFormat },
+              { label: 'MM/DD/YYYY', value: 'mdy' as DateFormat },
+            ] as { label: string; value: DateFormat }[]).map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[styles.refreshChip, dateFormat === opt.value && styles.refreshChipActive]}
+                onPress={() => handleDateFormatChange(opt.value)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.refreshChipText, dateFormat === opt.value && styles.refreshChipTextActive]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
 
         {/* Inventory */}
         <Text style={styles.sectionLabel}>INVENTORY</Text>

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -19,6 +20,7 @@ import OfflineBanner from '@/components/OfflineBanner';
 import SectionHeader from '@/components/SectionHeader';
 import BackButton from '@/components/BackButton';
 import { getCached, setCached } from '@/utils/cache';
+import { exportCompaniesPDF } from '@/utils/pdfExport';
 
 type StatusFilter = 'all' | 'active' | 'inactive';
 
@@ -30,6 +32,7 @@ export default function CompaniesScreen() {
   const [stale, setStale] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
     if (!isRefresh) {
@@ -58,6 +61,16 @@ export default function CompaniesScreen() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const handleExport = useCallback(async () => {
+    if (exporting || companies.length === 0) return;
+    setExporting(true);
+    try {
+      await exportCompaniesPDF(filtered);
+    } finally {
+      setExporting(false);
+    }
+  }, [exporting, companies.length, filtered]);
 
   if (error && companies.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
@@ -90,6 +103,20 @@ export default function CompaniesScreen() {
       <View style={styles.header}>
         <BackButton />
         <Text style={styles.headerTitle}>Companies</Text>
+        <View style={{ flex: 1 }} />
+        {!loading && companies.length > 0 && (
+          exporting ? (
+            <ActivityIndicator size="small" color={Colors.textMuted} style={{ marginRight: 8 }} />
+          ) : (
+            <TouchableOpacity
+              onPress={handleExport}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ marginRight: 8 }}
+            >
+              <Feather name="file-text" size={18} color={Colors.text} />
+            </TouchableOpacity>
+          )
+        )}
         {!loading && <Text style={styles.headerSub}>{filtered.length} of {companies.length}</Text>}
       </View>
 

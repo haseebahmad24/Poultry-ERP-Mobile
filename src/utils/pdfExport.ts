@@ -11,6 +11,7 @@ import type { APSummary, APBill, APVendor } from '@/api/accountsPayable';
 import type { ARSummary, ARInvoice, ARCustomer } from '@/api/accountsReceivable';
 import type { Material } from '@/api/materials';
 import type { Partner } from '@/api/partners';
+import type { CompanyDetail } from '@/api/companies';
 import { formatCurrency, formatDate } from '@/utils/currency';
 
 // ─── shared HTML helpers ───────────────────────────────────────────────────
@@ -2453,4 +2454,65 @@ export async function exportSOListPDF(params: {
 
   const filename = `sales-orders-${tabLabel.toLowerCase().replace(/\s+/g, '-')}-${todayStr}.pdf`;
   await printAndShare(wrapHtml('Sales Orders', body), filename);
+}
+
+// ─── Companies List PDF ───────────────────────────────────────────────────────
+
+export async function exportCompaniesPDF(companies: CompanyDetail[]): Promise<void> {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const active = companies.filter((c) => c.is_active !== false).length;
+  const inactive = companies.length - active;
+
+  const rows = companies.map((c, idx) => {
+    const alt = idx % 2 === 1 ? 'background:#fafafa;' : '';
+    const statusColor = c.is_active !== false ? '#16a34a' : '#dc2626';
+    const statusLabel = c.is_active !== false ? 'Active' : 'Inactive';
+    return `<tr style="${alt}">
+      <td style="font-weight:600">${c.name}</td>
+      <td>${c.code ?? '—'}</td>
+      <td>${c.currency ?? '—'}</td>
+      <td>${c.phone ?? '—'}</td>
+      <td>${c.email ?? '—'}</td>
+      <td><span style="color:${statusColor};font-weight:600">${statusLabel}</span></td>
+    </tr>`;
+  }).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Companies</div>
+      <div class="report-meta">${todayStr}</div>
+    </div>
+
+    <div class="summary-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="summary-block">
+        <div class="value">${companies.length}</div>
+        <div class="label">Total Companies</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${active}</div>
+        <div class="label">Active</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${inactive}</div>
+        <div class="label">Inactive</div>
+      </div>
+    </div>
+
+    <div class="section-label">Company Directory</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Code</th>
+          <th>Currency</th>
+          <th>Phone</th>
+          <th>Email</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>${rows || '<tr><td colspan="6" class="muted">No companies</td></tr>'}</tbody>
+    </table>
+  `;
+
+  await printAndShare(wrapHtml('Companies', body), `companies-${todayStr}.pdf`);
 }

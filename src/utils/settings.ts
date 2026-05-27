@@ -9,7 +9,36 @@ const KEYS = {
   NOTIFY_AP_OVERDUE: 'setting:notifyApOverdue',
   NOTIFY_AR_OVERDUE: 'setting:notifyArOverdue',
   NOTIFY_LOW_STOCK: 'setting:notifyLowStock',
+  DATE_FORMAT: 'setting:dateFormat',
 };
+
+export type DateFormat = 'natural' | 'dmy' | 'mdy';
+
+// Module-level cache so formatDate() can call it synchronously.
+let _dateFormatCache: DateFormat = 'natural';
+
+export function getDateFormatSync(): DateFormat {
+  return _dateFormatCache;
+}
+
+export async function initDateFormat(): Promise<void> {
+  _dateFormatCache = await getDateFormat();
+}
+
+export async function getDateFormat(): Promise<DateFormat> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.DATE_FORMAT);
+    if (raw === 'dmy' || raw === 'mdy') return raw;
+    return 'natural';
+  } catch {
+    return 'natural';
+  }
+}
+
+export async function setDateFormat(fmt: DateFormat): Promise<void> {
+  _dateFormatCache = fmt;
+  await AsyncStorage.setItem(KEYS.DATE_FORMAT, fmt);
+}
 
 const DEFAULTS = {
   lowStockThreshold: 100,
