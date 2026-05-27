@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -22,6 +23,7 @@ import BackButton from '@/components/BackButton';
 import OfflineBanner from '@/components/OfflineBanner';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
+import { exportPOListPDF } from '@/utils/pdfExport';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'PurchaseOrders'>;
@@ -43,6 +45,7 @@ export default function PurchaseOrdersScreen() {
   const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isStale, setIsStale] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const cacheKey = `purchase-orders:${activeTab}`;
 
@@ -89,6 +92,16 @@ export default function PurchaseOrdersScreen() {
       })
     : orders;
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const tabLabel = STATUS_TABS.find((t) => t.key === activeTab)?.label ?? 'All';
+      await exportPOListPDF({ orders: filtered, tabLabel });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
@@ -97,6 +110,18 @@ export default function PurchaseOrdersScreen() {
         <BackButton />
         <Text style={styles.headerTitle}>Purchase Orders</Text>
         {!loading && <Text style={styles.headerSub}>{filtered.length} records</Text>}
+        {!loading && filtered.length > 0 && (
+          exporting ? (
+            <ActivityIndicator size="small" color={Colors.textMuted} />
+          ) : (
+            <TouchableOpacity
+              onPress={handleExport}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Feather name="file-text" size={18} color={Colors.text} />
+            </TouchableOpacity>
+          )
+        )}
       </View>
 
       <OfflineBanner visible={!!(isStale && error)} />

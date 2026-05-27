@@ -2292,3 +2292,165 @@ export async function exportPartnersListPDF(params: {
   const filename = `partners-${todayStr}.pdf`;
   await printAndShare(wrapHtml('Business Partners', body), filename);
 }
+
+// ─── Purchase Orders List PDF ─────────────────────────────────────────────────
+
+export async function exportPOListPDF(params: {
+  orders: PurchaseOrder[];
+  tabLabel: string;
+  companyName?: string;
+}): Promise<void> {
+  const { orders, tabLabel, companyName } = params;
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const totalValue = orders.reduce((s, po) => s + (po.total ?? 0), 0);
+  const byStatus: Record<string, number> = {};
+  for (const po of orders) {
+    const s = po.status ?? 'Unknown';
+    byStatus[s] = (byStatus[s] ?? 0) + 1;
+  }
+  const statusTiles = Object.entries(byStatus)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([s, n]) => `<div class="summary-block"><div class="value">${n}</div><div class="label">${s}</div></div>`)
+    .join('');
+
+  const rows = orders.map((po, idx) => {
+    const alt = idx % 2 === 1 ? 'background:#fafafa;' : '';
+    return `<tr style="${alt}">
+      <td style="font-weight:600">${po.po_number ?? `#${po.id}`}</td>
+      <td>${po.vendor ?? '—'}</td>
+      <td>${po.dt ? formatDate(po.dt) : '—'}</td>
+      <td>${po.delivery_date ? formatDate(po.delivery_date) : '—'}</td>
+      <td><span style="border:1px solid #e5e7eb;padding:2px 6px;border-radius:9px;font-size:9px;font-weight:600">${po.status ?? '—'}</span></td>
+      <td class="right">${po.total != null ? formatCurrency(po.total) : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Purchase Orders — ${tabLabel}</div>
+      <div class="report-meta">${companyName ?? 'All Companies'} &nbsp;·&nbsp; ${todayStr}</div>
+    </div>
+
+    <div class="summary-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="summary-block">
+        <div class="value">${orders.length}</div>
+        <div class="label">Total Orders</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalValue)}</div>
+        <div class="label">Total Value</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${Object.keys(byStatus).length}</div>
+        <div class="label">Statuses</div>
+      </div>
+    </div>
+
+    ${Object.keys(byStatus).length > 0 ? `
+    <div class="section-label">By Status</div>
+    <div class="summary-grid" style="grid-template-columns:repeat(${Math.min(4, Object.keys(byStatus).length)},1fr)">
+      ${statusTiles}
+    </div>` : ''}
+
+    <div class="section-label">All Orders</div>
+    <table>
+      <thead>
+        <tr>
+          <th>PO #</th>
+          <th>Vendor</th>
+          <th>Order Date</th>
+          <th>Delivery Date</th>
+          <th>Status</th>
+          <th class="right">Total</th>
+        </tr>
+      </thead>
+      <tbody>${rows || '<tr><td colspan="6" class="muted">No orders</td></tr>'}</tbody>
+    </table>
+  `;
+
+  const filename = `purchase-orders-${tabLabel.toLowerCase().replace(/\s+/g, '-')}-${todayStr}.pdf`;
+  await printAndShare(wrapHtml('Purchase Orders', body), filename);
+}
+
+// ─── Sales Orders List PDF ────────────────────────────────────────────────────
+
+export async function exportSOListPDF(params: {
+  orders: SalesOrder[];
+  tabLabel: string;
+  companyName?: string;
+}): Promise<void> {
+  const { orders, tabLabel, companyName } = params;
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const totalValue = orders.reduce((s, so) => s + (so.total ?? 0), 0);
+  const byStatus: Record<string, number> = {};
+  for (const so of orders) {
+    const s = so.status ?? 'Unknown';
+    byStatus[s] = (byStatus[s] ?? 0) + 1;
+  }
+  const statusTiles = Object.entries(byStatus)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([s, n]) => `<div class="summary-block"><div class="value">${n}</div><div class="label">${s}</div></div>`)
+    .join('');
+
+  const rows = orders.map((so, idx) => {
+    const alt = idx % 2 === 1 ? 'background:#fafafa;' : '';
+    return `<tr style="${alt}">
+      <td style="font-weight:600">${so.so_number ?? `#${so.id}`}</td>
+      <td>${so.customer ?? '—'}</td>
+      <td>${so.dt ? formatDate(so.dt) : '—'}</td>
+      <td>${so.delivery_date ? formatDate(so.delivery_date) : '—'}</td>
+      <td><span style="border:1px solid #e5e7eb;padding:2px 6px;border-radius:9px;font-size:9px;font-weight:600">${so.status ?? '—'}</span></td>
+      <td class="right">${so.total != null ? formatCurrency(so.total) : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Sales Orders — ${tabLabel}</div>
+      <div class="report-meta">${companyName ?? 'All Companies'} &nbsp;·&nbsp; ${todayStr}</div>
+    </div>
+
+    <div class="summary-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="summary-block">
+        <div class="value">${orders.length}</div>
+        <div class="label">Total Orders</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalValue)}</div>
+        <div class="label">Total Value</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${Object.keys(byStatus).length}</div>
+        <div class="label">Statuses</div>
+      </div>
+    </div>
+
+    ${Object.keys(byStatus).length > 0 ? `
+    <div class="section-label">By Status</div>
+    <div class="summary-grid" style="grid-template-columns:repeat(${Math.min(4, Object.keys(byStatus).length)},1fr)">
+      ${statusTiles}
+    </div>` : ''}
+
+    <div class="section-label">All Orders</div>
+    <table>
+      <thead>
+        <tr>
+          <th>SO #</th>
+          <th>Customer</th>
+          <th>Order Date</th>
+          <th>Delivery Date</th>
+          <th>Status</th>
+          <th class="right">Total</th>
+        </tr>
+      </thead>
+      <tbody>${rows || '<tr><td colspan="6" class="muted">No orders</td></tr>'}</tbody>
+    </table>
+  `;
+
+  const filename = `sales-orders-${tabLabel.toLowerCase().replace(/\s+/g, '-')}-${todayStr}.pdf`;
+  await printAndShare(wrapHtml('Sales Orders', body), filename);
+}
