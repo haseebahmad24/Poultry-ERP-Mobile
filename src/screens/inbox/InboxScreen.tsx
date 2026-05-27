@@ -4,6 +4,8 @@ import {
   Animated,
   FlatList,
   PanResponder,
+  RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -150,6 +152,7 @@ export default function InboxScreen() {
   const navigation = useNavigation();
   const [entries, setEntries] = useState<InboxEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     const data = await getInboxEntries();
@@ -161,6 +164,12 @@ export default function InboxScreen() {
   useFocusEffect(useCallback(() => {
     load();
   }, [load]));
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
 
   const handleDelete = useCallback(async (id: string) => {
     await deleteInboxEntry(id);
@@ -215,7 +224,17 @@ export default function InboxScreen() {
       </View>
 
       {!loading && entries.length === 0 ? (
-        <View style={styles.emptyState}>
+        <ScrollView
+          contentContainerStyle={styles.emptyState}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={Colors.textMuted}
+            />
+          }
+        >
           <View style={styles.emptyIcon}>
             <Feather name="inbox" size={32} color={Colors.textMuted} />
           </View>
@@ -223,7 +242,7 @@ export default function InboxScreen() {
           <Text style={styles.emptyText}>
             Overdue reminders will appear here when notifications are enabled in Settings.
           </Text>
-        </View>
+        </ScrollView>
       ) : (
         <FlatList
           data={entries}
@@ -234,6 +253,13 @@ export default function InboxScreen() {
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={Colors.textMuted}
+            />
+          }
         />
       )}
     </SafeAreaView>
@@ -344,7 +370,7 @@ const styles = StyleSheet.create({
   separator: { height: Spacing.xs },
 
   emptyState: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
