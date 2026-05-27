@@ -13,7 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { Colors, Radius, Spacing } from '@/theme';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
 import SectionHeader from '@/components/SectionHeader';
 import ListScreenSkeleton from '@/components/ListScreenSkeleton';
@@ -111,15 +111,12 @@ export default function AlertsScreen() {
 
       <View style={styles.header}>
         <BackButton />
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Alerts</Text>
-          {!loading && totalAlerts > 0 && (
-            <View style={styles.totalBadge}>
-              <Text style={styles.totalBadgeText}>{totalAlerts}</Text>
-            </View>
-          )}
-        </View>
-        <View style={{ width: 40 }} />
+        <Text style={styles.headerTitle}>Alerts</Text>
+        {!loading && totalAlerts > 0 && (
+          <View style={styles.totalBadge}>
+            <Text style={styles.totalBadgeText}>{totalAlerts}</Text>
+          </View>
+        )}
       </View>
 
       {loading ? (
@@ -296,20 +293,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: Spacing.sm,
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.md,
+    paddingVertical: Spacing.sm + 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
-  headerCenter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: Colors.text },
+  headerTitle: { ...Typography.h2, flex: 1 },
   totalBadge: {
     backgroundColor: Colors.text,
     borderRadius: Radius.full,

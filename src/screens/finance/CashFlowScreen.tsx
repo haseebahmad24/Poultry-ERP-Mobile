@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   headerText: { flex: 1 },
-  headerTitle: { ...Typography.h3, color: Colors.text },
+  headerTitle: { ...Typography.h3 },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
 
   exportBtn: {
