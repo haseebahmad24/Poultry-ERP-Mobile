@@ -23,8 +23,40 @@ import { fetchSalesOrders, SalesOrder } from '@/api/salesOrders';
 import { fetchMaterials, Material } from '@/api/materials';
 import { fetchPartners, Partner } from '@/api/partners';
 import { fetchStockBalances, StockBalance } from '@/api/inventory';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCached, setCached } from '@/utils/cache';
 import { formatCurrency } from '@/utils/currency';
+
+const SEARCH_HISTORY_KEY = 'search:recent';
+const MAX_HISTORY = 8;
+
+async function loadSearchHistory(): Promise<string[]> {
+  try {
+    const raw = await AsyncStorage.getItem(SEARCH_HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveSearchHistory(term: string, existing: string[]): Promise<string[]> {
+  const deduped = existing.filter((t) => t.toLowerCase() !== term.toLowerCase());
+  const updated = [term, ...deduped].slice(0, MAX_HISTORY);
+  try {
+    await AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updated));
+  } catch {
+    // non-fatal
+  }
+  return updated;
+}
+
+async function clearSearchHistory(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(SEARCH_HISTORY_KEY);
+  } catch {
+    // non-fatal
+  }
+}
 
 type Nav = NativeStackNavigationProp<MoreStackParamList>;
 type TabNav = BottomTabNavigationProp<AppTabParamList>;
@@ -171,6 +203,7 @@ export default function SearchScreen() {
 
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   const [allPOs, setAllPOs] = useState<PurchaseOrder[]>([]);
   const [allSOs, setAllSOs] = useState<SalesOrder[]>([]);
@@ -232,7 +265,10 @@ export default function SearchScreen() {
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+    loadSearchHistory().then(setRecentSearches);
+  }, [loadData]);
 
   const q = query.trim();
   const hasQuery = q.length >= 2;
@@ -276,7 +312,14 @@ export default function SearchScreen() {
 
   const totalResults = sections.reduce((acc, s) => acc + s.count, 0);
 
+  const commitSearch = useCallback(async (term: string) => {
+    if (term.trim().length < 2) return;
+    const updated = await saveSearchHistory(term.trim(), recentSearches);
+    setRecentSearches(updated);
+  }, [recentSearches]);
+
   function handleResultPress(result: SearchResult) {
+    commitSearch(q);
     switch (result.type) {
       case 'po':
         navigation.navigate('PurchaseOrderDetail', { id: result.rawId });
@@ -410,6 +453,7 @@ export default function SearchScreen() {
             autoCapitalize="none"
             returnKeyType="search"
             clearButtonMode="never"
+            onSubmitEditing={() => commitSearch(query)}
           />
           {query.length > 0 && (
             <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
@@ -425,13 +469,55 @@ export default function SearchScreen() {
           <Text style={styles.stateText}>Loading data…</Text>
         </View>
       ) : !hasQuery ? (
-        <View style={styles.centerState}>
-          <Feather name="search" size={36} color={Colors.border} />
-          <Text style={styles.stateTitle}>Search everything</Text>
-          <Text style={styles.stateText}>
-            Type at least 2 characters to search across purchase orders, sales orders, stock balances, materials, and partners.
-          </Text>
-        </View>
+        recentSearches.length > 0 ? (
+          <View style={styles.historyContainer}>
+            <View style={styles.historyHeader}>
+              <Text style={styles.historyTitle}>Recent</Text>
+              <TouchableOpacity
+                onPress={async () => {
+                  await clearSearchHistory();
+                  setRecentSearches([]);
+                }}
+                hitSlop={8}
+              >
+                <Text style={styles.historyClearText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+            {recentSearches.map((term) => (
+              <TouchableOpacity
+                key={term}
+                style={styles.historyRow}
+                onPress={() => setQuery(term)}
+                activeOpacity={0.7}
+              >
+                <Feather name="clock" size={14} color={Colors.textMuted} />
+                <Text style={styles.historyTerm} numberOfLines={1}>{term}</Text>
+                <TouchableOpacity
+                  onPress={async () => {
+                    const filtered = recentSearches.filter((t) => t !== term);
+                    setRecentSearches(filtered);
+                    await AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(filtered));
+                  }}
+                  hitSlop={8}
+                >
+                  <Feather name="x" size={13} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
+            <View style={styles.historyHint}>
+              <Feather name="search" size={13} color={Colors.border} />
+              <Text style={styles.historyHintText}>Type at least 2 characters to search</Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.centerState}>
+            <Feather name="search" size={36} color={Colors.border} />
+            <Text style={styles.stateTitle}>Search everything</Text>
+            <Text style={styles.stateText}>
+              Type at least 2 characters to search across purchase orders, sales orders, stock balances, materials, and partners.
+            </Text>
+          </View>
+        )
       ) : totalResults === 0 ? (
         <View style={styles.centerState}>
           <Feather name="inbox" size={36} color={Colors.border} />
@@ -585,5 +671,53 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.textSecondary,
     letterSpacing: 0.4,
+  },
+
+  historyContainer: {
+    paddingTop: Spacing.sm,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+  },
+  historyTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  historyClearText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 13,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  historyTerm: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
+  },
+  historyHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+  },
+  historyHintText: {
+    fontSize: 12,
+    color: Colors.textMuted,
   },
 });
