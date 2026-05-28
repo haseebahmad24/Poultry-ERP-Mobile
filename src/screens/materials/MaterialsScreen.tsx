@@ -40,6 +40,7 @@ export default function MaterialsScreen() {
   const [stale, setStale] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState<number | null>(null);
+  const [sort, setSort] = useState<'name' | 'code' | 'type'>('name');
   const [exporting, setExporting] = useState(false);
 
   const cacheKey = `materials:${companyId ?? 'all'}:${selectedType ?? 'all'}`;
@@ -77,16 +78,22 @@ export default function MaterialsScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = materials.filter((m) => {
-    const q = search.toLowerCase();
-    return (
-      !q ||
-      m.name?.toLowerCase().includes(q) ||
-      m.code?.toLowerCase().includes(q) ||
-      m.type?.toLowerCase().includes(q) ||
-      m.category?.toLowerCase().includes(q)
-    );
-  });
+  const filtered = materials
+    .filter((m) => {
+      const q = search.toLowerCase();
+      return (
+        !q ||
+        m.name?.toLowerCase().includes(q) ||
+        m.code?.toLowerCase().includes(q) ||
+        m.type?.toLowerCase().includes(q) ||
+        m.category?.toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => {
+      if (sort === 'code') return (a.code ?? '').localeCompare(b.code ?? '');
+      if (sort === 'type') return (a.type ?? '').localeCompare(b.type ?? '') || (a.name ?? '').localeCompare(b.name ?? '');
+      return (a.name ?? '').localeCompare(b.name ?? '');
+    });
 
   const handleExport = async () => {
     setExporting(true);
@@ -114,16 +121,28 @@ export default function MaterialsScreen() {
         <Text style={styles.headerTitle}>Materials</Text>
         {!loading && <Text style={styles.headerSub}>{filtered.length} items</Text>}
         {!loading && filtered.length > 0 && (
-          exporting ? (
-            <ActivityIndicator size="small" color={Colors.textMuted} />
-          ) : (
+          <>
             <TouchableOpacity
-              onPress={handleExport}
+              onPress={() => setSort((s) => s === 'name' ? 'code' : s === 'code' ? 'type' : 'name')}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.sortBtn}
             >
-              <Feather name="file-text" size={18} color={Colors.text} />
+              <Feather name="sliders" size={15} color={Colors.textSecondary} />
+              <Text style={styles.sortBtnText}>
+                {sort === 'name' ? 'A–Z' : sort === 'code' ? 'Code' : 'Type'}
+              </Text>
             </TouchableOpacity>
-          )
+            {exporting ? (
+              <ActivityIndicator size="small" color={Colors.textMuted} />
+            ) : (
+              <TouchableOpacity
+                onPress={handleExport}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="file-text" size={18} color={Colors.text} />
+              </TouchableOpacity>
+            )}
+          </>
         )}
       </View>
 
@@ -293,6 +312,17 @@ const styles = StyleSheet.create({
   },
   headerTitle: { ...Typography.h2 },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted },
+  sortBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  sortBtnText: { fontSize: 11, color: Colors.textSecondary, fontWeight: '500' },
 
   searchContainer: {
     paddingHorizontal: Spacing.md,
