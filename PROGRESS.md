@@ -1,5 +1,56 @@
 # Mobile App Progress
 
+## Session 25 — 2026-05-28
+
+### Completed This Session
+
+**Dashboard: Net Income + Vouchers Month-over-Month Trends**
+- Net Income KPI card now shows MoM trend using existing `revenuePrevMonth`/`expensesPrevMonth` data
+- Vouchers MTD: added `vouchersPrevMonth` to KPIs type; API computes it from previous month journal entries
+- `SectionHeader` meta line now shows voucher trend (e.g., "+12% vs last mo")
+- Fixed: Net Income `trendInverted` was incorrectly true when loss — up is always good for net income
+
+**Dashboard: 7-Day Daily Voucher Sparkline** (`src/components/VoucherSparkline.tsx`, `src/api/dashboard.ts`)
+- `fetchDashboardData` builds `dailyVouchers: {date, count}[]` for the last 7 days from fetched journal entries
+- `VoucherSparkline` renders 7 proportional bars; today's bar highlighted in dark; count label shown on non-zero days
+- Appears in a "Last 7 Days" section above the voucher type activity chart
+
+**Dashboard: Supply Chain Snapshot** (`src/api/dashboard.ts` `fetchSupplyChainSnapshot`, `DashboardScreen.tsx`)
+- Lazy-fetched after main dashboard data (separate `useEffect`) to avoid blocking render
+- Shows Open POs / Open SOs / Active Materials as 3 tappable count tiles
+- Each tile navigates to the corresponding screen
+
+**Dashboard: Recently Viewed** (`src/utils/recentlyViewed.ts`, `src/components/RecentlyViewedSection.tsx`, `DashboardScreen.tsx`)
+- AsyncStorage-backed history with max 8 items; deduplicates by type+entityId
+- Tracking added to: PurchaseOrderDetailScreen, PODetailScreen, SalesOrderDetailScreen, PartnerDetailScreen, MaterialDetailScreen
+- Dashboard shows last 5 items with type icon, title, subtitle; tapping navigates to that record
+- Section loads on focus so new views appear immediately on next dashboard visit
+
+**Settings: Date Format Live Preview**
+- Shows `Preview: <formatted sample date>` below format chips using the actual `formatDate()` function
+- Updates instantly when format is changed
+
+**Pull-to-Refresh Additions**
+- `PODetailScreen` (GRN flow): RefreshControl added to ScrollView
+- `BookmarksScreen`: RefreshControl on both FlatList and empty-state ScrollView; `flexGrow:1` for empty container
+
+**Inventory Screen Improvements**
+- Stock Ledger tab: PDF export button (`exportStockLedgerPDF`) — summary tiles + full movement log table
+- Stock Balance tab: sort button in header (cycles name A–Z → qty high-low → qty low-high); sort mode shown inline in filter bar
+
+**Materials Screen: Sort Button**
+- Sort cycles: name A–Z → code A–Z → type A–Z
+- Shown as a chip-style button with Sliders icon and current sort label
+
+### Next Session
+- Consider: "Account Statement" screen (journal entry lines for a single account with running balance)
+- Consider: Dashboard summary PDF export (snapshot of all KPI cards + charts)
+- Consider: Partner payments / receipts timeline in Vendor/Customer detail
+- Consider: Push notification integration with backend alerts
+- Consider: Batch export — export all reports in one action
+
+---
+
 ## Session 24 — 2026-05-27
 
 ### Completed This Session

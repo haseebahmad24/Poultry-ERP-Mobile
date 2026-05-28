@@ -30,7 +30,7 @@
     "@babel/core": "^7.25.2",
     "@types/react": "~18.2.79",
     "babel-plugin-module-resolver": "^5.0.2",
-    "docx": "^9.7.0",
+    "docx": "^9.7.1",
     "typescript": "^5.3.3"
   },
   "private": true
