@@ -258,19 +258,21 @@ export default function AccountsReceivableScreen() {
         {activeTab === 'invoices' && (
           <>
             <View style={styles.searchContainer}>
-              <Feather name="search" size={14} color={Colors.textMuted} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search invoices, customers…"
-                placeholderTextColor={Colors.textMuted}
-                value={invoiceSearch}
-                onChangeText={setInvoiceSearch}
-              />
-              {invoiceSearch.length > 0 && (
-                <TouchableOpacity onPress={() => setInvoiceSearch('')}>
-                  <Feather name="x" size={14} color={Colors.textMuted} />
-                </TouchableOpacity>
-              )}
+              <View style={styles.searchBar}>
+                <Feather name="search" size={14} color={Colors.textMuted} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search invoices, customers…"
+                  placeholderTextColor={Colors.textMuted}
+                  value={invoiceSearch}
+                  onChangeText={setInvoiceSearch}
+                />
+                {invoiceSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setInvoiceSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Feather name="x" size={14} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
             <SectionHeader
               title="Invoices"
@@ -293,19 +295,21 @@ export default function AccountsReceivableScreen() {
         {activeTab === 'customers' && (
           <>
             <View style={styles.searchContainer}>
-              <Feather name="search" size={14} color={Colors.textMuted} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search customers…"
-                placeholderTextColor={Colors.textMuted}
-                value={customerSearch}
-                onChangeText={setCustomerSearch}
-              />
-              {customerSearch.length > 0 && (
-                <TouchableOpacity onPress={() => setCustomerSearch('')}>
-                  <Feather name="x" size={14} color={Colors.textMuted} />
-                </TouchableOpacity>
-              )}
+              <View style={styles.searchBar}>
+                <Feather name="search" size={14} color={Colors.textMuted} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search customers…"
+                  placeholderTextColor={Colors.textMuted}
+                  value={customerSearch}
+                  onChangeText={setCustomerSearch}
+                />
+                {customerSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setCustomerSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Feather name="x" size={14} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
             <SectionHeader title="Customers" meta={`${filteredCustomers.length} records`} />
             {filteredCustomers.length === 0 ? (
@@ -603,18 +607,28 @@ const styles = StyleSheet.create({
   emptyText: { ...Typography.body, color: Colors.textMuted },
 
   searchContainer: {
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.xs,
+    gap: Spacing.xs,
     backgroundColor: Colors.background,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.sm,
+    height: 36,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.text,
+    paddingVertical: 0,
   },
 
   overdueBanner: {

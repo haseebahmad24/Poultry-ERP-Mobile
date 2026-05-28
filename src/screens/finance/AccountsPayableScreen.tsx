@@ -259,19 +259,21 @@ export default function AccountsPayableScreen() {
         {activeTab === 'bills' && (
           <>
             <View style={styles.searchContainer}>
-              <Feather name="search" size={14} color={Colors.textMuted} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search bills, vendors…"
-                placeholderTextColor={Colors.textMuted}
-                value={billSearch}
-                onChangeText={setBillSearch}
-              />
-              {billSearch.length > 0 && (
-                <TouchableOpacity onPress={() => setBillSearch('')}>
-                  <Feather name="x" size={14} color={Colors.textMuted} />
-                </TouchableOpacity>
-              )}
+              <View style={styles.searchBar}>
+                <Feather name="search" size={14} color={Colors.textMuted} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search bills, vendors…"
+                  placeholderTextColor={Colors.textMuted}
+                  value={billSearch}
+                  onChangeText={setBillSearch}
+                />
+                {billSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setBillSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Feather name="x" size={14} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
             <SectionHeader
               title="Bills"
@@ -294,19 +296,21 @@ export default function AccountsPayableScreen() {
         {activeTab === 'vendors' && (
           <>
             <View style={styles.searchContainer}>
-              <Feather name="search" size={14} color={Colors.textMuted} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search vendors…"
-                placeholderTextColor={Colors.textMuted}
-                value={vendorSearch}
-                onChangeText={setVendorSearch}
-              />
-              {vendorSearch.length > 0 && (
-                <TouchableOpacity onPress={() => setVendorSearch('')}>
-                  <Feather name="x" size={14} color={Colors.textMuted} />
-                </TouchableOpacity>
-              )}
+              <View style={styles.searchBar}>
+                <Feather name="search" size={14} color={Colors.textMuted} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search vendors…"
+                  placeholderTextColor={Colors.textMuted}
+                  value={vendorSearch}
+                  onChangeText={setVendorSearch}
+                />
+                {vendorSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setVendorSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Feather name="x" size={14} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
             <SectionHeader title="Vendors" meta={`${filteredVendors.length} records`} />
             {filteredVendors.length === 0 ? (
@@ -604,18 +608,28 @@ const styles = StyleSheet.create({
   emptyText: { ...Typography.body, color: Colors.textMuted },
 
   searchContainer: {
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.xs,
+    gap: Spacing.xs,
     backgroundColor: Colors.background,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.sm,
+    height: 36,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.text,
+    paddingVertical: 0,
   },
 
   overdueBanner: {

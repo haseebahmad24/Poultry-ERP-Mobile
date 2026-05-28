@@ -228,7 +228,7 @@ export default function TrialBalanceScreen() {
 
         {filteredRows.length === 0 ? (
           <View style={styles.emptyState}>
-            <Feather name="scale" size={36} color={Colors.textMuted} />
+            <Feather name="book-open" size={36} color={Colors.textMuted} />
             <Text style={styles.emptyText}>No accounts found</Text>
           </View>
         ) : (
