@@ -10,15 +10,35 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
-import { useRoute, RouteProp } from '@react-navigation/native';
+import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
-import type { JournalEntry } from '@/api/journalEntries';
+import type { JournalEntry, JELine } from '@/api/journalEntries';
 import BackButton from '@/components/BackButton';
 import SectionHeader from '@/components/SectionHeader';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { exportJournalEntryDetailPDF } from '@/utils/pdfExport';
 import { useCompany } from '@/context/CompanyContext';
+
+type NavProp = NativeStackNavigationProp<FinanceStackParamList>;
+
+// Parse "1001 - Cash" or "1001 – Cash" into {code, name}
+function parseAccountField(account: string): { code: string; name: string } {
+  const sep = account.includes(' - ') ? ' - ' : account.includes(' – ') ? ' – ' : null;
+  if (sep) {
+    const idx = account.indexOf(sep);
+    return {
+      code: account.slice(0, idx).trim(),
+      name: account.slice(idx + sep.length).trim(),
+    };
+  }
+  // If it's a pure numeric code
+  if (/^\d+$/.test(account.trim())) {
+    return { code: account.trim(), name: account.trim() };
+  }
+  return { code: account.trim(), name: account.trim() };
+}
 
 type RouteType = RouteProp<FinanceStackParamList, 'JournalEntryDetail'>;
 
@@ -33,6 +53,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 export default function JournalEntryDetailScreen() {
   const route = useRoute<RouteType>();
+  const navigation = useNavigation<NavProp>();
   const { entry } = route.params;
   const { selectedCompany } = useCompany();
 
@@ -139,22 +160,39 @@ export default function JournalEntryDetailScreen() {
               <Text style={[styles.lineAmt, styles.lineHeaderText]}>Credit</Text>
             </View>
 
-            {entry.lines.map((line, idx) => (
-              <View key={line.id ?? idx} style={styles.lineRow}>
-                <View style={styles.lineAccountWrap}>
-                  <Text style={styles.lineAccount} numberOfLines={2}>{line.account ?? '—'}</Text>
-                  {line.narration ? (
-                    <Text style={styles.lineNarration} numberOfLines={1}>{line.narration}</Text>
-                  ) : null}
-                </View>
-                <Text style={styles.lineAmt}>
-                  {(line.debit ?? 0) > 0 ? formatCurrency(line.debit!) : ''}
-                </Text>
-                <Text style={styles.lineAmt}>
-                  {(line.credit ?? 0) > 0 ? formatCurrency(line.credit!) : ''}
-                </Text>
-              </View>
-            ))}
+            {entry.lines.map((line, idx) => {
+              const parsed = line.account ? parseAccountField(line.account) : null;
+              const canNavigate = !!parsed?.code;
+              return (
+                <TouchableOpacity
+                  key={line.id ?? idx}
+                  style={styles.lineRow}
+                  onPress={canNavigate ? () => navigation.navigate('AccountStatement', {
+                    accountCode: parsed!.code,
+                    accountName: parsed!.name !== parsed!.code
+                      ? `${parsed!.code} — ${parsed!.name}`
+                      : parsed!.code,
+                  }) : undefined}
+                  activeOpacity={canNavigate ? 0.7 : 1}
+                >
+                  <View style={styles.lineAccountWrap}>
+                    <Text style={styles.lineAccount} numberOfLines={2}>{line.account ?? '—'}</Text>
+                    {line.narration ? (
+                      <Text style={styles.lineNarration} numberOfLines={1}>{line.narration}</Text>
+                    ) : null}
+                  </View>
+                  <Text style={styles.lineAmt}>
+                    {(line.debit ?? 0) > 0 ? formatCurrency(line.debit!) : ''}
+                  </Text>
+                  <Text style={styles.lineAmt}>
+                    {(line.credit ?? 0) > 0 ? formatCurrency(line.credit!) : ''}
+                  </Text>
+                  {canNavigate && (
+                    <Feather name="chevron-right" size={12} color={Colors.textMuted} style={{ marginLeft: 4 }} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
 
             {/* Total row */}
             <View style={[styles.lineRow, styles.lineTotalRow]}>
