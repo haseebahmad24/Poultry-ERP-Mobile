@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
+  FlatList,
+  Modal,
   RefreshControl,
   ScrollView,
   Share,
@@ -16,6 +19,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchJournalEntries, JournalEntry } from '@/api/journalEntries';
+import { fetchTrialBalance, TrialBalanceRow } from '@/api/trialBalance';
 import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
 import ErrorView from '@/components/ErrorView';
 import ListScreenSkeleton from '@/components/ListScreenSkeleton';
@@ -40,8 +44,6 @@ export default function JournalEntriesScreen() {
   const { companyId, selectedCompany } = useCompany();
   const navigation = useNavigation<NavProp>();
   const route = useRoute<RouteType>();
-  const accountFilter = route.params?.account;
-  const accountFilterName = route.params?.accountName;
 
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,10 +54,15 @@ export default function JournalEntriesScreen() {
   const [dateRange, setDateRange] = useState<DateRangeValue>({ from: '', to: '' });
   const [isStale, setIsStale] = useState(false);
 
+  // Account filter — can be set via route params or picker
+  const [pickedAccount, setPickedAccount] = useState<string | undefined>(route.params?.account);
+  const [pickedAccountName, setPickedAccountName] = useState<string | undefined>(route.params?.accountName);
+  const [showAccountPicker, setShowAccountPicker] = useState(false);
+
   const validFrom = DATE_RE.test(dateRange.from) ? dateRange.from : undefined;
   const validTo = DATE_RE.test(dateRange.to) ? dateRange.to : undefined;
 
-  const cacheKey = `journal-entries:${companyId ?? 'all'}:${selectedType}:${accountFilter ?? ''}`;
+  const cacheKey = `journal-entries:${companyId ?? 'all'}:${selectedType}:${pickedAccount ?? ''}`;
   const useCache = !validFrom && !validTo;
 
   const load = useCallback(async (isRefresh = false) => {
@@ -82,7 +89,7 @@ export default function JournalEntriesScreen() {
         type: selectedType !== 'All' ? selectedType : undefined,
         from: validFrom,
         to: validTo,
-        account: accountFilter,
+        account: pickedAccount,
       });
       setEntries(data);
       setIsStale(false);
@@ -99,7 +106,7 @@ export default function JournalEntriesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedType, companyId, cacheKey, useCache, validFrom, validTo, accountFilter]);
+  }, [selectedType, companyId, cacheKey, useCache, validFrom, validTo, pickedAccount]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -145,7 +152,7 @@ export default function JournalEntriesScreen() {
       <View style={styles.header}>
         <BackButton />
         <Text style={styles.headerTitle} numberOfLines={1}>
-          {accountFilterName ? `JEs — ${accountFilterName}` : 'Journal Entries'}
+          {pickedAccountName ? `JEs — ${pickedAccountName}` : 'Journal Entries'}
         </Text>
         {!loading && <Text style={styles.headerSub}>{filtered.length}</Text>}
         {!loading && filtered.length > 0 && (
@@ -162,13 +169,35 @@ export default function JournalEntriesScreen() {
         )}
       </View>
 
-      {accountFilterName && (
+      {pickedAccount ? (
         <View style={styles.accountFilterBanner}>
           <Feather name="filter" size={12} color={Colors.textMuted} />
-          <Text style={styles.accountFilterText}>
-            Account: <Text style={styles.accountFilterName}>{accountFilterName}</Text>
+          <Text style={styles.accountFilterText} numberOfLines={1}>
+            Account: <Text style={styles.accountFilterName}>{pickedAccountName ?? pickedAccount}</Text>
           </Text>
+          <TouchableOpacity
+            style={styles.accountFilterEdit}
+            onPress={() => setShowAccountPicker(true)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Feather name="edit-2" size={11} color={Colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.accountFilterClear}
+            onPress={() => { setPickedAccount(undefined); setPickedAccountName(undefined); }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Feather name="x" size={13} color={Colors.textMuted} />
+          </TouchableOpacity>
         </View>
+      ) : (
+        <TouchableOpacity
+          style={styles.accountFilterBannerEmpty}
+          onPress={() => setShowAccountPicker(true)}
+        >
+          <Feather name="filter" size={12} color={Colors.textMuted} />
+          <Text style={styles.accountFilterEmptyText}>Filter by account…</Text>
+        </TouchableOpacity>
       )}
 
       <CompanySelector showAll />
@@ -251,7 +280,121 @@ export default function JournalEntriesScreen() {
           </ScrollView>
         </>
       )}
+      <AccountPickerModal
+        visible={showAccountPicker}
+        companyId={companyId}
+        onSelect={(code, name) => {
+          setPickedAccount(code);
+          setPickedAccountName(name);
+          setShowAccountPicker(false);
+        }}
+        onClose={() => setShowAccountPicker(false)}
+      />
     </SafeAreaView>
+  );
+}
+
+function AccountPickerModal({
+  visible,
+  companyId,
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  companyId?: string | number;
+  onSelect: (code: string, name: string) => void;
+  onClose: () => void;
+}) {
+  const [accounts, setAccounts] = useState<TrialBalanceRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    if (!visible) return;
+    setLoading(true);
+    setSearch('');
+    fetchTrialBalance(companyId)
+      .then((result) => {
+        setAccounts(result.rows.filter((r) => !r.is_group && r.account_code));
+      })
+      .catch(() => setAccounts([]))
+      .finally(() => setLoading(false));
+  }, [visible, companyId]);
+
+  const filtered = search.trim()
+    ? accounts.filter((a) => {
+        const q = search.toLowerCase();
+        return (
+          a.account_code?.toLowerCase().includes(q) ||
+          a.account_name?.toLowerCase().includes(q)
+        );
+      })
+    : accounts;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={styles.modalRoot} edges={['top']}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>Filter by Account</Text>
+          <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Feather name="x" size={20} color={Colors.text} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.modalSearch}>
+          <Feather name="search" size={14} color={Colors.textMuted} />
+          <TextInput
+            style={styles.modalSearchInput}
+            placeholder="Search account name or code…"
+            placeholderTextColor={Colors.textMuted}
+            value={search}
+            onChangeText={setSearch}
+            autoFocus
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <Feather name="x" size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+        {loading ? (
+          <View style={styles.modalLoading}>
+            <ActivityIndicator color={Colors.textMuted} />
+            <Text style={styles.modalLoadingText}>Loading accounts…</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => item.account_code ?? item.account_name}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.accountRow}
+                onPress={() => onSelect(item.account_code!, `${item.account_code} — ${item.account_name}`)}
+              >
+                <Text style={styles.accountCode}>{item.account_code}</Text>
+                <Text style={styles.accountName} numberOfLines={1}>{item.account_name}</Text>
+                <Feather name="chevron-right" size={14} color={Colors.textMuted} />
+              </TouchableOpacity>
+            )}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            ListEmptyComponent={
+              <View style={styles.modalEmpty}>
+                <Feather name="inbox" size={28} color={Colors.textMuted} />
+                <Text style={styles.modalEmptyText}>
+                  {search ? 'No accounts match search' : 'No accounts found'}
+                </Text>
+              </View>
+            }
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: 40 }}
+          />
+        )}
+      </SafeAreaView>
+    </Modal>
   );
 }
 
@@ -352,8 +495,79 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
-  accountFilterText: { fontSize: 12, color: Colors.textSecondary },
+  accountFilterBannerEmpty: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    backgroundColor: Colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  accountFilterEmptyText: { fontSize: 12, color: Colors.textMuted, flex: 1 },
+  accountFilterText: { fontSize: 12, color: Colors.textSecondary, flex: 1 },
   accountFilterName: { fontWeight: '600', color: Colors.text },
+  accountFilterEdit: { padding: 2 },
+  accountFilterClear: { padding: 2 },
+
+  // Account picker modal
+  modalRoot: { flex: 1, backgroundColor: Colors.background },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  modalTitle: { ...Typography.h3 },
+  modalSearch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  modalSearchInput: { flex: 1, fontSize: 14, color: Colors.text },
+  modalLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  modalLoadingText: { ...Typography.bodySmall, color: Colors.textMuted },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    gap: Spacing.sm,
+    backgroundColor: Colors.surface,
+  },
+  accountCode: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    width: 60,
+  },
+  accountName: { flex: 1, fontSize: 14, color: Colors.text },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.borderLight,
+    marginLeft: Spacing.md,
+  },
+  modalEmpty: {
+    padding: Spacing.xl,
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  modalEmptyText: { ...Typography.body, color: Colors.textMuted },
 
   searchContainer: {
     flexDirection: 'row',
