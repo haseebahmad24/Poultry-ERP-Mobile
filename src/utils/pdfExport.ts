@@ -12,6 +12,8 @@ import type { ARSummary, ARInvoice, ARCustomer } from '@/api/accountsReceivable'
 import type { Material } from '@/api/materials';
 import type { Partner } from '@/api/partners';
 import type { CompanyDetail } from '@/api/companies';
+import type { AccountStatementLine } from '@/screens/finance/AccountStatementScreen';
+import type { KPIs, RecentVoucher, VoucherTypeStat } from '@/api/dashboard';
 import { formatCurrency, formatDate } from '@/utils/currency';
 
 // ─── shared HTML helpers ───────────────────────────────────────────────────
@@ -2588,4 +2590,227 @@ export async function exportStockLedgerPDF(params: {
   `;
 
   await printAndShare(wrapHtml('Stock Ledger', body), `stock-ledger-${todayStr}.pdf`);
+}
+
+// ─── Account Statement PDF ──────────────────────────────────────────────────
+
+export async function exportAccountStatementPDF(params: {
+  accountCode: string;
+  accountName: string;
+  accountType?: string;
+  companyName: string;
+  from?: string;
+  to?: string;
+  lines: AccountStatementLine[];
+}): Promise<void> {
+  const { accountCode, accountName, accountType, companyName, from, to, lines } = params;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const dateRange = from && to ? `${from} to ${to}` : from ? `From ${from}` : 'All dates';
+
+  const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
+  const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
+  const closingBalance = lines.length > 0 ? lines[lines.length - 1].balance : 0;
+
+  const summaryTiles = `
+    <div class="summary-grid" style="grid-template-columns:1fr 1fr 1fr;">
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalDebit)}</div>
+        <div class="label">Total Debits</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalCredit)}</div>
+        <div class="label">Total Credits</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(Math.abs(closingBalance))}${closingBalance < 0 ? ' Cr' : ''}</div>
+        <div class="label">Closing Balance</div>
+      </div>
+    </div>`;
+
+  const tableRows = lines.map((l, i) => `
+    <tr style="${i % 2 === 1 ? 'background:#fafafa;' : ''}">
+      <td>${l.date}</td>
+      <td><span style="font-size:9px;font-weight:700;border:1px solid #e8e8e8;border-radius:3px;padding:1px 4px;">${l.voucherType}</span> ${l.voucherNo}${l.narration ? `<br/><span style="color:#888;font-size:10px;">${l.narration}</span>` : ''}</td>
+      <td class="right">${l.debit > 0 ? formatCurrency(l.debit) : '—'}</td>
+      <td class="right">${l.credit > 0 ? formatCurrency(l.credit) : '—'}</td>
+      <td class="right" style="${l.balance < 0 ? 'color:#666;' : ''}">${formatCurrency(Math.abs(l.balance))}${l.balance < 0 ? ' Cr' : ''}</td>
+    </tr>`).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Account Statement</div>
+      <div class="report-meta">${companyName} · ${accountCode} — ${accountName}${accountType ? ` · ${accountType}` : ''} · ${dateRange}</div>
+    </div>
+
+    ${summaryTiles}
+
+    <div class="section-label">Transactions (${lines.length} entries)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Voucher / Narration</th>
+          <th class="right">Debit</th>
+          <th class="right">Credit</th>
+          <th class="right">Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tableRows || '<tr><td colspan="5" class="muted">No transactions found</td></tr>'}
+        <tr class="total">
+          <td>TOTAL</td>
+          <td></td>
+          <td class="right">${formatCurrency(totalDebit)}</td>
+          <td class="right">${formatCurrency(totalCredit)}</td>
+          <td class="right">${formatCurrency(Math.abs(closingBalance))}${closingBalance < 0 ? ' Cr' : ''}</td>
+        </tr>
+      </tbody>
+    </table>
+  `;
+
+  await printAndShare(
+    wrapHtml('Account Statement', body),
+    `account-statement-${accountCode}-${todayStr}.pdf`
+  );
+}
+
+// ─── Dashboard Summary PDF ──────────────────────────────────────────────────
+
+export async function exportDashboardSummaryPDF(params: {
+  companyName: string;
+  asOf: string;
+  kpis: KPIs;
+  voucherTypeStats: VoucherTypeStat[];
+  recentVouchers: RecentVoucher[];
+  supplyChain?: { openPOs: number; openSOs: number; activeMaterials: number } | null;
+}): Promise<void> {
+  const { companyName, asOf, kpis, voucherTypeStats, recentVouchers, supplyChain } = params;
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const netIncome = kpis.revenue - kpis.expenses;
+  const workingCapital = kpis.cash + kpis.totalAR - kpis.totalAP;
+
+  function trendHtml(current: number, prev: number | null | undefined, inverted = false): string {
+    if (prev == null || prev === 0) return '';
+    const pct = ((current - prev) / Math.abs(prev)) * 100;
+    const isPositive = pct >= 0;
+    const isGood = inverted ? !isPositive : isPositive;
+    const sign = isPositive ? '+' : '';
+    const color = isGood ? '#555' : '#999';
+    const arrow = isPositive ? '▲' : '▼';
+    return `<span style="font-size:10px;color:${color};margin-left:6px;">${arrow} ${sign}${pct.toFixed(1)}% vs last mo</span>`;
+  }
+
+  const kpiGrid = `
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${formatCurrency(kpis.revenue)}${trendHtml(kpis.revenue, kpis.revenuePrevMonth)}</div>
+        <div class="label">Revenue MTD</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(kpis.expenses)}${trendHtml(kpis.expenses, kpis.expensesPrevMonth, true)}</div>
+        <div class="label">Expenses MTD</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(Math.abs(netIncome))}${netIncome < 0 ? ' (Loss)' : ''}</div>
+        <div class="label">Net Income MTD</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(kpis.cash)}</div>
+        <div class="label">Cash &amp; Bank</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(kpis.totalAR)}</div>
+        <div class="label">Accounts Receivable</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(kpis.totalAP)}</div>
+        <div class="label">Accounts Payable</div>
+      </div>
+    </div>`;
+
+  const workingCapitalHtml = `
+    <div class="net-row">
+      <span class="net-label">Net Working Capital</span>
+      <span class="net-value">${formatCurrency(workingCapital)}</span>
+    </div>`;
+
+  const voucherCountHtml = (() => {
+    if (voucherTypeStats.length === 0) return '';
+    const rows = voucherTypeStats.slice(0, 8).map((s) => `
+      <tr>
+        <td><span style="font-size:9px;font-weight:700;border:1px solid #e8e8e8;border-radius:3px;padding:1px 4px;">${s.type}</span></td>
+        <td class="right">${s.count}</td>
+        <td class="right">${formatCurrency(s.amount)}</td>
+      </tr>`).join('');
+    return `
+      <div class="section-label">Activity by Type — This Month (${kpis.vouchersMonth} vouchers total)</div>
+      <table>
+        <thead><tr><th>Voucher Type</th><th class="right">Count</th><th class="right">Amount</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  })();
+
+  const recentVouchersHtml = (() => {
+    if (recentVouchers.length === 0) return '';
+    const rows = recentVouchers.map((v) => `
+      <tr>
+        <td>${v.dt}</td>
+        <td><span style="font-size:9px;font-weight:700;border:1px solid #e8e8e8;border-radius:3px;padding:1px 4px;">${v.type}</span> ${v.number ?? v.id}</td>
+        <td class="right">${formatCurrency(v.amount)}</td>
+        <td>${v.status ?? '—'}</td>
+      </tr>`).join('');
+    return `
+      <div class="section-label">Recent Vouchers</div>
+      <table>
+        <thead><tr><th>Date</th><th>Voucher</th><th class="right">Amount</th><th>Status</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  })();
+
+  const supplyChainHtml = supplyChain ? `
+    <div class="section-label">Supply Chain</div>
+    <div class="summary-grid" style="grid-template-columns:1fr 1fr 1fr;">
+      <div class="summary-block">
+        <div class="value">${supplyChain.openPOs}</div>
+        <div class="label">Open POs</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${supplyChain.openSOs}</div>
+        <div class="label">Open SOs</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${supplyChain.activeMaterials}</div>
+        <div class="label">Active Materials</div>
+      </div>
+    </div>` : '';
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Dashboard Summary</div>
+      <div class="report-meta">${companyName} · As of ${asOf}</div>
+    </div>
+
+    <div class="section-label">Key Performance Indicators</div>
+    ${kpiGrid}
+
+    <div class="section-label">Working Capital</div>
+    <table style="margin-bottom:8px;">
+      <tbody>
+        <tr><td>Cash &amp; Bank</td><td class="right">${formatCurrency(kpis.cash)}</td></tr>
+        <tr><td>+ Receivables</td><td class="right">${formatCurrency(kpis.totalAR)}</td></tr>
+        <tr><td>− Payables</td><td class="right">(${formatCurrency(kpis.totalAP)})</td></tr>
+      </tbody>
+    </table>
+    ${workingCapitalHtml}
+
+    ${supplyChainHtml}
+    ${voucherCountHtml}
+    ${recentVouchersHtml}
+  `;
+
+  await printAndShare(
+    wrapHtml('Dashboard Summary', body),
+    `dashboard-summary-${todayStr}.pdf`
+  );
 }

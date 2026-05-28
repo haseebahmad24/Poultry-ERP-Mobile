@@ -244,9 +244,10 @@ export default function TrialBalanceScreen() {
                 key={row.account_id ?? idx}
                 row={row}
                 isLast={idx === filteredRows.length - 1}
-                onPress={!row.is_group ? () => navigation.navigate('JournalEntries', {
-                  account: row.account_code ?? row.account_name,
-                  accountName: row.account_name,
+                onPress={!row.is_group ? () => navigation.navigate('AccountStatement', {
+                  accountCode: row.account_code ?? row.account_name ?? '',
+                  accountName: row.account_name ?? '',
+                  accountType: row.account_type,
                 }) : undefined}
               />
             ))}

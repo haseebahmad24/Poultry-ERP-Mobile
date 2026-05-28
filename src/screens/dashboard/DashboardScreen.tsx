@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -32,6 +33,7 @@ import { getAutoRefreshInterval } from '@/utils/settings';
 import { getUnreadCount } from '@/utils/notificationLog';
 import { getBookmarks } from '@/utils/bookmarks';
 import { getRecentlyViewed, RecentItem } from '@/utils/recentlyViewed';
+import { exportDashboardSummaryPDF } from '@/utils/pdfExport';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
 
 type Nav = BottomTabNavigationProp<AppTabParamList>;
@@ -137,6 +139,7 @@ export default function DashboardScreen() {
   const [, setTick] = useState(0);
   const [supplyChain, setSupplyChain] = useState<SupplyChainSnapshot | null>(null);
   const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
+  const [exporting, setExporting] = useState(false);
 
   const cacheKey = `dashboard:${selectedCompany?.id ?? 'all'}`;
 
@@ -220,6 +223,23 @@ export default function DashboardScreen() {
     return 'Good evening';
   })();
 
+  const handleExportPDF = async () => {
+    if (!kpis) return;
+    setExporting(true);
+    try {
+      await exportDashboardSummaryPDF({
+        companyName: selectedCompany?.name ?? 'All Companies',
+        asOf: new Date().toISOString().slice(0, 10),
+        kpis,
+        voucherTypeStats,
+        recentVouchers: vouchers,
+        supplyChain,
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) return <DashboardSkeleton />;
   if (error && !kpis) return <ErrorView message={error} onRetry={() => load()} />;
 
@@ -263,6 +283,16 @@ export default function DashboardScreen() {
             onPress={() => navigation.navigate('More', { screen: 'Search' } as any)}
           >
             <Feather name="search" size={18} color={Colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            activeOpacity={0.7}
+            onPress={handleExportPDF}
+            disabled={exporting || !kpis}
+          >
+            {exporting
+              ? <ActivityIndicator size="small" color={Colors.text} />
+              : <Feather name="file-text" size={18} color={kpis ? Colors.text : Colors.textMuted} />}
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.alertsBtn}

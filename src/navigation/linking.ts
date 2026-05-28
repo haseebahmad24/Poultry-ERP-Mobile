@@ -25,6 +25,7 @@ const linking: LinkingOptions<any> = {
               JournalEntries: 'finance/journal',
               TrialBalance: 'finance/trial-balance',
               FinancialReports: 'finance/reports',
+              AccountStatement: 'finance/account-statement',
             },
           },
           More: {

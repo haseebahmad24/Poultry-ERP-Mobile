@@ -11,6 +11,7 @@ import JournalEntriesScreen from '@/screens/journalEntries/JournalEntriesScreen'
 import JournalEntryDetailScreen from '@/screens/journalEntries/JournalEntryDetailScreen';
 import TrialBalanceScreen from '@/screens/trialBalance/TrialBalanceScreen';
 import FinancialReportsScreen from '@/screens/financialReports/FinancialReportsScreen';
+import AccountStatementScreen from '@/screens/finance/AccountStatementScreen';
 import type { JournalEntry } from '@/api/journalEntries';
 
 export type FinanceStackParamList = {
@@ -24,6 +25,7 @@ export type FinanceStackParamList = {
   JournalEntryDetail: { entry: JournalEntry };
   TrialBalance: undefined;
   FinancialReports: undefined;
+  AccountStatement: { accountCode: string; accountName: string; accountType?: string };
 };
 
 const Stack = createNativeStackNavigator<FinanceStackParamList>();
@@ -86,6 +88,11 @@ export default function FinanceNavigator() {
       <Stack.Screen
         name="FinancialReports"
         component={FinancialReportsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="AccountStatement"
+        component={AccountStatementScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>
