@@ -2,6 +2,8 @@ import React, { useCallback, useState } from 'react';
 import {
   Alert,
   FlatList,
+  RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -137,11 +139,14 @@ export default function BookmarksScreen() {
   const navigation = useNavigation<Nav>();
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
     const data = await getBookmarks();
     setBookmarks(data);
     setLoading(false);
+    setRefreshing(false);
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -235,7 +240,16 @@ export default function BookmarksScreen() {
       </View>
 
       {!loading && bookmarks.length === 0 ? (
-        <View style={styles.emptyState}>
+        <ScrollView
+          contentContainerStyle={styles.emptyState}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => load(true)}
+              tintColor={Colors.textMuted}
+            />
+          }
+        >
           <View style={styles.emptyIcon}>
             <Feather name="bookmark" size={32} color={Colors.textMuted} />
           </View>
@@ -243,7 +257,7 @@ export default function BookmarksScreen() {
           <Text style={styles.emptyText}>
             Tap the bookmark icon on any Purchase Order, Sales Order, Partner, or Material to save it here for quick access.
           </Text>
-        </View>
+        </ScrollView>
       ) : (
         <FlatList
           data={listData}
@@ -266,6 +280,13 @@ export default function BookmarksScreen() {
           }}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => load(true)}
+              tintColor={Colors.textMuted}
+            />
+          }
         />
       )}
     </SafeAreaView>
@@ -339,7 +360,7 @@ const styles = StyleSheet.create({
   deleteBtn: { padding: 4 },
 
   emptyState: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl,

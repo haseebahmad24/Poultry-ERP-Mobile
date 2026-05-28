@@ -202,3 +202,26 @@ export async function fetchDashboardData(companyId?: string): Promise<{
     voucherTypeStats,
   };
 }
+
+export type SupplyChainSnapshot = {
+  openPOs: number;
+  openSOs: number;
+  activeMaterials: number;
+};
+
+export async function fetchSupplyChainSnapshot(companyId?: string): Promise<SupplyChainSnapshot> {
+  const cq = companyId ? `&company_id=${encodeURIComponent(companyId)}` : '';
+  const cqOnly = companyId ? `?company_id=${encodeURIComponent(companyId)}` : '';
+
+  const [poRes, soRes, matRes] = await Promise.all([
+    apiRequest<any>(`/api/mobile/purchase-orders?view=open${cq}`).catch(() => null),
+    apiRequest<any>(`/api/mobile/sales-orders?view=open${cq}`).catch(() => null),
+    apiRequest<any>(`/api/mobile/materials?view=list&status=active${cqOnly}`).catch(() => null),
+  ]);
+
+  const openPOs = (poRes?.orders ?? poRes?.purchaseOrders ?? []).length;
+  const openSOs = (soRes?.orders ?? soRes?.salesOrders ?? []).length;
+  const activeMaterials = (matRes?.materials ?? matRes?.items ?? []).length;
+
+  return { openPOs, openSOs, activeMaterials };
+}

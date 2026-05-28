@@ -15,7 +15,7 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useAuth } from '@/context/AuthContext';
 import { useCompany } from '@/context/CompanyContext';
 import { useOverdue } from '@/context/OverdueContext';
-import { fetchDashboardData, KPIs, RecentVoucher, VoucherTypeStat } from '@/api/dashboard';
+import { fetchDashboardData, fetchSupplyChainSnapshot, KPIs, RecentVoucher, SupplyChainSnapshot, VoucherTypeStat } from '@/api/dashboard';
 import KPICard from '@/components/KPICard';
 import SectionHeader from '@/components/SectionHeader';
 import ErrorView from '@/components/ErrorView';
@@ -133,6 +133,7 @@ export default function DashboardScreen() {
   const [inboxUnread, setInboxUnread] = useState(0);
   const [bookmarkCount, setBookmarkCount] = useState(0);
   const [, setTick] = useState(0);
+  const [supplyChain, setSupplyChain] = useState<SupplyChainSnapshot | null>(null);
 
   const cacheKey = `dashboard:${selectedCompany?.id ?? 'all'}`;
 
@@ -179,6 +180,13 @@ export default function DashboardScreen() {
   }, [selectedCompany, cacheKey]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Lazy supply chain fetch — runs after main data, doesn't block render
+  useEffect(() => {
+    fetchSupplyChainSnapshot(selectedCompany?.id ?? undefined)
+      .then(setSupplyChain)
+      .catch(() => {});
+  }, [selectedCompany]);
 
   // Re-read auto-refresh interval and inbox unread count on focus
   useFocusEffect(useCallback(() => {
@@ -331,7 +339,6 @@ export default function DashboardScreen() {
               value={formatCurrency(netIncome)}
               subtext={(netIncome >= 0 ? 'Profit' : 'Loss') + ' · tap'}
               trendPct={netIncomeTrend}
-              trendInverted={netIncome < 0}
               onPress={() => navigation.navigate('Finance', { screen: 'FinancialReports' } as any)}
             />
             <KPICard
@@ -369,6 +376,39 @@ export default function DashboardScreen() {
             bold
           />
         </View>
+
+        {/* Supply Chain Snapshot */}
+        {supplyChain !== null && (
+          <>
+            <SectionHeader title="Supply Chain" meta="live" />
+            <View style={styles.scRow}>
+              <TouchableOpacity
+                style={styles.scCard}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate('More', { screen: 'PurchaseOrders' } as any)}
+              >
+                <Text style={styles.scCount}>{supplyChain.openPOs}</Text>
+                <Text style={styles.scLabel}>Open POs</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.scCard}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate('More', { screen: 'SalesOrders' } as any)}
+              >
+                <Text style={styles.scCount}>{supplyChain.openSOs}</Text>
+                <Text style={styles.scLabel}>Open SOs</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.scCard}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate('Inventory')}
+              >
+                <Text style={styles.scCount}>{supplyChain.activeMaterials}</Text>
+                <Text style={styles.scLabel}>Materials</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
 
         {/* Finance Status — show when there are overdue items */}
         {(apOverdue > 0 || arOverdue > 0) && (
@@ -647,6 +687,35 @@ const styles = StyleSheet.create({
   wcValue: { fontSize: 13, fontWeight: '500', color: Colors.text },
   wcValueBold: { fontSize: 15, fontWeight: '700' },
   wcDivider: { height: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
+
+  scRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.md,
+    gap: 10,
+  },
+  scCard: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    alignItems: 'center',
+    gap: 4,
+  },
+  scCount: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  scLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
 
   financeStatusRow: {
     flexDirection: 'row',
