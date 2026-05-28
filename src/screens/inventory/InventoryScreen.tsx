@@ -33,7 +33,7 @@ import { formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import OfflineBanner from '@/components/OfflineBanner';
 import { getLowStockThreshold } from '@/utils/settings';
-import { exportStockBalancePDF, exportWarehousesPDF } from '@/utils/pdfExport';
+import { exportStockBalancePDF, exportStockLedgerPDF, exportWarehousesPDF } from '@/utils/pdfExport';
 import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 
 type Tab = 'stock' | 'ledger' | 'warehouses';
@@ -53,6 +53,7 @@ export default function InventoryScreen() {
   const [isStale, setIsStale] = useState(false);
   const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
+  const [stockSort, setStockSort] = useState<'name' | 'qty-asc' | 'qty-desc'>('name');
   const [lowStockThreshold, setLowStockThreshold] = useState(100);
 
   useEffect(() => {
@@ -117,18 +118,24 @@ export default function InventoryScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  const filteredStock = stockData.filter((s) => {
-    const q = search.toLowerCase();
-    const matchesSearch = !search ||
-      s.item_name?.toLowerCase().includes(q) ||
-      s.warehouse_name?.toLowerCase().includes(q);
-    const qty = s.qty ?? 0;
-    const matchesStockFilter =
-      stockFilter === 'all' ||
-      (stockFilter === 'out' && qty <= 0) ||
-      (stockFilter === 'low' && qty > 0 && qty < lowStockThreshold);
-    return matchesSearch && matchesStockFilter;
-  });
+  const filteredStock = stockData
+    .filter((s) => {
+      const q = search.toLowerCase();
+      const matchesSearch = !search ||
+        s.item_name?.toLowerCase().includes(q) ||
+        s.warehouse_name?.toLowerCase().includes(q);
+      const qty = s.qty ?? 0;
+      const matchesStockFilter =
+        stockFilter === 'all' ||
+        (stockFilter === 'out' && qty <= 0) ||
+        (stockFilter === 'low' && qty > 0 && qty < lowStockThreshold);
+      return matchesSearch && matchesStockFilter;
+    })
+    .sort((a, b) => {
+      if (stockSort === 'qty-asc') return (a.qty ?? 0) - (b.qty ?? 0);
+      if (stockSort === 'qty-desc') return (b.qty ?? 0) - (a.qty ?? 0);
+      return (a.item_name ?? '').localeCompare(b.item_name ?? '');
+    });
 
   const outOfStockCount = stockData.filter((s) => (s.qty ?? 0) <= 0).length;
   const lowStockCount = stockData.filter((s) => { const q = s.qty ?? 0; return q > 0 && q < lowStockThreshold; }).length;
@@ -165,6 +172,22 @@ export default function InventoryScreen() {
     await exportWarehousesPDF({ warehouses: filteredWarehouses, companyName });
   };
 
+  const handleLedgerExportPDF = async () => {
+    const companyName = selectedCompany?.name ?? 'All Companies';
+    await exportStockLedgerPDF({
+      entries: filteredLedger,
+      companyName,
+      from: dateRange.from || undefined,
+      to: dateRange.to || undefined,
+    });
+  };
+
+  const cycleStockSort = () => {
+    setStockSort((s) =>
+      s === 'name' ? 'qty-desc' : s === 'qty-desc' ? 'qty-asc' : 'name'
+    );
+  };
+
   if (error && stockData.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (
@@ -175,7 +198,22 @@ export default function InventoryScreen() {
         <Text style={styles.headerTitle}>Inventory</Text>
         {!loading && <Text style={styles.headerSub}>{tabMeta[activeTab]}</Text>}
         {!loading && activeTab === 'stock' && filteredStock.length > 0 && (
-          <TouchableOpacity style={styles.exportBtn} onPress={handleExportPDF}>
+          <>
+            <TouchableOpacity style={styles.exportBtn} onPress={cycleStockSort}>
+              <Feather
+                name={stockSort === 'qty-desc' ? 'arrow-down' : stockSort === 'qty-asc' ? 'arrow-up' : 'menu'}
+                size={13}
+                color={Colors.text}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.exportBtn} onPress={handleExportPDF}>
+              <Feather name="file-text" size={13} color={Colors.text} />
+              <Text style={styles.exportBtnText}>PDF</Text>
+            </TouchableOpacity>
+          </>
+        )}
+        {!loading && activeTab === 'ledger' && filteredLedger.length > 0 && (
+          <TouchableOpacity style={styles.exportBtn} onPress={handleLedgerExportPDF}>
             <Feather name="file-text" size={13} color={Colors.text} />
             <Text style={styles.exportBtnText}>PDF</Text>
           </TouchableOpacity>
@@ -230,6 +268,16 @@ export default function InventoryScreen() {
               </Text>
             </TouchableOpacity>
           ))}
+          <View style={styles.stockSortLabel}>
+            <Feather
+              name={stockSort === 'qty-desc' ? 'arrow-down' : stockSort === 'qty-asc' ? 'arrow-up' : 'type'}
+              size={10}
+              color={Colors.textMuted}
+            />
+            <Text style={styles.stockSortLabelText}>
+              {stockSort === 'name' ? 'A–Z' : stockSort === 'qty-desc' ? 'Qty ↓' : 'Qty ↑'}
+            </Text>
+          </View>
         </View>
       )}
 
@@ -548,6 +596,14 @@ const styles = StyleSheet.create({
   },
   stockFilterChipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
   stockFilterChipTextActive: { color: '#ffffff', fontWeight: '600' },
+  stockSortLabel: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+  },
+  stockSortLabelText: { fontSize: 10, color: Colors.textMuted, fontWeight: '500' },
 
   searchContainer: {
     flexDirection: 'row',

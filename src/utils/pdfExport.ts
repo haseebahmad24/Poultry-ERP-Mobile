@@ -2516,3 +2516,76 @@ export async function exportCompaniesPDF(companies: CompanyDetail[]): Promise<vo
 
   await printAndShare(wrapHtml('Companies', body), `companies-${todayStr}.pdf`);
 }
+
+export async function exportStockLedgerPDF(params: {
+  entries: StockLedgerEntry[];
+  companyName?: string;
+  from?: string;
+  to?: string;
+  filterLabel?: string;
+}): Promise<void> {
+  const { entries, companyName, from, to, filterLabel } = params;
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const totalIn = entries.reduce((s, e) => s + (e.qty_in ?? 0), 0);
+  const totalOut = entries.reduce((s, e) => s + (e.qty_out ?? 0), 0);
+
+  const dateRangeLabel = from && to ? `${from} to ${to}` : from ? `From ${from}` : to ? `To ${to}` : 'All dates';
+
+  const rows = entries.map((e, idx) => {
+    const alt = idx % 2 === 1 ? 'background:#fafafa;' : '';
+    const inQty = e.qty_in != null && e.qty_in !== 0 ? `<span style="color:#16a34a;font-weight:600">+${e.qty_in.toLocaleString()}</span>` : '—';
+    const outQty = e.qty_out != null && e.qty_out !== 0 ? `<span style="color:#dc2626;font-weight:600">-${e.qty_out.toLocaleString()}</span>` : '—';
+    return `<tr style="${alt}">
+      <td>${formatDate(e.dt)}</td>
+      <td style="font-weight:600">${e.item_name ?? '—'}</td>
+      <td>${e.warehouse_name ?? '—'}</td>
+      <td>${e.voucher_type ?? '—'}</td>
+      <td>${e.voucher_no ?? '—'}</td>
+      <td style="text-align:right">${inQty}</td>
+      <td style="text-align:right">${outQty}</td>
+      <td style="text-align:right;font-weight:600">${e.balance != null ? e.balance.toLocaleString() : '—'} ${e.unit ?? ''}</td>
+    </tr>`;
+  }).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Stock Ledger</div>
+      <div class="report-meta">${companyName ?? 'All Companies'} · ${dateRangeLabel}${filterLabel ? ` · ${filterLabel}` : ''}</div>
+    </div>
+
+    <div class="summary-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="summary-block">
+        <div class="value">${entries.length}</div>
+        <div class="label">Entries</div>
+      </div>
+      <div class="summary-block">
+        <div class="value" style="color:#16a34a">+${totalIn.toLocaleString()}</div>
+        <div class="label">Total In</div>
+      </div>
+      <div class="summary-block">
+        <div class="value" style="color:#dc2626">-${totalOut.toLocaleString()}</div>
+        <div class="label">Total Out</div>
+      </div>
+    </div>
+
+    <div class="section-label">Movement Log</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Item</th>
+          <th>Warehouse</th>
+          <th>Type</th>
+          <th>Voucher</th>
+          <th style="text-align:right">In</th>
+          <th style="text-align:right">Out</th>
+          <th style="text-align:right">Balance</th>
+        </tr>
+      </thead>
+      <tbody>${rows || '<tr><td colspan="8" class="muted">No entries</td></tr>'}</tbody>
+    </table>
+  `;
+
+  await printAndShare(wrapHtml('Stock Ledger', body), `stock-ledger-${todayStr}.pdf`);
+}
