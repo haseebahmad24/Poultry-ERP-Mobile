@@ -21,6 +21,7 @@ import { fetchPurchaseOrders, PurchaseOrder } from '@/api/purchaseOrders';
 import { fetchSalesOrders, SalesOrder } from '@/api/salesOrders';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { exportPartnerDetailPDF } from '@/utils/pdfExport';
+import { addRecentlyViewed } from '@/utils/recentlyViewed';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type Props = NativeStackScreenProps<MoreStackParamList, 'PartnerDetail'>;
@@ -78,6 +79,17 @@ export default function PartnerDetailScreen({ route, navigation }: Props) {
   }, [partnerId, partnerName, isVendor, isCustomer]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    addRecentlyViewed({
+      id: `partner-${partnerId}`,
+      type: 'partner',
+      title: partnerName,
+      subtitle: [isVendor && 'Vendor', isCustomer && 'Customer'].filter(Boolean).join(' · '),
+      entityId: partnerId,
+      navParams: { isVendor: Boolean(isVendor), isCustomer: Boolean(isCustomer) },
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const roles: string[] = [];
   if (isVendor) roles.push('Vendor');

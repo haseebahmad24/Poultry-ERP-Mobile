@@ -23,6 +23,7 @@ import { formatShortDate } from '@/utils/currency';
 import { useCompany } from '@/context/CompanyContext';
 import { getCached, setCached } from '@/utils/cache';
 import { exportMaterialDetailPDF } from '@/utils/pdfExport';
+import { addRecentlyViewed } from '@/utils/recentlyViewed';
 import type { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type Props = NativeStackScreenProps<MoreStackParamList, 'MaterialDetail'>;
@@ -99,6 +100,24 @@ export default function MaterialDetailScreen({ route }: Props) {
   }, [materialId, materialName, companyId, cacheKey, dateRange.from, dateRange.to]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    addRecentlyViewed({
+      id: `material-${materialId}`,
+      type: 'material',
+      title: materialName,
+      subtitle: [materialCode, materialType].filter(Boolean).join(' · '),
+      entityId: materialId,
+      navParams: {
+        materialCode,
+        materialType,
+        materialUnit,
+        materialCategory,
+        materialStatus,
+        materialDescription,
+      },
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (

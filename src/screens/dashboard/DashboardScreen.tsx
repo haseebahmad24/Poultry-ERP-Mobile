@@ -24,12 +24,14 @@ import CompanySelector from '@/components/CompanySelector';
 import OfflineBanner from '@/components/OfflineBanner';
 import VoucherActivityChart from '@/components/VoucherActivityChart';
 import VoucherSparkline from '@/components/VoucherSparkline';
+import RecentlyViewedSection from '@/components/RecentlyViewedSection';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import { getAutoRefreshInterval } from '@/utils/settings';
 import { getUnreadCount } from '@/utils/notificationLog';
 import { getBookmarks } from '@/utils/bookmarks';
+import { getRecentlyViewed, RecentItem } from '@/utils/recentlyViewed';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
 
 type Nav = BottomTabNavigationProp<AppTabParamList>;
@@ -134,6 +136,7 @@ export default function DashboardScreen() {
   const [bookmarkCount, setBookmarkCount] = useState(0);
   const [, setTick] = useState(0);
   const [supplyChain, setSupplyChain] = useState<SupplyChainSnapshot | null>(null);
+  const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
 
   const cacheKey = `dashboard:${selectedCompany?.id ?? 'all'}`;
 
@@ -188,11 +191,12 @@ export default function DashboardScreen() {
       .catch(() => {});
   }, [selectedCompany]);
 
-  // Re-read auto-refresh interval and inbox unread count on focus
+  // Re-read auto-refresh interval, inbox unread count, and recently viewed on focus
   useFocusEffect(useCallback(() => {
     getAutoRefreshInterval().then(setAutoRefreshInterval);
     getUnreadCount().then(setInboxUnread);
     getBookmarks().then((list) => setBookmarkCount(list.length));
+    getRecentlyViewed().then((items) => setRecentItems(items.slice(0, 5)));
   }, []));
 
   useEffect(() => {
@@ -465,6 +469,52 @@ export default function DashboardScreen() {
             </Text>
             <Feather name="chevron-right" size={14} color={Colors.textMuted} />
           </TouchableOpacity>
+        )}
+
+        {/* Recently Viewed */}
+        {recentItems.length > 0 && (
+          <>
+            <SectionHeader title="Recently Viewed" meta={`${recentItems.length} items`} />
+            <RecentlyViewedSection
+              items={recentItems}
+              onPress={(item) => {
+                switch (item.type) {
+                  case 'po':
+                    navigation.navigate('More', { screen: 'PurchaseOrderDetail', params: { id: Number(item.entityId) } } as any);
+                    break;
+                  case 'so':
+                    navigation.navigate('More', { screen: 'SalesOrderDetail', params: { id: Number(item.entityId) } } as any);
+                    break;
+                  case 'partner':
+                    navigation.navigate('More', {
+                      screen: 'PartnerDetail',
+                      params: {
+                        partnerId: Number(item.entityId),
+                        partnerName: item.title,
+                        isVendor: Boolean(item.navParams?.isVendor),
+                        isCustomer: Boolean(item.navParams?.isCustomer),
+                      },
+                    } as any);
+                    break;
+                  case 'material':
+                    navigation.navigate('More', {
+                      screen: 'MaterialDetail',
+                      params: {
+                        materialId: Number(item.entityId),
+                        materialName: item.title,
+                        materialCode: item.navParams?.materialCode as string | undefined,
+                        materialType: item.navParams?.materialType as string | undefined,
+                        materialUnit: item.navParams?.materialUnit as string | undefined,
+                        materialCategory: item.navParams?.materialCategory as string | undefined,
+                        materialStatus: item.navParams?.materialStatus as string | undefined,
+                        materialDescription: item.navParams?.materialDescription as string | undefined,
+                      },
+                    } as any);
+                    break;
+                }
+              }}
+            />
+          </>
         )}
 
         {/* Quick Actions */}

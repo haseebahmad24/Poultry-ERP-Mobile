@@ -22,6 +22,7 @@ import SectionHeader from '@/components/SectionHeader';
 import { getCached, setCached } from '@/utils/cache';
 import { formatCurrency, formatDate } from '@/utils/currency';
 import { exportSODetailPDF } from '@/utils/pdfExport';
+import { addRecentlyViewed } from '@/utils/recentlyViewed';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type RouteProps = RouteProp<MoreStackParamList, 'SalesOrderDetail'>;
@@ -67,6 +68,17 @@ export default function SalesOrderDetailScreen() {
   }, [id, cacheKey]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!so) return;
+    addRecentlyViewed({
+      id: `so-${so.id ?? id}`,
+      type: 'so',
+      title: so.so_number ?? `SO #${so.id ?? id}`,
+      subtitle: so.customer ?? undefined,
+      entityId: so.id ?? id,
+    });
+  }, [so]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }} edges={['top']}>
