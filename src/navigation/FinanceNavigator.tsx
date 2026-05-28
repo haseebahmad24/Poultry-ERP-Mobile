@@ -25,7 +25,7 @@ export type FinanceStackParamList = {
   JournalEntryDetail: { entry: JournalEntry };
   TrialBalance: undefined;
   FinancialReports: undefined;
-  AccountStatement: { accountCode: string; accountName: string; accountType?: string };
+  AccountStatement: { accountCode: string; accountName: string; accountType?: string } | undefined;
 };
 
 const Stack = createNativeStackNavigator<FinanceStackParamList>();

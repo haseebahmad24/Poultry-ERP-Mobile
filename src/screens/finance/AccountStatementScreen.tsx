@@ -66,7 +66,7 @@ const VOUCHER_TYPE_LABELS: Record<string, string> = {
 
 export default function AccountStatementScreen() {
   const route = useRoute<RouteType>();
-  const { accountCode, accountName, accountType } = route.params;
+  const { accountCode = '', accountName = '', accountType } = route.params ?? {};
   const { companyId, selectedCompany } = useCompany();
 
   const [dateRange, setDateRange] = useState<DateRangeValue>({
@@ -207,7 +207,7 @@ export default function AccountStatementScreen() {
       <DateRangeBar value={dateRange} onChange={setDateRange} />
 
       {loading ? (
-        <DetailSkeleton tileCount={3} rowCount={6} />
+        <DetailSkeleton tileCount={3} listCount={6} />
       ) : (
         <ScrollView
           style={styles.scroll}

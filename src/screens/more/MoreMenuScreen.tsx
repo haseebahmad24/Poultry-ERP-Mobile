@@ -55,11 +55,13 @@ const OPERATIONS_ITEMS: {
   },
 ];
 
+type ParamlessFinanceScreen = 'AccountsPayable' | 'AccountsReceivable' | 'CashFlow' | 'JournalEntries' | 'TrialBalance' | 'FinancialReports' | 'FinanceMenu';
+
 const FINANCE_ITEMS: {
   icon: string;
   label: string;
   subtitle: string;
-  screen: keyof FinanceStackParamList;
+  screen: ParamlessFinanceScreen;
 }[] = [
   {
     icon: 'credit-card',
