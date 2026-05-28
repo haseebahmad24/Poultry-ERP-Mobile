@@ -16,6 +16,7 @@ import BackButton from '@/components/BackButton';
 import { getCached, setCached } from '@/utils/cache';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { formatCurrency, formatDate } from '@/utils/currency';
+import { addRecentlyViewed } from '@/utils/recentlyViewed';
 
 const MUTED_STATUSES = new Set(['closed', 'cancelled']);
 
@@ -59,6 +60,17 @@ export default function PODetailScreen({ route, navigation }: any) {
   }, [id, cacheKey]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!po) return;
+    addRecentlyViewed({
+      id: `po-${po.id ?? id}`,
+      type: 'po',
+      title: po.po_number ?? `PO #${po.id ?? id}`,
+      subtitle: po.vendor_name ?? undefined,
+      entityId: po.id ?? id,
+    });
+  }, [po]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <SafeAreaView style={{flex:1,backgroundColor:Colors.background}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={4} listCount={5} /></SafeAreaView>;
   if (error) return <ErrorView message={error} onRetry={load} />;
