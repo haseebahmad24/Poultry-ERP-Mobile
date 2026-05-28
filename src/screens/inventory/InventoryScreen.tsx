@@ -275,7 +275,7 @@ export default function InventoryScreen() {
               color={Colors.textMuted}
             />
             <Text style={styles.stockSortLabelText}>
-              {stockSort === 'name' ? 'A–Z' : stockSort === 'qty-desc' ? 'Qty ↓' : 'Qty ↑'}
+              {stockSort === 'name' ? 'Name' : 'Qty'}
             </Text>
           </View>
         </View>

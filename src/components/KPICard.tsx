@@ -19,8 +19,7 @@ export default function KPICard({ label, value, subtext, valueColor, onPress, tr
   let trendNode: React.ReactNode = null;
   if (trendPct != null && isFinite(trendPct)) {
     const up = trendPct >= 0;
-    const good = trendInverted ? !up : up;
-    const color = trendPct === 0 ? Colors.textMuted : good ? '#16a34a' : '#dc2626';
+    const color = trendPct === 0 ? Colors.textMuted : Colors.textSecondary;
     const icon: any = up ? 'trending-up' : 'trending-down';
     const trendLabel = `${up ? '+' : ''}${trendPct.toFixed(1)}% vs last mo`;
     trendNode = (
