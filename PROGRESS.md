@@ -1,5 +1,42 @@
 # Mobile App Progress
 
+## Session 26 — 2026-05-28
+
+### Completed This Session
+
+**Account Statement Screen** (`src/screens/finance/AccountStatementScreen.tsx`)
+- New Finance screen: shows all journal entry lines for a single account with a running balance column
+- Accessible from Trial Balance — tapping any non-group account row now navigates to Account Statement (previously went to Journal Entries)
+- Route params: `accountCode`, `accountName`, `accountType`
+- Date range filter via `DateRangeBar` (defaults to current month)
+- Running balance computed per line: debit-normal accounts (1xx = Assets, 5xx = Expenses) accumulate debit minus credit; credit-normal accounts (2xx/3xx/4xx) accumulate credit minus credit
+- Summary tiles: Total Debits | Total Credits | Closing Balance (shows "Cr" suffix when negative)
+- Transactions table: Date | Voucher badge + number + narration | Debit | Credit | Running Balance
+- Totals row at table bottom
+- 24h offline cache per company + account + date range
+- Pull-to-refresh, DetailSkeleton loading state, ErrorView, empty state
+- `exportAccountStatementPDF()` in `pdfExport.ts`: summary tiles + full transactions table with running balance column; filename includes account code
+- `FinanceNavigator`: `AccountStatement` route added with typed params
+- `linking.ts`: `finance/account-statement` deep link added
+
+**Dashboard Summary PDF Export** (`src/screens/dashboard/DashboardScreen.tsx`, `src/utils/pdfExport.ts`)
+- `exportDashboardSummaryPDF()`: generates a full-page PDF snapshot of the Dashboard
+  - KPI grid: Revenue MTD, Expenses MTD, Net Income MTD, Cash & Bank, AR, AP — each with MoM trend indicator when prev-month data available
+  - Working Capital section: Cash + AR − AP with net total row
+  - Supply Chain snapshot tiles (if available): Open POs / Open SOs / Active Materials
+  - Voucher Activity by Type table (up to 8 types with count and amount)
+  - Recent Vouchers table (last 5 entries with date, type badge, amount, status)
+- Dashboard top bar: `file-text` icon button added between search and bell; shows ActivityIndicator while exporting; disabled when KPI data not yet loaded
+
+### Next Session
+- Consider: Partner payments / receipts timeline in Vendor/Customer detail (chronological activity view)
+- Consider: Push notification integration with backend alerts API
+- Consider: Journal Entry creation form (draft JE with account line entry)
+- Consider: Account Statement accessible from Journal Entries screen header (account picker/search)
+- Consider: Export queue — schedule multiple exports and download as ZIP
+
+---
+
 ## Session 25 — 2026-05-28
 
 ### Completed This Session
@@ -972,13 +1009,16 @@
 
 ## What's Next (Session 21+)
 
-Sessions 1–22 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
+Sessions 1–26 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
 
-1. **Purchase Order creation** — Draft PO form with item line entry (requires POST API endpoint on web app)
-2. **Widget support** — Expo WidgetKit for home screen KPI summary (iOS 17+)
-3. **Universal links** — Associate poultryerp:// scheme with a web domain (requires associated-domains entitlement + server-side apple-app-site-association)
-4. ~~**Cash Flow PDF export**~~ — ✅ Done (Session 22)
-5. ~~**Warehouse PDF export**~~ — ✅ Done (Session 22)
+1. **Partner payments timeline** — Chronological payment/receipt activity in Vendor/Customer detail screens
+2. **Journal Entry creation form** — Draft JE with account line entry (requires POST API on web app)
+3. **Purchase Order creation** — Draft PO form with item line entry (requires POST API endpoint on web app)
+4. **Widget support** — Expo WidgetKit for home screen KPI summary (iOS 17+)
+5. **Universal links** — Associate poultryerp:// scheme with a web domain (requires associated-domains entitlement + server-side apple-app-site-association)
+6. ~~**Cash Flow PDF export**~~ — ✅ Done (Session 22)
+7. ~~**Account Statement screen**~~ — ✅ Done (Session 26)
+8. ~~**Dashboard Summary PDF**~~ — ✅ Done (Session 26)
 
 ---
 
@@ -1082,6 +1122,9 @@ Sessions 1–22 are complete. All roadmap screens + polish + key enhancements ar
 | Settings: Default company picker (explicit company selection in Settings) | ✅ Done |
 | InboxScreen pull-to-refresh (RefreshControl on FlatList + ScrollView empty state) | ✅ Done |
 | Recent search history in SearchScreen (AsyncStorage, max 8, per-item delete) | ✅ Done |
+| Account Statement screen (account-level JE lines with running balance, TB drill-down) | ✅ Done |
+| PDF export — Account Statement (transactions table + running balance + summary tiles) | ✅ Done |
+| Dashboard Summary PDF export (KPI grid + working capital + supply chain + activity) | ✅ Done |
 
 ---
 
