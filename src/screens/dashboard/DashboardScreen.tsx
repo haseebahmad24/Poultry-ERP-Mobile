@@ -23,6 +23,7 @@ import DashboardSkeleton from '@/components/DashboardSkeleton';
 import CompanySelector from '@/components/CompanySelector';
 import OfflineBanner from '@/components/OfflineBanner';
 import VoucherActivityChart from '@/components/VoucherActivityChart';
+import VoucherSparkline from '@/components/VoucherSparkline';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
@@ -218,6 +219,12 @@ export default function DashboardScreen() {
   }
   const revenueTrend = trendPct(kpis?.revenue ?? 0, kpis?.revenuePrevMonth);
   const expensesTrend = trendPct(kpis?.expenses ?? 0, kpis?.expensesPrevMonth);
+  const prevNetIncome =
+    kpis?.revenuePrevMonth != null && kpis?.expensesPrevMonth != null
+      ? kpis.revenuePrevMonth - kpis.expensesPrevMonth
+      : null;
+  const netIncomeTrend = trendPct(netIncome, prevNetIncome);
+  const vouchersTrend = trendPct(kpis?.vouchersMonth ?? 0, kpis?.vouchersPrevMonth ?? null);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -289,7 +296,17 @@ export default function DashboardScreen() {
         )}
 
         {/* KPI Grid */}
-        <SectionHeader title="This Month" meta={`${kpis?.vouchersMonth ?? 0} vouchers`} />
+        <SectionHeader
+          title="This Month"
+          meta={(() => {
+            const base = `${kpis?.vouchersMonth ?? 0} vouchers`;
+            if (vouchersTrend != null && isFinite(vouchersTrend)) {
+              const sign = vouchersTrend >= 0 ? '+' : '';
+              return `${base} · ${sign}${vouchersTrend.toFixed(0)}% vs last mo`;
+            }
+            return base;
+          })()}
+        />
         <View style={styles.kpiGrid}>
           <View style={styles.kpiRow}>
             <KPICard
@@ -313,6 +330,8 @@ export default function DashboardScreen() {
               label="Net Income"
               value={formatCurrency(netIncome)}
               subtext={(netIncome >= 0 ? 'Profit' : 'Loss') + ' · tap'}
+              trendPct={netIncomeTrend}
+              trendInverted={netIncome < 0}
               onPress={() => navigation.navigate('Finance', { screen: 'FinancialReports' } as any)}
             />
             <KPICard
@@ -436,6 +455,14 @@ export default function DashboardScreen() {
             );
           })}
         </View>
+
+        {/* 7-day sparkline */}
+        {(kpis?.dailyVouchers?.length ?? 0) > 0 && (
+          <>
+            <SectionHeader title="Last 7 Days" meta="daily vouchers" />
+            <VoucherSparkline days={kpis!.dailyVouchers} />
+          </>
+        )}
 
         {/* Voucher Activity by Type */}
         {voucherTypeStats.length > 0 && (

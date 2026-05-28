@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -23,20 +24,25 @@ export default function PODetailScreen({ route, navigation }: any) {
 
   const [po, setPo] = useState<PODetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
 
   const cacheKey = `po-detail:${id}`;
 
-  const load = useCallback(async () => {
-    const cached = await getCached<PODetail>(cacheKey);
-    if (cached) {
-      setPo(cached.data);
-      setStale(cached.stale);
-      setLoading(false);
-      if (!cached.stale) return;
+  const load = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
     } else {
-      setLoading(true);
+      const cached = await getCached<PODetail>(cacheKey);
+      if (cached) {
+        setPo(cached.data);
+        setStale(cached.stale);
+        setLoading(false);
+        if (!cached.stale) return;
+      } else {
+        setLoading(true);
+      }
     }
     setError(null);
     try {
@@ -48,6 +54,7 @@ export default function PODetailScreen({ route, navigation }: any) {
       setError(String(e?.message ?? e));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [id, cacheKey]);
 
@@ -81,6 +88,13 @@ export default function PODetailScreen({ route, navigation }: any) {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => load(true)}
+            tintColor={Colors.textMuted}
+          />
+        }
       >
         <View style={styles.infoCard}>
           <View style={styles.infoHeaderRow}>

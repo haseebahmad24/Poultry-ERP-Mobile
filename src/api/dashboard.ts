@@ -10,6 +10,9 @@ export type KPIs = {
   totalAP: number;
   revenuePrevMonth: number | null;
   expensesPrevMonth: number | null;
+  vouchersPrevMonth: number | null;
+  /** Daily voucher counts for the last 7 days, oldest first. */
+  dailyVouchers: { date: string; count: number }[];
 };
 
 export type RecentVoucher = {
@@ -131,15 +134,30 @@ export async function fetchDashboardData(companyId?: string): Promise<{
 
   let revenuePrevMonth: number | null = null;
   let expensesPrevMonth: number | null = null;
+  let vouchersPrevMonth: number | null = null;
   if (jePrevRes !== null) {
     const prevEntries = jePrevRes.entries ?? [];
-    const prev = sumRevenueExpenses(prevEntries);
-    revenuePrevMonth = prev.revenue;
-    expensesPrevMonth = prev.expenses;
+    const prevSums = sumRevenueExpenses(prevEntries);
+    revenuePrevMonth = prevSums.revenue;
+    expensesPrevMonth = prevSums.expenses;
+    vouchersPrevMonth = prevEntries.length;
   }
 
   const vouchersMonth = entries.length;
   const vouchersToday = entries.filter((e) => e.date === to).length;
+
+  // Build last-7-days daily voucher count (oldest → newest)
+  const dailyVouchers: { date: string; count: number }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    dailyVouchers.push({ date: dateStr, count: 0 });
+  }
+  for (const e of entries) {
+    const slot = dailyVouchers.find((s) => s.date === e.date);
+    if (slot) slot.count += 1;
+  }
 
   const recentVouchers: RecentVoucher[] = [...entries]
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id))
@@ -177,6 +195,8 @@ export async function fetchDashboardData(companyId?: string): Promise<{
       totalAP: Number(apRes.totals?.total_ap) || 0,
       revenuePrevMonth,
       expensesPrevMonth,
+      vouchersPrevMonth,
+      dailyVouchers,
     },
     recentVouchers,
     voucherTypeStats,

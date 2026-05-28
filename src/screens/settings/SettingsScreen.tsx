@@ -45,6 +45,7 @@ import {
   cancelOverdueReminder,
 } from '@/utils/notifications';
 import { clearCache } from '@/utils/cache';
+import { formatDate } from '@/utils/currency';
 
 const REFRESH_OPTIONS: { label: string; value: number }[] = [
   { label: 'Off', value: 0 },
@@ -290,6 +291,11 @@ export default function SettingsScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
+          </View>
+          <View style={styles.datePreviewRow}>
+            <Feather name="calendar" size={12} color={Colors.textMuted} />
+            <Text style={styles.datePreviewLabel}>Preview: </Text>
+            <Text style={styles.datePreviewValue}>{formatDate('2025-01-15')}</Text>
           </View>
         </View>
 
@@ -634,6 +640,23 @@ const styles = StyleSheet.create({
   refreshChipTextActive: {
     color: '#fff',
     fontWeight: '700',
+  },
+
+  datePreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+  },
+  datePreviewLabel: {
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  datePreviewValue: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.text,
   },
 
   actionRow: {
