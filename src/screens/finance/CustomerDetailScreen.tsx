@@ -21,7 +21,7 @@ import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
-import { exportCustomerDetailPDF } from '@/utils/pdfExport';
+import { exportCustomerDetailPDF, exportCustomerLedgerPDF, PartnerLedgerEntry } from '@/utils/pdfExport';
 
 type Props = NativeStackScreenProps<FinanceStackParamList, 'CustomerDetail'>;
 
@@ -149,12 +149,22 @@ export default function CustomerDetailScreen({ route }: Props) {
         {invoices.length > 0 && (
           <TouchableOpacity
             style={styles.headerBtn}
-            onPress={() => exportCustomerDetailPDF({
-              customerName: customerName ?? `Customer ${customerId}`,
-              invoices,
-              totalOutstanding,
-              overdue: overdue ?? 0,
-            })}
+            onPress={() => {
+              if (tab === 'ledger') {
+                exportCustomerLedgerPDF({
+                  customerName: customerName ?? `Customer ${customerId}`,
+                  entries: ledgerEntries as PartnerLedgerEntry[],
+                  closingBalance: totalOutstanding,
+                });
+              } else {
+                exportCustomerDetailPDF({
+                  customerName: customerName ?? `Customer ${customerId}`,
+                  invoices,
+                  totalOutstanding,
+                  overdue: overdue ?? 0,
+                });
+              }
+            }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Feather name="file-text" size={18} color={Colors.text} />

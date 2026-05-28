@@ -21,7 +21,7 @@ import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
-import { exportVendorDetailPDF } from '@/utils/pdfExport';
+import { exportVendorDetailPDF, exportVendorLedgerPDF, PartnerLedgerEntry } from '@/utils/pdfExport';
 
 type Props = NativeStackScreenProps<FinanceStackParamList, 'VendorDetail'>;
 
@@ -149,12 +149,22 @@ export default function VendorDetailScreen({ route }: Props) {
         {bills.length > 0 && (
           <TouchableOpacity
             style={styles.headerBtn}
-            onPress={() => exportVendorDetailPDF({
-              vendorName: vendorName ?? `Vendor ${vendorId}`,
-              bills,
-              totalOutstanding,
-              overdue: overdue ?? 0,
-            })}
+            onPress={() => {
+              if (tab === 'ledger') {
+                exportVendorLedgerPDF({
+                  vendorName: vendorName ?? `Vendor ${vendorId}`,
+                  entries: ledgerEntries as PartnerLedgerEntry[],
+                  closingBalance: totalOutstanding,
+                });
+              } else {
+                exportVendorDetailPDF({
+                  vendorName: vendorName ?? `Vendor ${vendorId}`,
+                  bills,
+                  totalOutstanding,
+                  overdue: overdue ?? 0,
+                });
+              }
+            }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Feather name="file-text" size={18} color={Colors.text} />

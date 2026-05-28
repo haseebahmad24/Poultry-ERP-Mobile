@@ -2814,3 +2814,159 @@ export async function exportDashboardSummaryPDF(params: {
     `dashboard-summary-${todayStr}.pdf`
   );
 }
+
+// ─── Vendor Ledger PDF ────────────────────────────────────────────────────────
+
+export interface PartnerLedgerEntry {
+  id: string;
+  type: string;
+  date: string;
+  reference: string;
+  debit: number;
+  credit: number;
+  balance: number;
+}
+
+export async function exportVendorLedgerPDF(params: {
+  vendorName: string;
+  entries: PartnerLedgerEntry[];
+  closingBalance: number;
+}): Promise<void> {
+  const { vendorName, entries, closingBalance } = params;
+  const totalDebit = entries.reduce((s, e) => s + e.debit, 0);
+  const totalCredit = entries.reduce((s, e) => s + e.credit, 0);
+
+  const rows = entries.map((e) => `
+    <tr>
+      <td><span class="badge">${e.type}</span><br/>${e.date ? formatDate(e.date) : '—'}</td>
+      <td>${e.reference}</td>
+      <td class="right">${e.debit > 0 ? formatCurrency(e.debit) : '—'}</td>
+      <td class="right">${e.credit > 0 ? formatCurrency(e.credit) : '—'}</td>
+      <td class="right"><strong>${formatCurrency(Math.abs(e.balance))}${e.balance < 0 ? ' Cr' : ''}</strong></td>
+    </tr>
+  `).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">${vendorName}</div>
+      <div class="report-meta">Vendor Ledger · Accounts Payable &nbsp;·&nbsp; ${new Date().toLocaleDateString()}</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${formatCurrency(closingBalance)}</div>
+        <div class="label">Closing Balance</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalDebit)}</div>
+        <div class="label">Total Billed</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalCredit)}</div>
+        <div class="label">Total Paid</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${entries.length}</div>
+        <div class="label">Entries</div>
+      </div>
+    </div>
+
+    <div class="section-label">Running Ledger</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Reference</th>
+          <th class="right">Debit</th>
+          <th class="right">Credit</th>
+          <th class="right">Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows || '<tr><td colspan="5" class="muted">No entries</td></tr>'}
+        <tr class="total">
+          <td colspan="2">TOTAL</td>
+          <td class="right">${formatCurrency(totalDebit)}</td>
+          <td class="right">${formatCurrency(totalCredit)}</td>
+          <td class="right">${formatCurrency(Math.abs(closingBalance))}</td>
+        </tr>
+      </tbody>
+    </table>
+  `;
+
+  const filename = vendorName.replace(/[^a-zA-Z0-9-]/g, '-') + '-ledger.pdf';
+  await printAndShare(wrapHtml(`Vendor Ledger — ${vendorName}`, body), filename);
+}
+
+// ─── Customer Ledger PDF ──────────────────────────────────────────────────────
+
+export async function exportCustomerLedgerPDF(params: {
+  customerName: string;
+  entries: PartnerLedgerEntry[];
+  closingBalance: number;
+}): Promise<void> {
+  const { customerName, entries, closingBalance } = params;
+  const totalDebit = entries.reduce((s, e) => s + e.debit, 0);
+  const totalCredit = entries.reduce((s, e) => s + e.credit, 0);
+
+  const rows = entries.map((e) => `
+    <tr>
+      <td><span class="badge">${e.type}</span><br/>${e.date ? formatDate(e.date) : '—'}</td>
+      <td>${e.reference}</td>
+      <td class="right">${e.debit > 0 ? formatCurrency(e.debit) : '—'}</td>
+      <td class="right">${e.credit > 0 ? formatCurrency(e.credit) : '—'}</td>
+      <td class="right"><strong>${formatCurrency(Math.abs(e.balance))}${e.balance < 0 ? ' Cr' : ''}</strong></td>
+    </tr>
+  `).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">${customerName}</div>
+      <div class="report-meta">Customer Ledger · Accounts Receivable &nbsp;·&nbsp; ${new Date().toLocaleDateString()}</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${formatCurrency(closingBalance)}</div>
+        <div class="label">Closing Balance</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalDebit)}</div>
+        <div class="label">Total Invoiced</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalCredit)}</div>
+        <div class="label">Total Received</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${entries.length}</div>
+        <div class="label">Entries</div>
+      </div>
+    </div>
+
+    <div class="section-label">Running Ledger</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Reference</th>
+          <th class="right">Debit</th>
+          <th class="right">Credit</th>
+          <th class="right">Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows || '<tr><td colspan="5" class="muted">No entries</td></tr>'}
+        <tr class="total">
+          <td colspan="2">TOTAL</td>
+          <td class="right">${formatCurrency(totalDebit)}</td>
+          <td class="right">${formatCurrency(totalCredit)}</td>
+          <td class="right">${formatCurrency(Math.abs(closingBalance))}</td>
+        </tr>
+      </tbody>
+    </table>
+  `;
+
+  const filename = customerName.replace(/[^a-zA-Z0-9-]/g, '-') + '-ledger.pdf';
+  await printAndShare(wrapHtml(`Customer Ledger — ${customerName}`, body), filename);
+}
