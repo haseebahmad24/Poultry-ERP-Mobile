@@ -25,6 +25,18 @@ import { exportVendorDetailPDF } from '@/utils/pdfExport';
 
 type Props = NativeStackScreenProps<FinanceStackParamList, 'VendorDetail'>;
 
+type Tab = 'bills' | 'ledger';
+
+interface LedgerEntry {
+  id: string;
+  type: 'BILL' | 'PMT';
+  date: string;
+  reference: string;
+  debit: number;
+  credit: number;
+  balance: number;
+}
+
 function daysOverdue(dueDate: string | undefined, status: string | undefined): number {
   if (!dueDate) return 0;
   if ((status ?? '').toUpperCase() === 'PAID') return 0;
@@ -36,6 +48,45 @@ function daysOverdue(dueDate: string | undefined, status: string | undefined): n
   return diff > 0 ? diff : 0;
 }
 
+function buildLedger(bills: APBill[]): LedgerEntry[] {
+  const raw: Omit<LedgerEntry, 'balance'>[] = [];
+  for (const bill of bills) {
+    const billDate = bill.dt ?? bill.due_date ?? '';
+    if ((bill.amount ?? 0) > 0) {
+      raw.push({
+        id: `bill-${bill.id}`,
+        type: 'BILL',
+        date: billDate,
+        reference: bill.bill_number ?? `Bill-${bill.id}`,
+        debit: bill.amount ?? 0,
+        credit: 0,
+      });
+    }
+    const paid = bill.paid ?? 0;
+    if (paid > 0) {
+      raw.push({
+        id: `pmt-${bill.id}`,
+        type: 'PMT',
+        date: bill.due_date ?? billDate,
+        reference: `Payment · ${bill.bill_number ?? `Bill-${bill.id}`}`,
+        debit: 0,
+        credit: paid,
+      });
+    }
+  }
+  raw.sort((a, b) => {
+    if (!a.date && !b.date) return 0;
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    return a.date.localeCompare(b.date);
+  });
+  let running = 0;
+  return raw.map((entry) => {
+    running = running + entry.debit - entry.credit;
+    return { ...entry, balance: running };
+  });
+}
+
 export default function VendorDetailScreen({ route }: Props) {
   const { vendorId, vendorName, outstanding, overdue } = route.params;
   const { companyId } = useCompany();
@@ -44,6 +95,7 @@ export default function VendorDetailScreen({ route }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [tab, setTab] = useState<Tab>('bills');
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -82,6 +134,8 @@ export default function VendorDetailScreen({ route }: Props) {
   const totalOutstanding = outstanding ?? bills.reduce((s, b) =>
     s + (b.outstanding ?? (b.amount ?? 0) - (b.paid ?? 0)), 0);
 
+  const ledgerEntries = buildLedger(bills);
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
@@ -114,63 +168,124 @@ export default function VendorDetailScreen({ route }: Props) {
           <SummaryTile label="Overdue" value={formatCurrency(overdue ?? 0)} highlight />
         )}
         <SummaryTile label="Total Billed" value={formatCurrency(totalAmount)} />
-        <SummaryTile label="Bills" value={String(bills.length)} />
+        <SummaryTile label="Paid" value={formatCurrency(totalPaid)} />
       </View>
 
-      <View style={styles.searchContainer}>
-        <Feather name="search" size={14} color={Colors.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search bills…"
-          placeholderTextColor={Colors.textMuted}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Feather name="x" size={14} color={Colors.textMuted} />
-          </TouchableOpacity>
-        )}
+      {/* Tab bar */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tabItem, tab === 'bills' && styles.tabItemActive]}
+          onPress={() => setTab('bills')}
+        >
+          <Text style={[styles.tabLabel, tab === 'bills' && styles.tabLabelActive]}>
+            Bills ({bills.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabItem, tab === 'ledger' && styles.tabItemActive]}
+          onPress={() => setTab('ledger')}
+        >
+          <Text style={[styles.tabLabel, tab === 'ledger' && styles.tabLabelActive]}>
+            Ledger ({ledgerEntries.length})
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => load(true)}
-            tintColor={Colors.textMuted}
-          />
-        }
-      >
-        <SectionHeader
-          title="Bills"
-          meta={overdueCount > 0
-            ? `${filtered.length} records · ${overdueCount} overdue`
-            : `${filtered.length} records`}
-        />
-
-        {filtered.length === 0 ? (
-          <EmptyState
-            icon="file-text"
-            message={search ? 'No bills match search' : 'No bills found for this vendor'}
-          />
-        ) : (
-          <View style={styles.cardList}>
-            {filtered.map((bill) => (
-              <BillCard
-                key={bill.id}
-                bill={bill}
-                overdueDays={daysOverdue(bill.due_date, bill.status)}
-              />
-            ))}
+      {tab === 'bills' && (
+        <>
+          <View style={styles.searchContainer}>
+            <Feather name="search" size={14} color={Colors.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search bills…"
+              placeholderTextColor={Colors.textMuted}
+              value={search}
+              onChangeText={setSearch}
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <Feather name="x" size={14} color={Colors.textMuted} />
+              </TouchableOpacity>
+            )}
           </View>
-        )}
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => load(true)}
+                tintColor={Colors.textMuted}
+              />
+            }
+          >
+            <SectionHeader
+              title="Bills"
+              meta={overdueCount > 0
+                ? `${filtered.length} records · ${overdueCount} overdue`
+                : `${filtered.length} records`}
+            />
+            {filtered.length === 0 ? (
+              <EmptyState
+                icon="file-text"
+                message={search ? 'No bills match search' : 'No bills found for this vendor'}
+              />
+            ) : (
+              <View style={styles.cardList}>
+                {filtered.map((bill) => (
+                  <BillCard
+                    key={bill.id}
+                    bill={bill}
+                    overdueDays={daysOverdue(bill.due_date, bill.status)}
+                  />
+                ))}
+              </View>
+            )}
+            <View style={{ height: Spacing.xxl }} />
+          </ScrollView>
+        </>
+      )}
 
-        <View style={{ height: Spacing.xxl }} />
-      </ScrollView>
+      {tab === 'ledger' && (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => load(true)}
+              tintColor={Colors.textMuted}
+            />
+          }
+        >
+          <SectionHeader
+            title="Running Ledger"
+            meta={`${ledgerEntries.length} entries · Balance: ${formatCurrency(totalOutstanding)}`}
+          />
+          {ledgerEntries.length === 0 ? (
+            <EmptyState icon="book" message="No ledger entries for this vendor" />
+          ) : (
+            <View style={styles.ledgerCard}>
+              <LedgerHeader />
+              {ledgerEntries.map((entry, idx) => (
+                <LedgerRow
+                  key={entry.id}
+                  entry={entry}
+                  isLast={idx === ledgerEntries.length - 1}
+                />
+              ))}
+              <LedgerTotals
+                totalDebit={ledgerEntries.reduce((s, e) => s + e.debit, 0)}
+                totalCredit={ledgerEntries.reduce((s, e) => s + e.credit, 0)}
+                closingBalance={ledgerEntries[ledgerEntries.length - 1]?.balance ?? 0}
+              />
+            </View>
+          )}
+          <View style={{ height: Spacing.xxl }} />
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -239,6 +354,65 @@ function BillCard({ bill, overdueDays }: { bill: APBill; overdueDays: number }) 
   );
 }
 
+function LedgerHeader() {
+  return (
+    <View style={styles.ledgerHeaderRow}>
+      <Text style={[styles.ledgerColDate, styles.ledgerHeaderText]}>Date</Text>
+      <Text style={[styles.ledgerColRef, styles.ledgerHeaderText]}>Reference</Text>
+      <Text style={[styles.ledgerColAmt, styles.ledgerHeaderText]}>Debit</Text>
+      <Text style={[styles.ledgerColAmt, styles.ledgerHeaderText]}>Credit</Text>
+      <Text style={[styles.ledgerColBal, styles.ledgerHeaderText]}>Balance</Text>
+    </View>
+  );
+}
+
+function LedgerRow({ entry, isLast }: { entry: LedgerEntry; isLast: boolean }) {
+  const isBill = entry.type === 'BILL';
+  return (
+    <View style={[styles.ledgerRow, !isLast && styles.ledgerRowBorder]}>
+      <View style={styles.ledgerColDate}>
+        <Text style={styles.ledgerTypeChip}>{entry.type}</Text>
+        <Text style={styles.ledgerDate}>{entry.date ? formatShortDate(entry.date) : '—'}</Text>
+      </View>
+      <Text style={[styles.ledgerColRef, styles.ledgerRef]} numberOfLines={2}>
+        {entry.reference}
+      </Text>
+      <Text style={[styles.ledgerColAmt, styles.ledgerDebit]}>
+        {isBill ? formatCurrency(entry.debit) : '—'}
+      </Text>
+      <Text style={[styles.ledgerColAmt, styles.ledgerCredit]}>
+        {!isBill ? formatCurrency(entry.credit) : '—'}
+      </Text>
+      <Text style={[styles.ledgerColBal, styles.ledgerBalance]}>
+        {formatCurrency(Math.abs(entry.balance))}
+        {entry.balance < 0 ? ' Cr' : ''}
+      </Text>
+    </View>
+  );
+}
+
+function LedgerTotals({ totalDebit, totalCredit, closingBalance }: {
+  totalDebit: number;
+  totalCredit: number;
+  closingBalance: number;
+}) {
+  return (
+    <View style={styles.ledgerTotalsRow}>
+      <Text style={[styles.ledgerColDate, styles.ledgerTotalLabel]}>Totals</Text>
+      <View style={styles.ledgerColRef} />
+      <Text style={[styles.ledgerColAmt, styles.ledgerTotalAmt]}>
+        {formatCurrency(totalDebit)}
+      </Text>
+      <Text style={[styles.ledgerColAmt, styles.ledgerTotalAmt]}>
+        {formatCurrency(totalCredit)}
+      </Text>
+      <Text style={[styles.ledgerColBal, styles.ledgerTotalBalance]}>
+        {formatCurrency(Math.abs(closingBalance))}
+      </Text>
+    </View>
+  );
+}
+
 function EmptyState({ icon, message }: { icon: string; message: string }) {
   return (
     <View style={styles.emptyState}>
@@ -284,6 +458,23 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 15, fontWeight: '700', color: Colors.text },
   summaryLabel: { ...Typography.label, marginTop: 2 },
 
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  tabItem: {
+    flex: 1,
+    paddingVertical: Spacing.sm + 2,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabItemActive: { borderBottomColor: Colors.text },
+  tabLabel: { fontSize: 13, fontWeight: '500', color: Colors.textMuted },
+  tabLabelActive: { color: Colors.text, fontWeight: '700' },
+
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -299,7 +490,6 @@ const styles = StyleSheet.create({
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.xs },
-
   cardList: { marginHorizontal: Spacing.md, gap: Spacing.sm },
 
   card: {
@@ -347,6 +537,76 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   overdueBannerText: { fontSize: 12, fontWeight: '700', color: Colors.text },
+
+  // Ledger table styles
+  ledgerCard: {
+    marginHorizontal: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  ledgerHeaderRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.surfaceHover,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  ledgerHeaderText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  ledgerRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    alignItems: 'flex-start',
+  },
+  ledgerRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  ledgerColDate: { width: 58 },
+  ledgerColRef: { flex: 1, paddingHorizontal: 4 },
+  ledgerColAmt: { width: 68, textAlign: 'right' },
+  ledgerColBal: { width: 68, textAlign: 'right' },
+
+  ledgerTypeChip: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    backgroundColor: Colors.borderLight,
+    borderRadius: Radius.sm,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    alignSelf: 'flex-start',
+    marginBottom: 2,
+    overflow: 'hidden',
+  },
+  ledgerDate: { fontSize: 11, color: Colors.textSecondary },
+  ledgerRef: { fontSize: 12, color: Colors.text },
+  ledgerDebit: { fontSize: 11, color: Colors.text, fontWeight: '600', textAlign: 'right' },
+  ledgerCredit: { fontSize: 11, color: Colors.textSecondary, textAlign: 'right' },
+  ledgerBalance: { fontSize: 11, fontWeight: '700', color: Colors.text, textAlign: 'right' },
+
+  ledgerTotalsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.surfaceHover,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    alignItems: 'center',
+  },
+  ledgerTotalLabel: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary },
+  ledgerTotalAmt: { fontSize: 11, fontWeight: '700', color: Colors.text, textAlign: 'right' },
+  ledgerTotalBalance: { fontSize: 12, fontWeight: '800', color: Colors.text, textAlign: 'right' },
 
   emptyState: {
     marginHorizontal: Spacing.md,
