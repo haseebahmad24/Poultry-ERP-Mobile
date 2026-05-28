@@ -1,5 +1,44 @@
 # Mobile App Progress
 
+## Session 27 — 2026-05-28
+
+### Completed This Session
+
+**Vendor/Customer Ledger Tab** (`VendorDetailScreen.tsx`, `CustomerDetailScreen.tsx`)
+- Both Vendor and Customer detail screens now have a two-tab layout: "Bills" | "Ledger" (Vendor) and "Invoices" | "Ledger" (Customer)
+- Ledger tab shows a running-balance accounting ledger constructed from AP bills / AR invoices
+- Vendor ledger: BILL entries (debit) from bill amounts + PMT entries (credit) from paid amounts
+- Customer ledger: INV entries (debit) from invoice amounts + REC entries (credit) from paid amounts
+- Entries sorted chronologically; running balance computed per entry
+- Table: Date+type chip | Reference | Debit | Credit | Running Balance
+- Totals row at bottom with column sums and closing balance
+- Summary row updated: Outstanding | Overdue | Total Billed/Invoiced | Paid/Received
+- PDF export button is context-aware: exports Bills/Invoices PDF on bills tab, Ledger PDF on ledger tab
+- `exportVendorLedgerPDF()` and `exportCustomerLedgerPDF()` added to `pdfExport.ts`
+
+**Account Picker Modal in JournalEntriesScreen** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- Interactive account filter replaces static route-param-only filtering
+- "Filter by account…" hint shown when no filter active; tapping opens the picker
+- When filter active: shows "Account: <code — name>" with edit (pencil) and clear (×) buttons
+- `AccountPickerModal` slides up as a pageSheet: fetches non-group accounts from trial balance API, real-time search by account code or name
+- Selecting an account refreshes JE list filtered to that account; title updates to "JEs — <account name>"
+- Account picker initialization still honours `route.params.account` (backward-compatible with TrialBalance → AccountStatement navigation flow)
+
+**Tappable Account Lines in JournalEntryDetailScreen** (`src/screens/journalEntries/JournalEntryDetailScreen.tsx`)
+- Each JE line row is now a `TouchableOpacity`; tapping navigates to `AccountStatement` for that account
+- `parseAccountField()` helper splits "1001 - Cash" / "1001 – Cash" strings into code + name parts
+- Chevron indicator rendered on tappable rows; rows without an account are non-interactive
+- Deep integration: JE list → JE detail → Account Statement creates a seamless drill-down flow
+
+### Next Session
+- Consider: Due date reminders — local push notifications for AP bills/AR invoices nearing due date
+- Consider: Partner search — global search for vendor/customer name across AP+AR screens
+- Consider: Aging breakdown per partner (pie or bar chart in VendorDetail/CustomerDetail summary)
+- Consider: Journal Entry narration full-text in JE list (expandable card)
+- Consider: Batch ledger export — export all partner ledgers at once from AP/AR summary screen
+
+---
+
 ## Session 26 — 2026-05-28
 
 ### Completed This Session
