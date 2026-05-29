@@ -25,6 +25,7 @@ import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import { exportPOListPDF } from '@/utils/pdfExport';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
+import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'PurchaseOrders'>;
 
@@ -46,6 +47,7 @@ export default function PurchaseOrdersScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isStale, setIsStale] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRangeValue>({ from: '', to: '' });
 
   const cacheKey = `purchase-orders:${activeTab}`;
 
@@ -81,16 +83,19 @@ export default function PurchaseOrdersScreen() {
 
   if (error && orders.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
-  const filtered = search.trim()
-    ? orders.filter((po) => {
-        const q = search.toLowerCase();
-        return (
-          po.po_number?.toLowerCase().includes(q) ||
-          po.vendor?.toLowerCase().includes(q) ||
-          po.status?.toLowerCase().includes(q)
-        );
-      })
-    : orders;
+  const filtered = orders.filter((po) => {
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const matchesSearch =
+        po.po_number?.toLowerCase().includes(q) ||
+        po.vendor?.toLowerCase().includes(q) ||
+        po.status?.toLowerCase().includes(q);
+      if (!matchesSearch) return false;
+    }
+    if (dateRange.from && po.dt && po.dt < dateRange.from) return false;
+    if (dateRange.to && po.dt && po.dt > dateRange.to) return false;
+    return true;
+  });
 
   const handleExport = async () => {
     setExporting(true);
@@ -159,6 +164,8 @@ export default function PurchaseOrdersScreen() {
               </TouchableOpacity>
             ))}
           </View>
+
+          <DateRangeBar value={dateRange} onChange={setDateRange} />
 
           <ScrollView
             style={styles.scroll}

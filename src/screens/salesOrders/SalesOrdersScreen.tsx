@@ -27,6 +27,7 @@ import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import { exportSOListPDF } from '@/utils/pdfExport';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
+import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'SalesOrders'>;
 
@@ -50,6 +51,7 @@ export default function SalesOrdersScreen() {
   const [isStale, setIsStale] = useState(false);
   const [search, setSearch] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRangeValue>({ from: '', to: '' });
 
   const cacheKey = `sales-orders:${activeTab}:${companyId ?? 'all'}`;
 
@@ -83,16 +85,19 @@ export default function SalesOrdersScreen() {
 
   if (error && orders.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
-  const filtered = search.trim()
-    ? orders.filter((so) => {
-        const q = search.toLowerCase();
-        return (
-          so.so_number?.toLowerCase().includes(q) ||
-          so.customer?.toLowerCase().includes(q) ||
-          so.status?.toLowerCase().includes(q)
-        );
-      })
-    : orders;
+  const filtered = orders.filter((so) => {
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const matchesSearch =
+        so.so_number?.toLowerCase().includes(q) ||
+        so.customer?.toLowerCase().includes(q) ||
+        so.status?.toLowerCase().includes(q);
+      if (!matchesSearch) return false;
+    }
+    if (dateRange.from && so.dt && so.dt < dateRange.from) return false;
+    if (dateRange.to && so.dt && so.dt > dateRange.to) return false;
+    return true;
+  });
 
   const handleExport = async () => {
     setExporting(true);
@@ -162,6 +167,8 @@ export default function SalesOrdersScreen() {
               </TouchableOpacity>
             ))}
           </View>
+
+          <DateRangeBar value={dateRange} onChange={setDateRange} />
 
           <ScrollView
             style={styles.scroll}
