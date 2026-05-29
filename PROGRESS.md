@@ -1,5 +1,37 @@
 # Mobile App Progress
 
+## Session 29 — 2026-05-29
+
+### Completed This Session
+
+**Delivery Calendar Screen** (`src/screens/deliveryCalendar/DeliveryCalendarScreen.tsx`)
+- New screen: monthly calendar grid showing PO and SO delivery dates
+- Colored dot indicators per day: overdue (red), due-today (amber), 1-3d urgent (blue), 4-14d (green)
+- All/POs/SOs type filter toggle chips at top
+- Month navigation arrows with prev/next month; "Today" button jumps back to current month
+- Monthly summary badges: overdue count + pending count shown below month title
+- Weekday header row (Sun–Sat)
+- Tapping a calendar day shows the order list for that day below the grid
+- Day detail cards: type pill (PO black / SO purple), order number, party name, urgency chip, tap → PO/SO detail
+- "No deliveries scheduled" empty state for days with no orders
+- Urgency color legend at bottom
+- Pull-to-refresh with offline cache (keys: `delivery-cal:po`, `delivery-cal:so`)
+- Added to MoreNavigator + MoreMenu under Operations section
+
+**Dashboard Supply Chain Snapshot: Delivery Stats**
+- `SupplyChainSnapshot` gains `deliveriesDueThisWeek`, `deliveriesOverdue`, `openPOList`, `openSOList`
+- Supply Chain row: 4th card shows overdue count (red) if any, otherwise deliveries due in 7 days; taps to DeliveryCalendar
+- "Deliveries" quick action tile added to Dashboard Quick Actions grid
+
+**Upcoming Deliveries Section on Dashboard** (`src/components/UpcomingDeliveriesSection.tsx`)
+- New component renders below Supply Chain row on Dashboard
+- Shows next 5 delivery entries from open POs + SOs due within 14 days (overdue first)
+- Each row: type dot, order label, party name, urgency chip, chevron → PO/SO detail
+- Footer link: "View all N deliveries" → DeliveryCalendar
+- Zero additional API calls — uses openPOList/openSOList already fetched in supply chain snapshot
+
+---
+
 ## Session 28 — 2026-05-29
 
 ### Completed This Session
@@ -1073,9 +1105,9 @@
 
 ---
 
-## What's Next (Session 29+)
+## What's Next (Session 30+)
 
-Sessions 1–28 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
+Sessions 1–29 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
 
 1. ~~**Partner payments timeline**~~ — ✅ Done (Session 28)
 2. **Journal Entry creation form** — Draft JE with account line entry (requires POST API on web app)
@@ -1085,7 +1117,7 @@ Sessions 1–28 are complete. All roadmap screens + polish + key enhancements ar
 6. ~~**Cash Flow PDF export**~~ — ✅ Done (Session 22)
 7. ~~**Account Statement screen**~~ — ✅ Done (Session 26)
 8. ~~**Dashboard Summary PDF**~~ — ✅ Done (Session 26)
-9. **PO/SO delivery calendar view** — Monthly calendar showing open delivery dates
+9. ~~**PO/SO delivery calendar view**~~ — ✅ Done (Session 29)
 10. **Export queue** — Schedule multiple PDF exports and download as combined ZIP
 
 ---
@@ -1201,6 +1233,10 @@ Sessions 1–28 are complete. All roadmap screens + polish + key enhancements ar
 | Date range filter on Sales Orders list (DateRangeBar) | ✅ Done |
 | Delivery countdown chips on PO cards (overdue/today/urgent/soon) | ✅ Done |
 | Delivery countdown chips on SO cards (overdue/today/urgent/soon) | ✅ Done |
+| Delivery Calendar screen (monthly grid, dot indicators, day-detail panel) | ✅ Done |
+| Upcoming Deliveries section on Dashboard (next 5 deliveries, urgency chips) | ✅ Done |
+| Supply Chain snapshot: delivery stats card (overdue / due-7d count, taps to calendar) | ✅ Done |
+| Dashboard Quick Actions: Deliveries tile → DeliveryCalendar | ✅ Done |
 
 ---
 
