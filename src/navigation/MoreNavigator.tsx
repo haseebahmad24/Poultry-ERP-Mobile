@@ -18,6 +18,7 @@ import MaterialDetailScreen from '@/screens/materials/MaterialDetailScreen';
 import InboxScreen from '@/screens/inbox/InboxScreen';
 import BookmarksScreen from '@/screens/bookmarks/BookmarksScreen';
 import ComparisonScreen from '@/screens/comparison/ComparisonScreen';
+import DeliveryCalendarScreen from '@/screens/deliveryCalendar/DeliveryCalendarScreen';
 
 export type MoreStackParamList = {
   MoreMenu: undefined;
@@ -51,6 +52,7 @@ export type MoreStackParamList = {
   Inbox: undefined;
   Bookmarks: undefined;
   Comparison: undefined;
+  DeliveryCalendar: undefined;
 };
 
 const Stack = createNativeStackNavigator<MoreStackParamList>();
@@ -148,6 +150,11 @@ export default function MoreNavigator() {
       <Stack.Screen
         name="Comparison"
         component={ComparisonScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="DeliveryCalendar"
+        component={DeliveryCalendarScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

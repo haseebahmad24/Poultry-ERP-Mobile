@@ -53,6 +53,12 @@ const OPERATIONS_ITEMS: {
     subtitle: 'PO receipt progress and GRN details',
     screen: 'GRN',
   },
+  {
+    icon: 'calendar',
+    label: 'Delivery Calendar',
+    subtitle: 'Monthly view of scheduled PO and SO deliveries',
+    screen: 'DeliveryCalendar',
+  },
 ];
 
 type ParamlessFinanceScreen = 'AccountsPayable' | 'AccountsReceivable' | 'CashFlow' | 'JournalEntries' | 'TrialBalance' | 'FinancialReports' | 'FinanceMenu';
