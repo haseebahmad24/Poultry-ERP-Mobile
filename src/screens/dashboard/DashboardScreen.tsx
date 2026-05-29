@@ -453,7 +453,7 @@ export default function DashboardScreen() {
               >
                 <Text style={[
                   styles.scCount,
-                  supplyChain.deliveriesOverdue > 0 && { color: '#dc2626' },
+                  supplyChain.deliveriesOverdue > 0 && { fontWeight: '700' },
                 ]}>
                   {supplyChain.deliveriesOverdue > 0
                     ? supplyChain.deliveriesOverdue

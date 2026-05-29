@@ -34,12 +34,13 @@ const ORDER_TYPE_LABELS: { key: OrderType; label: string }[] = [
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const URGENCY_COLORS = {
-  overdue: '#dc2626',
-  today: '#d97706',
-  urgent: '#2563eb',
-  soon: '#059669',
-  normal: Colors.textMuted,
+// Monochrome dot shades — darkest = most urgent
+const DOT_SHADES = {
+  overdue: '#0a0a0a',
+  today: '#525252',
+  urgent: '#a3a3a3',
+  soon: '#d4d4d4',
+  normal: 'transparent',
 };
 
 interface CalendarDay {
@@ -108,11 +109,6 @@ function buildCalendarWeeks(year: number, month: number): CalendarDay[][] {
         });
       } else {
         // Pad with a ghost day from adjacent month
-        const offset = cells.indexOf(null, w * 7 + d);
-        const ghost = w === 0
-          ? new Date(year, month, -(startDow - d - 1))
-          : new Date(year, month + 1, d - (7 - (cells.length - w * 7 - 1)));
-        // Simpler: just create placeholder with a day offset
         const paddedDate = new Date(year, month, (w * 7 + d) - startDow + 1);
         const ds = toDateStr(paddedDate);
         week.push({
@@ -278,12 +274,12 @@ export default function DeliveryCalendarScreen() {
     setSelectedDate(todayStr());
   }
 
-  function dotColor(day: CalendarDay): string {
+  function dotShade(day: CalendarDay): string {
     if (!day.inMonth) return 'transparent';
-    if (day.hasOverdue) return URGENCY_COLORS.overdue;
-    if (day.hasToday) return URGENCY_COLORS.today;
-    if (day.hasUrgent) return URGENCY_COLORS.urgent;
-    if (day.poCount + day.soCount > 0) return URGENCY_COLORS.soon;
+    if (day.hasOverdue) return DOT_SHADES.overdue;
+    if (day.hasToday) return DOT_SHADES.today;
+    if (day.hasUrgent) return DOT_SHADES.urgent;
+    if (day.poCount + day.soCount > 0) return DOT_SHADES.soon;
     return 'transparent';
   }
 
@@ -354,17 +350,17 @@ export default function DeliveryCalendarScreen() {
             {(monthSummary.overdueCount > 0 || monthSummary.pendingCount > 0) && (
               <View style={styles.monthBadges}>
                 {monthSummary.overdueCount > 0 && (
-                  <View style={[styles.badge, { backgroundColor: '#fef2f2' }]}>
-                    <Feather name="alert-circle" size={10} color={URGENCY_COLORS.overdue} />
-                    <Text style={[styles.badgeText, { color: URGENCY_COLORS.overdue }]}>
+                  <View style={styles.badge}>
+                    <Feather name="alert-circle" size={10} color={Colors.text} />
+                    <Text style={styles.badgeText}>
                       {monthSummary.overdueCount} overdue
                     </Text>
                   </View>
                 )}
                 {monthSummary.pendingCount > 0 && (
-                  <View style={[styles.badge, { backgroundColor: '#eff6ff' }]}>
-                    <Feather name="calendar" size={10} color={URGENCY_COLORS.urgent} />
-                    <Text style={[styles.badgeText, { color: URGENCY_COLORS.urgent }]}>
+                  <View style={styles.badge}>
+                    <Feather name="calendar" size={10} color={Colors.textSecondary} />
+                    <Text style={[styles.badgeText, { color: Colors.textSecondary }]}>
                       {monthSummary.pendingCount} pending
                     </Text>
                   </View>
@@ -394,7 +390,7 @@ export default function DeliveryCalendarScreen() {
                 const count = getDayCount(day);
                 const isSelected = day.dateStr === selectedDate && day.inMonth;
                 const hasDeliveries = count > 0;
-                const dc = dotColor(day);
+                const shade = dotShade(day);
                 return (
                   <TouchableOpacity
                     key={di}
@@ -416,8 +412,8 @@ export default function DeliveryCalendarScreen() {
                     </Text>
                     {hasDeliveries && day.inMonth ? (
                       <View style={styles.dotRow}>
-                        <View style={[styles.dot, { backgroundColor: dc }]} />
-                        {count > 1 && <View style={[styles.dot, { backgroundColor: dc, opacity: 0.5 }]} />}
+                        <View style={[styles.dot, { backgroundColor: shade }]} />
+                        {count > 1 && <View style={[styles.dot, { backgroundColor: shade, opacity: 0.5 }]} />}
                       </View>
                     ) : (
                       <View style={styles.dotRow} />
@@ -457,16 +453,16 @@ export default function DeliveryCalendarScreen() {
           )}
         </View>
 
-        {/* Legend */}
+        {/* Legend — dot shades explain urgency tiers */}
         <View style={styles.legend}>
           {([
-            { color: URGENCY_COLORS.overdue, label: 'Overdue' },
-            { color: URGENCY_COLORS.today, label: 'Due today' },
-            { color: URGENCY_COLORS.urgent, label: '1–3 days' },
-            { color: URGENCY_COLORS.soon, label: '4–7 days' },
+            { shade: DOT_SHADES.overdue, label: 'Overdue' },
+            { shade: DOT_SHADES.today, label: 'Due today' },
+            { shade: DOT_SHADES.urgent, label: '1–3 days' },
+            { shade: DOT_SHADES.soon, label: '4–7 days' },
           ] as const).map(item => (
             <View key={item.label} style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+              <View style={[styles.legendDot, { backgroundColor: item.shade }]} />
               <Text style={styles.legendText}>{item.label}</Text>
             </View>
           ))}
@@ -496,23 +492,14 @@ function OrderCard({ item, onPress }: OrderCardProps) {
   const status = order.status ?? '';
   const deliveryDate = order.delivery_date!;
   const urgency = getUrgency(deliveryDate.slice(0, 10));
-
-  const urgencyColor = URGENCY_COLORS[urgency];
-  const urgencyBg: Record<string, string> = {
-    overdue: '#fef2f2',
-    today: '#fffbeb',
-    urgent: '#eff6ff',
-    soon: '#f0fdf4',
-    normal: Colors.background,
-  };
+  const isOverdue = urgency === 'overdue';
+  const isToday = urgency === 'today';
 
   return (
     <TouchableOpacity style={[styles.orderCard, Shadow.card]} onPress={onPress} activeOpacity={0.75}>
       <View style={styles.orderCardTop}>
-        <View style={[styles.typePill, { backgroundColor: isPO ? '#f3f4f6' : '#f5f3ff' }]}>
-          <Text style={[styles.typePillText, { color: isPO ? Colors.text : '#7c3aed' }]}>
-            {isPO ? 'PO' : 'SO'}
-          </Text>
+        <View style={styles.typePill}>
+          <Text style={styles.typePillText}>{isPO ? 'PO' : 'SO'}</Text>
         </View>
         <Text style={styles.orderNumber}>{numberLabel}</Text>
         <View style={{ flex: 1 }} />
@@ -520,14 +507,14 @@ function OrderCard({ item, onPress }: OrderCardProps) {
       </View>
       <Text style={styles.orderParty}>{party}</Text>
       <View style={styles.orderCardBottom}>
-        <View style={[styles.urgencyBadge, { backgroundColor: urgencyBg[urgency] }]}>
+        <View style={styles.urgencyBadge}>
           <Feather
-            name={urgency === 'overdue' ? 'alert-circle' : urgency === 'today' ? 'clock' : 'calendar'}
+            name={isOverdue ? 'alert-circle' : isToday ? 'clock' : 'calendar'}
             size={11}
-            color={urgencyColor}
+            color={isOverdue ? Colors.text : Colors.textSecondary}
           />
-          <Text style={[styles.urgencyText, { color: urgencyColor }]}>
-            {urgency === 'overdue' ? 'Overdue' : urgency === 'today' ? 'Due today' : formatShortDate(deliveryDate)}
+          <Text style={[styles.urgencyText, isOverdue && styles.urgencyTextOverdue]}>
+            {isOverdue ? 'Overdue' : isToday ? 'Due today' : formatShortDate(deliveryDate)}
           </Text>
         </View>
         {status ? (
@@ -592,8 +579,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
-  badgeText: { fontSize: 11, fontWeight: '500' },
+  badgeText: { fontSize: 11, fontWeight: '600', color: Colors.text },
 
   weekdayRow: {
     flexDirection: 'row',
@@ -677,8 +667,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: Radius.sm,
+    backgroundColor: Colors.borderLight,
   },
-  typePillText: { fontSize: 11, fontWeight: '700' },
+  typePillText: { fontSize: 11, fontWeight: '700', color: Colors.text },
   orderNumber: { ...Typography.h4, fontSize: 14 },
   orderParty: { ...Typography.body, color: Colors.textSecondary, fontSize: 13 },
   orderCardBottom: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
@@ -689,8 +680,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
-  urgencyText: { fontSize: 11, fontWeight: '600' },
+  urgencyText: { fontSize: 11, fontWeight: '500', color: Colors.textSecondary },
+  urgencyTextOverdue: { fontWeight: '700', color: Colors.text },
   orderStatus: {
     ...Typography.bodySmall,
     color: Colors.textMuted,

@@ -683,6 +683,8 @@
 
 ### UI Polish Log (Monochrome)
 
+**2026-05-29** — `DeliveryCalendarScreen` + `DashboardScreen`: removed all 4 semantic urgency colors (red/amber/blue/green) from DeliveryCalendar. Replaced `URGENCY_COLORS` with `DOT_SHADES` (black→darkGray→midGray→lightGray opacity scale), month-summary badges switched to outline hairline style, order-card urgency badges now monochrome outline with bold weight for overdue. PO/SO type pills unified to same gray. Dashboard: overdue count now uses `fontWeight:'700'` instead of `color:'#dc2626'`.
+
 **2026-05-25** — `BiometricLockOverlay`: replaced hardcoded `borderRadius: 40` on `iconWrap` with `Radius.full` — the only remaining numeric borderRadius literal introduced by the Session 17 build. Full post-build audit confirms all 28 screens and all shared components are clean: no emojis, no semantic hex colors, no hardcoded borderRadius, no shadow spreads; only `'#fff'` (white text on black button/chip — intentional monochrome) remains as a literal.
 
 **2026-05-23** — Detail screen loading states: replaced 7 hardcoded `backgroundColor:'#fafafa'` inline styles with `Colors.background` token in `PurchaseOrderDetailScreen`, `PODetailScreen`, `SalesOrderDetailScreen`, `VendorDetailScreen`, `CustomerDetailScreen`, `ItemLedgerScreen`, `PartnerDetailScreen`. These were introduced by the Session 12 skeleton loading migration; all skeleton SafeAreaView wrappers now reference the theme token instead of a literal.
