@@ -116,6 +116,11 @@ const QUICK_ACTIONS: QuickAction[] = [
     icon: 'pie-chart',
     navigate: (nav) => nav.navigate('Finance', { screen: 'FinancialReports' } as any),
   },
+  {
+    label: 'Deliveries',
+    icon: 'calendar',
+    navigate: (nav) => nav.navigate('More', { screen: 'DeliveryCalendar' } as any),
+  },
 ];
 
 export default function DashboardScreen() {
@@ -439,6 +444,23 @@ export default function DashboardScreen() {
               >
                 <Text style={styles.scCount}>{supplyChain.activeMaterials}</Text>
                 <Text style={styles.scLabel}>Materials</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.scCard}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate('More', { screen: 'DeliveryCalendar' } as any)}
+              >
+                <Text style={[
+                  styles.scCount,
+                  supplyChain.deliveriesOverdue > 0 && { color: '#dc2626' },
+                ]}>
+                  {supplyChain.deliveriesOverdue > 0
+                    ? supplyChain.deliveriesOverdue
+                    : supplyChain.deliveriesDueThisWeek}
+                </Text>
+                <Text style={styles.scLabel}>
+                  {supplyChain.deliveriesOverdue > 0 ? 'Overdue' : 'Due 7d'}
+                </Text>
               </TouchableOpacity>
             </View>
           </>

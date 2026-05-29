@@ -207,6 +207,8 @@ export type SupplyChainSnapshot = {
   openPOs: number;
   openSOs: number;
   activeMaterials: number;
+  deliveriesDueThisWeek: number;
+  deliveriesOverdue: number;
 };
 
 export async function fetchSupplyChainSnapshot(companyId?: string): Promise<SupplyChainSnapshot> {
@@ -219,9 +221,28 @@ export async function fetchSupplyChainSnapshot(companyId?: string): Promise<Supp
     apiRequest<any>(`/api/mobile/materials?view=list&status=active${cqOnly}`).catch(() => null),
   ]);
 
-  const openPOs = (poRes?.orders ?? poRes?.purchaseOrders ?? []).length;
-  const openSOs = (soRes?.orders ?? soRes?.salesOrders ?? []).length;
+  const openPOList: any[] = poRes?.orders ?? poRes?.purchaseOrders ?? [];
+  const openSOList: any[] = soRes?.orders ?? soRes?.salesOrders ?? [];
+  const openPOs = openPOList.length;
+  const openSOs = openSOList.length;
   const activeMaterials = (matRes?.materials ?? matRes?.items ?? []).length;
 
-  return { openPOs, openSOs, activeMaterials };
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(today);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+
+  let deliveriesDueThisWeek = 0;
+  let deliveriesOverdue = 0;
+  const allOrders = [...openPOList, ...openSOList];
+  for (const order of allOrders) {
+    const dd = order.delivery_date;
+    if (!dd) continue;
+    const due = new Date(dd);
+    due.setHours(0, 0, 0, 0);
+    if (due < today) deliveriesOverdue++;
+    else if (due <= weekEnd) deliveriesDueThisWeek++;
+  }
+
+  return { openPOs, openSOs, activeMaterials, deliveriesDueThisWeek, deliveriesOverdue };
 }
