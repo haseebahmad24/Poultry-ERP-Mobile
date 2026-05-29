@@ -29,6 +29,24 @@ import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'PurchaseOrders'>;
 
+type DeliveryUrgency = 'overdue' | 'today' | 'urgent' | 'soon' | null;
+interface DeliveryStatus { label: string; urgency: DeliveryUrgency }
+
+function getDeliveryStatus(deliveryDate: string | undefined, status: string | undefined): DeliveryStatus | null {
+  const s = (status ?? '').toUpperCase();
+  if (!deliveryDate || ['CLOSED', 'CANCELLED', 'RECEIVED', 'COMPLETE'].includes(s)) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(deliveryDate);
+  due.setHours(0, 0, 0, 0);
+  const days = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+  if (days < 0) return { label: `${Math.abs(days)}d overdue`, urgency: 'overdue' };
+  if (days === 0) return { label: 'Due today', urgency: 'today' };
+  if (days <= 3) return { label: `Due in ${days}d`, urgency: 'urgent' };
+  if (days <= 7) return { label: `Due in ${days}d`, urgency: 'soon' };
+  return null;
+}
+
 type StatusTab = 'all' | 'open' | 'progress';
 
 const STATUS_TABS: { key: StatusTab; label: string }[] = [
@@ -216,6 +234,7 @@ function POCard({ po, onPress }: { po: PurchaseOrder; onPress: () => void }) {
   const progressPct = total > 0 ? Math.min((received / total) * 100, 100) : 0;
   const showProgress = received > 0 || (po.status ?? '').toUpperCase() === 'PARTIAL';
   const isClosed = ['CLOSED', 'CANCELLED'].includes((po.status ?? '').toUpperCase());
+  const delivery = getDeliveryStatus(po.delivery_date, po.status);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
@@ -246,6 +265,17 @@ function POCard({ po, onPress }: { po: PurchaseOrder; onPress: () => void }) {
         )}
         <Text style={styles.metaAmount}>{formatCurrency(total)}</Text>
       </View>
+
+      {delivery && (
+        <View style={[styles.deliveryChip, delivery.urgency === 'overdue' && styles.deliveryChipOverdue]}>
+          <Feather
+            name={delivery.urgency === 'overdue' ? 'alert-circle' : 'clock'}
+            size={11}
+            color={Colors.text}
+          />
+          <Text style={styles.deliveryChipText}>{delivery.label}</Text>
+        </View>
+      )}
 
       {showProgress && (
         <View style={styles.progressContainer}>
@@ -346,6 +376,24 @@ const styles = StyleSheet.create({
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: 12, color: Colors.textSecondary },
   metaAmount: { fontSize: 14, fontWeight: '700', color: Colors.text, marginLeft: 'auto' },
+
+  deliveryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surfaceHover,
+  },
+  deliveryChipOverdue: {
+    borderColor: Colors.text,
+    backgroundColor: Colors.borderLight,
+  },
+  deliveryChipText: { fontSize: 11, fontWeight: '600', color: Colors.text },
 
   progressContainer: { gap: 4 },
   progressBar: {
