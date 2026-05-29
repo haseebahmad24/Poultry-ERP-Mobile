@@ -1,5 +1,31 @@
 # Mobile App Progress
 
+## Session 28 — 2026-05-29
+
+### Completed This Session
+
+**Payment Timeline Tab in VendorDetail + CustomerDetail** (`VendorDetailScreen.tsx`, `CustomerDetailScreen.tsx`)
+- Both screens now have three tabs: "Bills | Payments | Ledger" (Vendor) and "Invoices | Payments | Ledger" (Customer)
+- Payments tab for Vendor: extracts PMT (payment) entries from the running ledger; shows payment count, total paid, avg payment stats bar
+- Payments tab for Customer: extracts REC (receipt) entries; labels as "Receipt History" with total received + avg receipt stats
+- Visual timeline design: vertical dot-and-line connector per entry, each card shows date, reference, and amount
+- PDF export button hidden on Payments tab (no dedicated PDF; Bills/Ledger tabs retain their export buttons)
+
+**Date Range Filter on PO and SO List Screens** (`PurchaseOrdersScreen.tsx`, `SalesOrdersScreen.tsx`)
+- Both PurchaseOrdersScreen and SalesOrdersScreen now have a `DateRangeBar` below the status tabs row
+- Filters orders client-side by `dt` (creation date) so it works with cached data
+- Preset chips: Today, This Week, This Month, Last Month, Custom range
+- Works in combination with search text and status tab filters
+
+**Delivery Countdown Chips on PO and SO Cards** (`PurchaseOrdersScreen.tsx`, `SalesOrdersScreen.tsx`)
+- PO and SO list cards now show a delivery status chip when `delivery_date` is set and order is not closed/cancelled:
+  - "X days overdue" — alert-circle icon, bolder border
+  - "Due today" — clock icon
+  - "Due in Xd" — for 1-7 days ahead (shown for 1-7 days only; nothing shown beyond 7 days)
+- Logic: `getDeliveryStatus(deliveryDate, status)` computes urgency level; closed/cancelled/received orders show nothing
+
+---
+
 ## Session 27 — 2026-05-28
 
 ### Completed This Session
@@ -67,12 +93,13 @@
   - Recent Vouchers table (last 5 entries with date, type badge, amount, status)
 - Dashboard top bar: `file-text` icon button added between search and bell; shows ActivityIndicator while exporting; disabled when KPI data not yet loaded
 
-### Next Session
-- Consider: Partner payments / receipts timeline in Vendor/Customer detail (chronological activity view)
+### Next Session (Session 29+)
+- ~~Partner payments / receipts timeline~~ ✅ Done (Session 28)
 - Consider: Push notification integration with backend alerts API
-- Consider: Journal Entry creation form (draft JE with account line entry)
-- Consider: Account Statement accessible from Journal Entries screen header (account picker/search)
+- Consider: Journal Entry creation form (draft JE with account line entry — requires POST API)
+- Consider: Purchase Order creation form (requires POST API)
 - Consider: Export queue — schedule multiple exports and download as ZIP
+- Consider: PO/SO delivery calendar view (monthly calendar with delivery dates)
 
 ---
 
@@ -1046,11 +1073,11 @@
 
 ---
 
-## What's Next (Session 21+)
+## What's Next (Session 29+)
 
-Sessions 1–26 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
+Sessions 1–28 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
 
-1. **Partner payments timeline** — Chronological payment/receipt activity in Vendor/Customer detail screens
+1. ~~**Partner payments timeline**~~ — ✅ Done (Session 28)
 2. **Journal Entry creation form** — Draft JE with account line entry (requires POST API on web app)
 3. **Purchase Order creation** — Draft PO form with item line entry (requires POST API endpoint on web app)
 4. **Widget support** — Expo WidgetKit for home screen KPI summary (iOS 17+)
@@ -1058,6 +1085,8 @@ Sessions 1–26 are complete. All roadmap screens + polish + key enhancements ar
 6. ~~**Cash Flow PDF export**~~ — ✅ Done (Session 22)
 7. ~~**Account Statement screen**~~ — ✅ Done (Session 26)
 8. ~~**Dashboard Summary PDF**~~ — ✅ Done (Session 26)
+9. **PO/SO delivery calendar view** — Monthly calendar showing open delivery dates
+10. **Export queue** — Schedule multiple PDF exports and download as combined ZIP
 
 ---
 
@@ -1164,6 +1193,14 @@ Sessions 1–26 are complete. All roadmap screens + polish + key enhancements ar
 | Account Statement screen (account-level JE lines with running balance, TB drill-down) | ✅ Done |
 | PDF export — Account Statement (transactions table + running balance + summary tiles) | ✅ Done |
 | Dashboard Summary PDF export (KPI grid + working capital + supply chain + activity) | ✅ Done |
+| Vendor Ledger tab (Bills + running-balance ledger) | ✅ Done |
+| Customer Ledger tab (Invoices + running-balance ledger) | ✅ Done |
+| Vendor Payment Timeline tab (chronological payment history) | ✅ Done |
+| Customer Receipt Timeline tab (chronological receipt history) | ✅ Done |
+| Date range filter on Purchase Orders list (DateRangeBar) | ✅ Done |
+| Date range filter on Sales Orders list (DateRangeBar) | ✅ Done |
+| Delivery countdown chips on PO cards (overdue/today/urgent/soon) | ✅ Done |
+| Delivery countdown chips on SO cards (overdue/today/urgent/soon) | ✅ Done |
 
 ---
 
