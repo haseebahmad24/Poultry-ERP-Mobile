@@ -25,7 +25,7 @@ import { exportVendorDetailPDF, exportVendorLedgerPDF, PartnerLedgerEntry } from
 
 type Props = NativeStackScreenProps<FinanceStackParamList, 'VendorDetail'>;
 
-type Tab = 'bills' | 'ledger';
+type Tab = 'bills' | 'payments' | 'ledger';
 
 interface LedgerEntry {
   id: string;
@@ -135,6 +135,9 @@ export default function VendorDetailScreen({ route }: Props) {
     s + (b.outstanding ?? (b.amount ?? 0) - (b.paid ?? 0)), 0);
 
   const ledgerEntries = buildLedger(bills);
+  const paymentEntries = ledgerEntries.filter((e) => e.type === 'PMT');
+  const paymentCount = paymentEntries.length;
+  const avgPayment = paymentCount > 0 ? totalPaid / paymentCount : 0;
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -146,7 +149,7 @@ export default function VendorDetailScreen({ route }: Props) {
           <Text style={styles.headerTitle} numberOfLines={1}>{vendorName ?? `Vendor ${vendorId}`}</Text>
           <Text style={styles.headerSub}>Vendor · Accounts Payable</Text>
         </View>
-        {bills.length > 0 && (
+        {bills.length > 0 && tab !== 'payments' && (
           <TouchableOpacity
             style={styles.headerBtn}
             onPress={() => {
@@ -189,6 +192,14 @@ export default function VendorDetailScreen({ route }: Props) {
         >
           <Text style={[styles.tabLabel, tab === 'bills' && styles.tabLabelActive]}>
             Bills ({bills.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabItem, tab === 'payments' && styles.tabItemActive]}
+          onPress={() => setTab('payments')}
+        >
+          <Text style={[styles.tabLabel, tab === 'payments' && styles.tabLabelActive]}>
+            Payments ({paymentCount})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -255,6 +266,42 @@ export default function VendorDetailScreen({ route }: Props) {
             <View style={{ height: Spacing.xxl }} />
           </ScrollView>
         </>
+      )}
+
+      {tab === 'payments' && (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => load(true)}
+              tintColor={Colors.textMuted}
+            />
+          }
+        >
+          <View style={styles.paymentStatsRow}>
+            <PaymentStatTile label="Payments" value={String(paymentCount)} />
+            <PaymentStatTile label="Total Paid" value={formatCurrency(totalPaid)} />
+            <PaymentStatTile label="Avg Payment" value={formatCurrency(avgPayment)} />
+          </View>
+          <SectionHeader title="Payment History" meta={`${paymentCount} transaction${paymentCount !== 1 ? 's' : ''}`} />
+          {paymentCount === 0 ? (
+            <EmptyState icon="credit-card" message="No payments recorded for this vendor" />
+          ) : (
+            <View style={styles.timelineContainer}>
+              {paymentEntries.map((entry, idx) => (
+                <PaymentTimelineItem
+                  key={entry.id}
+                  entry={entry}
+                  isLast={idx === paymentEntries.length - 1}
+                />
+              ))}
+            </View>
+          )}
+          <View style={{ height: Spacing.xxl }} />
+        </ScrollView>
       )}
 
       {tab === 'ledger' && (
@@ -428,6 +475,38 @@ function EmptyState({ icon, message }: { icon: string; message: string }) {
     <View style={styles.emptyState}>
       <Feather name={icon as any} size={32} color={Colors.textMuted} />
       <Text style={styles.emptyText}>{message}</Text>
+    </View>
+  );
+}
+
+function PaymentStatTile({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.paymentStatTile}>
+      <Text style={styles.paymentStatValue}>{value}</Text>
+      <Text style={styles.paymentStatLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function PaymentTimelineItem({ entry, isLast }: { entry: LedgerEntry; isLast: boolean }) {
+  return (
+    <View style={styles.timelineItem}>
+      <View style={styles.timelineLeft}>
+        <View style={styles.timelineDot} />
+        {!isLast && <View style={styles.timelineLine} />}
+      </View>
+      <View style={styles.timelineContent}>
+        <View style={styles.timelineCard}>
+          <View style={styles.timelineCardRow}>
+            <Feather name="calendar" size={11} color={Colors.textMuted} />
+            <Text style={styles.timelineDate}>
+              {entry.date ? formatShortDate(entry.date) : '—'}
+            </Text>
+            <Text style={styles.timelineAmount}>{formatCurrency(entry.credit)}</Text>
+          </View>
+          <Text style={styles.timelineRef} numberOfLines={1}>{entry.reference}</Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -629,4 +708,56 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   emptyText: { ...Typography.body, color: Colors.textMuted },
+
+  // Payment timeline styles
+  paymentStatsRow: {
+    flexDirection: 'row',
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    marginBottom: Spacing.xs,
+  },
+  paymentStatTile: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xs,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: Colors.border,
+  },
+  paymentStatValue: { fontSize: 14, fontWeight: '700', color: Colors.text },
+  paymentStatLabel: { ...Typography.label, marginTop: 2 },
+
+  timelineContainer: { marginHorizontal: Spacing.md, paddingTop: Spacing.xs },
+  timelineItem: { flexDirection: 'row' },
+  timelineLeft: { width: 24, alignItems: 'center', paddingTop: 6 },
+  timelineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: Colors.text,
+    backgroundColor: Colors.surface,
+  },
+  timelineLine: {
+    width: StyleSheet.hairlineWidth,
+    flex: 1,
+    backgroundColor: Colors.border,
+    marginTop: 3,
+    minHeight: 16,
+  },
+  timelineContent: { flex: 1, paddingBottom: Spacing.sm },
+  timelineCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    padding: Spacing.sm + 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    marginLeft: Spacing.xs,
+    gap: 3,
+  },
+  timelineCardRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  timelineDate: { ...Typography.bodySmall, color: Colors.textSecondary, flex: 1 },
+  timelineAmount: { fontSize: 14, fontWeight: '700', color: Colors.text },
+  timelineRef: { ...Typography.label, color: Colors.textMuted },
 });
