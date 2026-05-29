@@ -209,6 +209,8 @@ export type SupplyChainSnapshot = {
   activeMaterials: number;
   deliveriesDueThisWeek: number;
   deliveriesOverdue: number;
+  openPOList: any[];
+  openSOList: any[];
 };
 
 export async function fetchSupplyChainSnapshot(companyId?: string): Promise<SupplyChainSnapshot> {
@@ -244,5 +246,5 @@ export async function fetchSupplyChainSnapshot(companyId?: string): Promise<Supp
     else if (due <= weekEnd) deliveriesDueThisWeek++;
   }
 
-  return { openPOs, openSOs, activeMaterials, deliveriesDueThisWeek, deliveriesOverdue };
+  return { openPOs, openSOs, activeMaterials, deliveriesDueThisWeek, deliveriesOverdue, openPOList, openSOList };
 }

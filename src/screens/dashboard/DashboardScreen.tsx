@@ -26,6 +26,7 @@ import OfflineBanner from '@/components/OfflineBanner';
 import VoucherActivityChart from '@/components/VoucherActivityChart';
 import VoucherSparkline from '@/components/VoucherSparkline';
 import RecentlyViewedSection from '@/components/RecentlyViewedSection';
+import UpcomingDeliveriesSection from '@/components/UpcomingDeliveriesSection';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
@@ -463,6 +464,25 @@ export default function DashboardScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+          </>
+        )}
+
+        {/* Upcoming Deliveries */}
+        {supplyChain !== null && (supplyChain.openPOList.length > 0 || supplyChain.openSOList.length > 0) && (
+          <>
+            <SectionHeader title="Upcoming Deliveries" meta="next 14 days" />
+            <UpcomingDeliveriesSection
+              pos={supplyChain.openPOList}
+              sos={supplyChain.openSOList}
+              onPressEntry={(type, id) => {
+                if (type === 'po') {
+                  navigation.navigate('More', { screen: 'PurchaseOrderDetail', params: { id } } as any);
+                } else {
+                  navigation.navigate('More', { screen: 'SalesOrderDetail', params: { id } } as any);
+                }
+              }}
+              onPressViewAll={() => navigation.navigate('More', { screen: 'DeliveryCalendar' } as any)}
+            />
           </>
         )}
 
