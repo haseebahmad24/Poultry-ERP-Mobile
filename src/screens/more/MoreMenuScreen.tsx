@@ -101,6 +101,26 @@ const FINANCE_ITEMS: {
   },
 ];
 
+const ANALYTICS_ITEMS: {
+  icon: string;
+  label: string;
+  subtitle: string;
+  screen: keyof MoreStackParamList;
+}[] = [
+  {
+    icon: 'trending-up',
+    label: 'Procurement Analytics',
+    subtitle: 'PO/SO trends, top vendors, top customers',
+    screen: 'ProcurementAnalytics',
+  },
+  {
+    icon: 'bar-chart',
+    label: 'Company Comparison',
+    subtitle: 'Side-by-side KPI ranking across all companies',
+    screen: 'Comparison',
+  },
+];
+
 const ADMIN_ITEMS: {
   icon: string;
   label: string;
@@ -124,12 +144,6 @@ const ADMIN_ITEMS: {
     label: 'Bookmarks',
     subtitle: 'Saved POs, SOs, partners, and materials',
     screen: 'Bookmarks',
-  },
-  {
-    icon: 'bar-chart',
-    label: 'Company Comparison',
-    subtitle: 'Side-by-side KPI ranking across all companies',
-    screen: 'Comparison',
   },
   {
     icon: 'settings',
@@ -298,6 +312,20 @@ export default function MoreMenuScreen() {
               subtitle={item.subtitle}
               onPress={() => tabNav?.navigate('Finance', { screen: item.screen })}
               hasBorder={idx < FINANCE_ITEMS.length - 1}
+            />
+          ))}
+        </View>
+
+        <Text style={styles.sectionTitle}>ANALYTICS</Text>
+        <View style={styles.sectionCard}>
+          {ANALYTICS_ITEMS.map((item, idx) => (
+            <MenuRow
+              key={item.label}
+              icon={item.icon}
+              label={item.label}
+              subtitle={item.subtitle}
+              onPress={() => moreNav.navigate(item.screen as any)}
+              hasBorder={idx < ANALYTICS_ITEMS.length - 1}
             />
           ))}
         </View>

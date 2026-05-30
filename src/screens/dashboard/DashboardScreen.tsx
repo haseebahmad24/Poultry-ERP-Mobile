@@ -122,6 +122,11 @@ const QUICK_ACTIONS: QuickAction[] = [
     icon: 'calendar',
     navigate: (nav) => nav.navigate('More', { screen: 'DeliveryCalendar' } as any),
   },
+  {
+    label: 'Analytics',
+    icon: 'trending-up',
+    navigate: (nav) => nav.navigate('More', { screen: 'ProcurementAnalytics' } as any),
+  },
 ];
 
 export default function DashboardScreen() {

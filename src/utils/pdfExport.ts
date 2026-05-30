@@ -2970,3 +2970,158 @@ export async function exportCustomerLedgerPDF(params: {
   const filename = customerName.replace(/[^a-zA-Z0-9-]/g, '-') + '-ledger.pdf';
   await printAndShare(wrapHtml(`Customer Ledger — ${customerName}`, body), filename);
 }
+
+// ─── Procurement Analytics PDF ───────────────────────────────────────────────
+
+export interface ProcurementAnalyticsData {
+  totalPOValue: number;
+  totalSOValue: number;
+  openPOs: number;
+  openSOs: number;
+  totalPOs: number;
+  totalSOs: number;
+  months: Array<{ label: string; poCount: number; soCount: number; poValue: number; soValue: number }>;
+  topVendors: Array<{ name: string; poCount: number; total: number }>;
+  topCustomers: Array<{ name: string; soCount: number; total: number }>;
+  poStatuses: Array<{ status: string; count: number }>;
+  soStatuses: Array<{ status: string; count: number }>;
+}
+
+export async function exportProcurementAnalyticsPDF(data: ProcurementAnalyticsData): Promise<void> {
+  const { totalPOValue, totalSOValue, openPOs, openSOs, totalPOs, totalSOs,
+    months, topVendors, topCustomers, poStatuses, soStatuses } = data;
+
+  const monthRows = months.map((m) => `
+    <tr>
+      <td>${m.label}</td>
+      <td class="right">${m.poCount}</td>
+      <td class="right">${formatCurrency(m.poValue)}</td>
+      <td class="right">${m.soCount}</td>
+      <td class="right">${formatCurrency(m.soValue)}</td>
+    </tr>
+  `).join('');
+
+  const vendorRows = topVendors.map((v, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${v.name}</td>
+      <td class="right">${v.poCount}</td>
+      <td class="right">${formatCurrency(v.total)}</td>
+    </tr>
+  `).join('');
+
+  const customerRows = topCustomers.map((c, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${c.name}</td>
+      <td class="right">${c.soCount}</td>
+      <td class="right">${formatCurrency(c.total)}</td>
+    </tr>
+  `).join('');
+
+  const poStatusRows = poStatuses.map((s) => {
+    const pct = totalPOs > 0 ? ((s.count / totalPOs) * 100).toFixed(1) : '0.0';
+    return `<tr><td>${s.status.charAt(0).toUpperCase() + s.status.slice(1)}</td>
+      <td class="right">${s.count}</td><td class="right">${pct}%</td></tr>`;
+  }).join('');
+
+  const soStatusRows = soStatuses.map((s) => {
+    const pct = totalSOs > 0 ? ((s.count / totalSOs) * 100).toFixed(1) : '0.0';
+    return `<tr><td>${s.status.charAt(0).toUpperCase() + s.status.slice(1)}</td>
+      <td class="right">${s.count}</td><td class="right">${pct}%</td></tr>`;
+  }).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Procurement Analytics</div>
+      <div class="report-meta">Generated ${new Date().toLocaleDateString()}</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalPOValue)}</div>
+        <div class="label">Total PO Value</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalSOValue)}</div>
+        <div class="label">Total SO Value</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${totalPOs}</div>
+        <div class="label">Total Purchase Orders</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${totalSOs}</div>
+        <div class="label">Total Sales Orders</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${openPOs}</div>
+        <div class="label">Open Purchase Orders</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${openSOs}</div>
+        <div class="label">Open Sales Orders</div>
+      </div>
+    </div>
+
+    <div class="section-label">Monthly Trend (Last 6 Months)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Month</th>
+          <th class="right">PO Count</th>
+          <th class="right">PO Value</th>
+          <th class="right">SO Count</th>
+          <th class="right">SO Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${monthRows || '<tr><td colspan="5" class="muted">No data</td></tr>'}
+      </tbody>
+    </table>
+
+    <div class="section-label" style="margin-top:20px">Top Vendors by PO Value</div>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Vendor</th><th class="right">Orders</th><th class="right">Total Value</th></tr>
+      </thead>
+      <tbody>
+        ${vendorRows || '<tr><td colspan="4" class="muted">No data</td></tr>'}
+      </tbody>
+    </table>
+
+    <div class="section-label" style="margin-top:20px">Top Customers by SO Value</div>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Customer</th><th class="right">Orders</th><th class="right">Total Value</th></tr>
+      </thead>
+      <tbody>
+        ${customerRows || '<tr><td colspan="4" class="muted">No data</td></tr>'}
+      </tbody>
+    </table>
+
+    <div class="section-label" style="margin-top:20px">Purchase Order Status Breakdown</div>
+    <table>
+      <thead>
+        <tr><th>Status</th><th class="right">Count</th><th class="right">Share</th></tr>
+      </thead>
+      <tbody>
+        ${poStatusRows || '<tr><td colspan="3" class="muted">No data</td></tr>'}
+        <tr class="total"><td>TOTAL</td><td class="right">${totalPOs}</td><td class="right">100%</td></tr>
+      </tbody>
+    </table>
+
+    <div class="section-label" style="margin-top:20px">Sales Order Status Breakdown</div>
+    <table>
+      <thead>
+        <tr><th>Status</th><th class="right">Count</th><th class="right">Share</th></tr>
+      </thead>
+      <tbody>
+        ${soStatusRows || '<tr><td colspan="3" class="muted">No data</td></tr>'}
+        <tr class="total"><td>TOTAL</td><td class="right">${totalSOs}</td><td class="right">100%</td></tr>
+      </tbody>
+    </table>
+  `;
+
+  await printAndShare(wrapHtml('Procurement Analytics', body), 'procurement-analytics.pdf');
+}
