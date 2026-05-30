@@ -153,7 +153,7 @@ const barStyles = StyleSheet.create({
   summaryItem: { flex: 1, alignItems: 'center', gap: 2 },
   summaryCount: { ...Typography.h3 },
   summaryLabel: { ...Typography.label, textTransform: 'uppercase' },
-  warnText: { color: '#6b7280' },
+  warnText: { color: Colors.textSecondary },
   dangerText: { color: Colors.textSecondary },
   divider: {
     width: StyleSheet.hairlineWidth,
@@ -244,7 +244,7 @@ const itemStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
+    paddingVertical: Spacing.sm + 2,
     gap: Spacing.sm,
   },
   rowBorder: {
@@ -330,7 +330,7 @@ const whStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
+    paddingVertical: Spacing.sm + 2,
     gap: Spacing.sm,
   },
   rowBorder: {

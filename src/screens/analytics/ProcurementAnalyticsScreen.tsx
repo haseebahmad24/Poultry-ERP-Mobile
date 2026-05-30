@@ -270,7 +270,7 @@ const chartStyles = StyleSheet.create({
   monthCol: { flex: 1, alignItems: 'center', gap: 4 },
   barTrack: { width: '100%', justifyContent: 'flex-end' },
   barsBottom: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
-  bar: { width: 8, borderRadius: 2 },
+  bar: { width: 8, borderRadius: Radius.sm },
   monthLabel: { fontSize: 10, color: Colors.textMuted, marginTop: 2 },
   monthCount: { fontSize: 11, fontWeight: '700', color: Colors.text },
 });
@@ -404,7 +404,8 @@ const statusStyles = StyleSheet.create({
     borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
-    padding: Spacing.sm + 2,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: Spacing.sm + 2,
   },
   chipTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   chipCount: { fontSize: 16, fontWeight: '700', color: Colors.text },
