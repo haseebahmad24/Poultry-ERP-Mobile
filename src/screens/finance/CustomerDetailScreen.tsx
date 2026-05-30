@@ -19,6 +19,7 @@ import { fetchARInvoices, ARInvoice } from '@/api/accountsReceivable';
 import DetailSkeleton from '@/components/DetailSkeleton';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
+import AgingChart, { AgingBucket } from '@/components/AgingChart';
 import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { exportCustomerDetailPDF, exportCustomerLedgerPDF, PartnerLedgerEntry } from '@/utils/pdfExport';
@@ -85,6 +86,30 @@ function buildLedger(invoices: ARInvoice[]): LedgerEntry[] {
     running = running + entry.debit - entry.credit;
     return { ...entry, balance: running };
   });
+}
+
+const AGING_FILLS = ['#d1d5db', '#9ca3af', '#6b7280', '#374151', '#111827'];
+
+function buildAgingBuckets(invoices: ARInvoice[]): AgingBucket[] {
+  const buckets = [
+    { label: 'Current', shortLabel: 'Current', amount: 0, fill: AGING_FILLS[0] },
+    { label: '1-30 Days', shortLabel: '1-30d', amount: 0, fill: AGING_FILLS[1] },
+    { label: '31-60 Days', shortLabel: '31-60d', amount: 0, fill: AGING_FILLS[2] },
+    { label: '61-90 Days', shortLabel: '61-90d', amount: 0, fill: AGING_FILLS[3] },
+    { label: '90+ Days', shortLabel: '90+d', amount: 0, fill: AGING_FILLS[4] },
+  ];
+  for (const inv of invoices) {
+    if ((inv.status ?? '').toUpperCase() === 'PAID') continue;
+    const outstanding = inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0);
+    if (outstanding <= 0) continue;
+    const days = daysOverdue(inv.due_date, inv.status);
+    if (days === 0) buckets[0].amount += outstanding;
+    else if (days <= 30) buckets[1].amount += outstanding;
+    else if (days <= 60) buckets[2].amount += outstanding;
+    else if (days <= 90) buckets[3].amount += outstanding;
+    else buckets[4].amount += outstanding;
+  }
+  return buckets;
 }
 
 export default function CustomerDetailScreen({ route }: Props) {
@@ -183,6 +208,14 @@ export default function CustomerDetailScreen({ route }: Props) {
         <SummaryTile label="Total Invoiced" value={formatCurrency(totalAmount)} />
         <SummaryTile label="Received" value={formatCurrency(totalPaid)} />
       </View>
+
+      {/* Aging breakdown — only when there are outstanding invoices */}
+      {totalOutstanding > 0 && (
+        <View style={styles.agingCard}>
+          <Text style={styles.agingTitle}>AGING BREAKDOWN</Text>
+          <AgingChart buckets={buildAgingBuckets(invoices)} barHeight={10} />
+        </View>
+      )}
 
       {/* Tab bar */}
       <View style={styles.tabBar}>
@@ -534,6 +567,19 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
+  },
+  agingCard: {
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  agingTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    color: Colors.textMuted,
   },
   summaryTile: {
     flex: 1,
