@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { formatShortDate } from '@/utils/currency';
 import type { PurchaseOrder } from '@/api/purchaseOrders';
 import type { SalesOrder } from '@/api/salesOrders';
@@ -16,19 +16,6 @@ interface DeliveryEntry {
   daysLabel: string;
 }
 
-const URGENCY_COLORS = {
-  overdue: '#dc2626',
-  today: '#d97706',
-  urgent: '#2563eb',
-  soon: '#059669',
-};
-
-const URGENCY_BG: Record<string, string> = {
-  overdue: '#fef2f2',
-  today: '#fffbeb',
-  urgent: '#eff6ff',
-  soon: '#f0fdf4',
-};
 
 function computeUrgency(dateStr: string): { urgency: DeliveryEntry['urgency']; daysLabel: string } | null {
   const today = new Date();
@@ -97,8 +84,7 @@ export default function UpcomingDeliveriesSection({ pos, sos, onPressEntry, onPr
   return (
     <View style={styles.card}>
       {visible.map((entry, idx) => {
-        const color = URGENCY_COLORS[entry.urgency];
-        const bg = URGENCY_BG[entry.urgency];
+        const isOverdue = entry.urgency === 'overdue';
         return (
           <TouchableOpacity
             key={`${entry.type}-${entry.id}`}
@@ -106,13 +92,13 @@ export default function UpcomingDeliveriesSection({ pos, sos, onPressEntry, onPr
             onPress={() => onPressEntry(entry.type, entry.id)}
             activeOpacity={0.7}
           >
-            <View style={[styles.typeDot, { backgroundColor: entry.type === 'po' ? Colors.text : '#7c3aed' }]} />
+            <View style={[styles.typeDot, { backgroundColor: entry.type === 'po' ? Colors.text : Colors.textSecondary }]} />
             <View style={styles.info}>
               <Text style={styles.label} numberOfLines={1}>{entry.label}</Text>
               <Text style={styles.party} numberOfLines={1}>{entry.party}</Text>
             </View>
-            <View style={[styles.urgencyChip, { backgroundColor: bg }]}>
-              <Text style={[styles.urgencyText, { color }]}>{entry.daysLabel}</Text>
+            <View style={styles.urgencyChip}>
+              <Text style={[styles.urgencyText, isOverdue && styles.urgencyTextOverdue]}>{entry.daysLabel}</Text>
             </View>
             <Feather name="chevron-right" size={13} color={Colors.textMuted} />
           </TouchableOpacity>
@@ -137,7 +123,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     overflow: 'hidden',
-    ...Shadow.card,
   },
   row: {
     flexDirection: 'row',
@@ -163,8 +148,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
-  urgencyText: { fontSize: 11, fontWeight: '600' },
+  urgencyText: { fontSize: 11, fontWeight: '500', color: Colors.textSecondary },
+  urgencyTextOverdue: { fontWeight: '700', color: Colors.text },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',

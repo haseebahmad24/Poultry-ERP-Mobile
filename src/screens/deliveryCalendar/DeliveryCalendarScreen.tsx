@@ -13,7 +13,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/theme';
+import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchPurchaseOrders, PurchaseOrder } from '@/api/purchaseOrders';
 import { fetchSalesOrders, SalesOrder } from '@/api/salesOrders';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
@@ -496,7 +496,7 @@ function OrderCard({ item, onPress }: OrderCardProps) {
   const isToday = urgency === 'today';
 
   return (
-    <TouchableOpacity style={[styles.orderCard, Shadow.card]} onPress={onPress} activeOpacity={0.75}>
+    <TouchableOpacity style={styles.orderCard} onPress={onPress} activeOpacity={0.75}>
       <View style={styles.orderCardTop}>
         <View style={styles.typePill}>
           <Text style={styles.typePillText}>{isPO ? 'PO' : 'SO'}</Text>
@@ -600,7 +600,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     overflow: 'hidden',
-    ...Shadow.card,
   },
   weekRow: {
     flexDirection: 'row',
