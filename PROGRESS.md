@@ -1,5 +1,51 @@
 # Mobile App Progress
 
+## Session 32 — 2026-05-30
+
+### Completed This Session
+
+**Financial Analytics Screen** (`src/screens/analytics/FinancialAnalyticsScreen.tsx`)
+- New screen under More → Analytics section (4th item, dollar-sign icon)
+- Net Position card: AR Outstanding − AP Outstanding = net receivable/payable with descriptive hint
+- AP Overview: total outstanding + overdue summary tiles
+- AP Aging breakdown: stacked bar chart (Current / 1-30d / 31-60d / 61-90d / 90+d) using APSummary.aging
+- AR Overview: total outstanding + overdue summary tiles
+- AR Aging breakdown: same stacked bar pattern using ARSummary.aging
+- Top 5 Vendors by outstanding: ranked list with progress bars and bill count
+- Top 5 Customers by outstanding: ranked list with progress bars and invoice count
+- PDF export via `exportFinancialAnalyticsPDF()` — net position row, 4-block AP/AR summary, both aging tables with % mini-bars, both partner ranking tables
+- Pull-to-refresh + 24h offline cache (key: `financial-analytics:<companyId>`)
+- CompanySelector at top for per-company filtering
+- MoreNavigator: `FinancialAnalytics` route registered
+- MoreMenu ANALYTICS section: Financial Analytics entry added
+
+**Per-vendor aging breakdown** (`src/screens/finance/VendorDetailScreen.tsx`)
+- `AgingChart` rendered between summary tiles and the tab bar when vendor has outstanding > 0
+- Aging buckets computed client-side from bills: Current (not past due), 1-30d, 31-60d, 61-90d, 90+d
+- Uses same `daysOverdue()` helper already in the file
+- Only visible when `totalOutstanding > 0`
+
+**Per-customer aging breakdown** (`src/screens/finance/CustomerDetailScreen.tsx`)
+- Identical pattern to vendor: `AgingChart` computed from AR invoices
+- Aging buckets: Current, 1-30d, 31-60d, 61-90d, 90+d based on invoice `due_date`
+- Only visible when `totalOutstanding > 0`
+
+**Expandable narrations on JE list cards** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- `JECard` component now tracks `narrationExpanded` local state
+- Narrations longer than 80 chars show truncated to 1 line with a chevron-down + "more" toggle
+- Tapping the narration area (not the card) expands to full text; tapping again collapses with chevron-up + "less"
+- Full card tap still navigates to JE detail — expand/collapse is independent
+
+**FEATURES.docx + generate-docs.js** — Updated with Session 32 changelog, new roadmap rows, FinancialAnalyticsScreen in Section 3
+
+### Next Session
+- Consider: JE creation form (draft a new journal entry — requires POST API)
+- Consider: Batch partner ledger export — export all vendor/customer ledgers as ZIP from AP/AR screen
+- Consider: Due date reminders / push notifications for AP bills nearing due date
+- Consider: AP/AR drill-down from Financial Analytics screen → AccountsPayable / AccountsReceivable screens
+
+---
+
 ## Session 30 — 2026-05-30
 
 ### Completed This Session
