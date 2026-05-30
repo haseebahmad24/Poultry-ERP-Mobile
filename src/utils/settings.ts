@@ -9,6 +9,8 @@ const KEYS = {
   NOTIFY_AP_OVERDUE: 'setting:notifyApOverdue',
   NOTIFY_AR_OVERDUE: 'setting:notifyArOverdue',
   NOTIFY_LOW_STOCK: 'setting:notifyLowStock',
+  NOTIFY_DUE_SOON: 'setting:notifyDueSoon',
+  DUE_SOON_DAYS: 'setting:dueSoonDays',
   DATE_FORMAT: 'setting:dateFormat',
 };
 
@@ -163,4 +165,34 @@ export async function getNotifyLowStock(): Promise<boolean> {
 
 export async function setNotifyLowStock(enabled: boolean): Promise<void> {
   await AsyncStorage.setItem(KEYS.NOTIFY_LOW_STOCK, enabled ? 'true' : 'false');
+}
+
+/** Returns whether "due soon" bills/invoices trigger a notification. Default: true. */
+export async function getNotifyDueSoon(): Promise<boolean> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.NOTIFY_DUE_SOON);
+    return raw === null ? true : raw === 'true';
+  } catch {
+    return true;
+  }
+}
+
+export async function setNotifyDueSoon(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEYS.NOTIFY_DUE_SOON, enabled ? 'true' : 'false');
+}
+
+/** Returns the "due soon" window in days (items due within this many days). Default: 7. */
+export async function getDueSoonDays(): Promise<number> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.DUE_SOON_DAYS);
+    if (raw === null) return 7;
+    const n = parseInt(raw, 10);
+    return isNaN(n) || n < 1 ? 7 : n;
+  } catch {
+    return 7;
+  }
+}
+
+export async function setDueSoonDays(days: number): Promise<void> {
+  await AsyncStorage.setItem(KEYS.DUE_SOON_DAYS, String(Math.max(1, days)));
 }

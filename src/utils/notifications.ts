@@ -5,11 +5,13 @@ import {
   getNotifyApOverdue,
   getNotifyArOverdue,
   getNotifyLowStock,
+  getNotifyDueSoon,
 } from '@/utils/settings';
 import { logNotificationEvent } from '@/utils/notificationLog';
 
 const KEY_NOTIFICATIONS_ENABLED = 'setting:notificationsEnabled';
 const IDENTIFIER_OVERDUE = 'poultry-erp-overdue-reminder';
+const IDENTIFIER_DUE_SOON = 'poultry-erp-due-soon-reminder';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -100,4 +102,55 @@ export async function scheduleOverdueReminder(params: {
 
 export async function cancelOverdueReminder(): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(IDENTIFIER_OVERDUE).catch(() => {});
+}
+
+export async function scheduleDueSoonReminder(params: {
+  apDueSoon: number;
+  arDueSoon: number;
+}): Promise<void> {
+  const [notifyDueSoon, hour] = await Promise.all([
+    getNotifyDueSoon(),
+    getNotificationHour(),
+  ]);
+
+  if (!notifyDueSoon) {
+    await Notifications.cancelScheduledNotificationAsync(IDENTIFIER_DUE_SOON).catch(() => {});
+    return;
+  }
+
+  const total = params.apDueSoon + params.arDueSoon;
+  if (total === 0) {
+    await Notifications.cancelScheduledNotificationAsync(IDENTIFIER_DUE_SOON).catch(() => {});
+    return;
+  }
+
+  const parts: string[] = [];
+  if (params.apDueSoon > 0)
+    parts.push(`${params.apDueSoon} bill${params.apDueSoon > 1 ? 's' : ''} due soon`);
+  if (params.arDueSoon > 0)
+    parts.push(`${params.arDueSoon} invoice${params.arDueSoon > 1 ? 's' : ''} due soon`);
+
+  // Schedule for the morning after the overdue reminder (30 min later) so they don't fire at the same time
+  const trigger = new Date();
+  trigger.setHours(hour, 30, 0, 0);
+  if (trigger <= new Date()) trigger.setDate(trigger.getDate() + 1);
+
+  try {
+    await Notifications.cancelScheduledNotificationAsync(IDENTIFIER_DUE_SOON).catch(() => {});
+    await Notifications.scheduleNotificationAsync({
+      identifier: IDENTIFIER_DUE_SOON,
+      content: {
+        title: 'Upcoming payments',
+        body: parts.join(' · '),
+        data: { type: 'due-soon' },
+      },
+      trigger: { date: trigger } as any,
+    });
+  } catch {
+    // Ignore scheduling failures in Expo Go / without credentials
+  }
+}
+
+export async function cancelDueSoonReminder(): Promise<void> {
+  await Notifications.cancelScheduledNotificationAsync(IDENTIFIER_DUE_SOON).catch(() => {});
 }

@@ -23,7 +23,7 @@ import { fetchAPBills, APBill } from '@/api/accountsPayable';
 import { fetchARInvoices, ARInvoice } from '@/api/accountsReceivable';
 import { fetchStockBalances, StockBalance } from '@/api/inventory';
 import { getCached } from '@/utils/cache';
-import { getLowStockThreshold } from '@/utils/settings';
+import { getLowStockThreshold, getDueSoonDays } from '@/utils/settings';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import type { MoreStackParamList } from '@/navigation/MoreNavigator';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
@@ -42,27 +42,42 @@ function daysOverdue(dueDate: string | undefined, status: string | undefined): n
   return diff > 0 ? diff : 0;
 }
 
+/** Returns days until due_date. Positive = not yet due. 0 = due today. Negative = overdue. */
+function daysDueIn(dueDate: string | undefined, status: string | undefined): number {
+  if (!dueDate) return -9999;
+  const st = (status ?? '').toUpperCase();
+  if (st === 'PAID' || st === 'RECEIVED' || st === 'CLOSED' || st === 'CANCELLED') return -9999;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+  return Math.floor((due.getTime() - today.getTime()) / 86_400_000);
+}
+
 export default function AlertsScreen() {
   const moreNav = useNavigation<MoreNav>();
   const tabNav = moreNav.getParent<TabNav>();
   const { companyId } = useCompany();
-  const { setAPOverdue, setAROverdue, setLowStock } = useOverdue();
+  const { setAPOverdue, setAROverdue, setLowStock, setAPDueSoon, setARDueSoon } = useOverdue();
 
   const [overdueBills, setOverdueBills] = useState<APBill[]>([]);
   const [overdueInvoices, setOverdueInvoices] = useState<ARInvoice[]>([]);
   const [lowStockItems, setLowStockItems] = useState<StockBalance[]>([]);
+  const [dueSoonBills, setDueSoonBills] = useState<APBill[]>([]);
+  const [dueSoonInvoices, setDueSoonInvoices] = useState<ARInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [threshold, setThreshold] = useState(100);
+  const [dueSoonDays, setDueSoonDaysState] = useState(7);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
-    const t = await getLowStockThreshold();
+    const [t, dsd] = await Promise.all([getLowStockThreshold(), getDueSoonDays()]);
     setThreshold(t);
+    setDueSoonDaysState(dsd);
 
-    // Try cache first for speed, then fresh data
     const apCacheKey = `ap:${companyId ?? 'all'}`;
     const arCacheKey = `ar:${companyId ?? 'all'}`;
     const invCacheKey = `inventory:stock:${companyId ?? 'all'}`;
@@ -80,30 +95,53 @@ export default function AlertsScreen() {
         ),
       ]);
 
-      const bills = (apBills ?? []).filter((b) => daysOverdue(b.due_date, b.status) > 0)
+      const bills = (apBills ?? [])
+        .filter((b) => daysOverdue(b.due_date, b.status) > 0)
         .sort((a, b) => daysOverdue(b.due_date, b.status) - daysOverdue(a.due_date, a.status));
-      const invoices = (arInvoices ?? []).filter((i) => daysOverdue(i.due_date, i.status) > 0)
+
+      const invoices = (arInvoices ?? [])
+        .filter((i) => daysOverdue(i.due_date, i.status) > 0)
         .sort((a, b) => daysOverdue(b.due_date, b.status) - daysOverdue(a.due_date, a.status));
-      const lowStock = (stock ?? []).filter((s) => { const q = s.qty ?? 0; return q > 0 && q < t; })
+
+      const lowStock = (stock ?? [])
+        .filter((s) => { const q = s.qty ?? 0; return q > 0 && q < t; })
         .sort((a, b) => (a.qty ?? 0) - (b.qty ?? 0));
+
+      // Due soon: due within next dsd days, not yet overdue, not closed/paid
+      const upcomingBills = (apBills ?? [])
+        .filter((b) => { const d = daysDueIn(b.due_date, b.status); return d >= 0 && d <= dsd; })
+        .sort((a, b) => daysDueIn(a.due_date, a.status) - daysDueIn(b.due_date, b.status));
+
+      const upcomingInvoices = (arInvoices ?? [])
+        .filter((i) => { const d = daysDueIn(i.due_date, i.status); return d >= 0 && d <= dsd; })
+        .sort((a, b) => daysDueIn(a.due_date, a.status) - daysDueIn(b.due_date, b.status));
 
       setOverdueBills(bills);
       setOverdueInvoices(invoices);
       setLowStockItems(lowStock);
+      setDueSoonBills(upcomingBills);
+      setDueSoonInvoices(upcomingInvoices);
+
       setAPOverdue(bills.length);
       setAROverdue(invoices.length);
       setLowStock(lowStock.length);
+      setAPDueSoon(upcomingBills.length);
+      setARDueSoon(upcomingInvoices.length);
     } catch {
       // Keep existing state on error
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [companyId, setAPOverdue, setAROverdue, setLowStock]);
+  }, [companyId, setAPOverdue, setAROverdue, setLowStock, setAPDueSoon, setARDueSoon]);
 
   useEffect(() => { load(); }, [load]);
 
-  const totalAlerts = overdueBills.length + overdueInvoices.length + lowStockItems.length;
+  const overdueTotal = overdueBills.length + overdueInvoices.length + lowStockItems.length;
+  const dueSoonTotal = dueSoonBills.length + dueSoonInvoices.length;
+  const totalAlerts = overdueTotal + dueSoonTotal;
+
+  const allClear = totalAlerts === 0;
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -112,20 +150,25 @@ export default function AlertsScreen() {
       <View style={styles.header}>
         <BackButton />
         <Text style={styles.headerTitle}>Alerts</Text>
-        {!loading && totalAlerts > 0 && (
+        {!loading && overdueTotal > 0 && (
           <View style={styles.totalBadge}>
-            <Text style={styles.totalBadgeText}>{totalAlerts}</Text>
+            <Text style={styles.totalBadgeText}>{overdueTotal}</Text>
+          </View>
+        )}
+        {!loading && dueSoonTotal > 0 && overdueTotal === 0 && (
+          <View style={[styles.totalBadge, styles.dueSoonBadge]}>
+            <Text style={styles.totalBadgeText}>{dueSoonTotal}</Text>
           </View>
         )}
       </View>
 
       {loading ? (
         <ListScreenSkeleton count={5} showTabs={false} showSearch={false} showBadge />
-      ) : totalAlerts === 0 ? (
+      ) : allClear ? (
         <View style={styles.allClear}>
           <Feather name="check-circle" size={48} color={Colors.textMuted} />
           <Text style={styles.allClearTitle}>All clear</Text>
-          <Text style={styles.allClearSub}>No overdue bills, invoices, or low-stock items.</Text>
+          <Text style={styles.allClearSub}>No overdue bills, invoices, low-stock items, or upcoming due dates.</Text>
         </View>
       ) : (
         <ScrollView
@@ -158,7 +201,7 @@ export default function AlertsScreen() {
                     key={bill.id}
                     style={[styles.alertRow, idx < overdueBills.length - 1 && styles.alertRowBorder]}
                     activeOpacity={0.7}
-                    onPress={() => tabNav?.navigate('Finance', { screen: 'AccountsPayable' })}
+                    onPress={() => tabNav?.navigate('Finance', { screen: 'AccountsPayable' } as any)}
                   >
                     <View style={styles.alertIcon}>
                       <Feather name="file-text" size={16} color={Colors.textSecondary} />
@@ -200,7 +243,7 @@ export default function AlertsScreen() {
                     key={inv.id}
                     style={[styles.alertRow, idx < overdueInvoices.length - 1 && styles.alertRowBorder]}
                     activeOpacity={0.7}
-                    onPress={() => tabNav?.navigate('Finance', { screen: 'AccountsReceivable' })}
+                    onPress={() => tabNav?.navigate('Finance', { screen: 'AccountsReceivable' } as any)}
                   >
                     <View style={styles.alertIcon}>
                       <Feather name="file-text" size={16} color={Colors.textSecondary} />
@@ -271,6 +314,102 @@ export default function AlertsScreen() {
             </View>
           )}
 
+          {/* Due Soon — AP Bills */}
+          {(dueSoonBills.length > 0 || dueSoonInvoices.length > 0) && (
+            <View style={styles.dueSoonDivider}>
+              <View style={styles.dueSoonDividerLine} />
+              <Text style={styles.dueSoonDividerLabel}>UPCOMING</Text>
+              <View style={styles.dueSoonDividerLine} />
+            </View>
+          )}
+
+          {dueSoonBills.length > 0 && (
+            <>
+              <SectionHeader
+                title={`Bills Due in ${dueSoonDays} Days (AP)`}
+                meta={`${dueSoonBills.length} upcoming`}
+              />
+              <View style={styles.card}>
+                {dueSoonBills.map((bill, idx) => {
+                  const daysLeft = daysDueIn(bill.due_date, bill.status);
+                  return (
+                    <TouchableOpacity
+                      key={bill.id}
+                      style={[styles.alertRow, idx < dueSoonBills.length - 1 && styles.alertRowBorder]}
+                      activeOpacity={0.7}
+                      onPress={() => tabNav?.navigate('Finance', { screen: 'AccountsPayable' } as any)}
+                    >
+                      <View style={styles.alertIcon}>
+                        <Feather name="clock" size={16} color={Colors.textSecondary} />
+                      </View>
+                      <View style={styles.alertBody}>
+                        <Text style={styles.alertTitle}>
+                          {bill.bill_number ?? `Bill #${bill.id}`}
+                        </Text>
+                        <Text style={styles.alertMeta}>
+                          {bill.vendor ?? '—'} · Due {formatShortDate(bill.due_date ?? '')}
+                        </Text>
+                      </View>
+                      <View style={styles.alertRight}>
+                        <Text style={styles.alertAmount}>{formatCurrency(bill.outstanding ?? bill.amount ?? 0)}</Text>
+                        <View style={[styles.daysBadge, styles.dueSoonChip]}>
+                          <Text style={styles.daysBadgeText}>
+                            {daysLeft === 0 ? 'due today' : `${daysLeft}d left`}
+                          </Text>
+                        </View>
+                      </View>
+                      <Feather name="chevron-right" size={14} color={Colors.textMuted} style={{ marginLeft: 4 }} />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
+          {/* Due Soon — AR Invoices */}
+          {dueSoonInvoices.length > 0 && (
+            <>
+              <SectionHeader
+                title={`Invoices Due in ${dueSoonDays} Days (AR)`}
+                meta={`${dueSoonInvoices.length} upcoming`}
+              />
+              <View style={styles.card}>
+                {dueSoonInvoices.map((inv, idx) => {
+                  const daysLeft = daysDueIn(inv.due_date, inv.status);
+                  return (
+                    <TouchableOpacity
+                      key={inv.id}
+                      style={[styles.alertRow, idx < dueSoonInvoices.length - 1 && styles.alertRowBorder]}
+                      activeOpacity={0.7}
+                      onPress={() => tabNav?.navigate('Finance', { screen: 'AccountsReceivable' } as any)}
+                    >
+                      <View style={styles.alertIcon}>
+                        <Feather name="clock" size={16} color={Colors.textSecondary} />
+                      </View>
+                      <View style={styles.alertBody}>
+                        <Text style={styles.alertTitle}>
+                          {inv.invoice_number ?? `Invoice #${inv.id}`}
+                        </Text>
+                        <Text style={styles.alertMeta}>
+                          {inv.customer ?? '—'} · Due {formatShortDate(inv.due_date ?? '')}
+                        </Text>
+                      </View>
+                      <View style={styles.alertRight}>
+                        <Text style={styles.alertAmount}>{formatCurrency(inv.outstanding ?? inv.amount ?? 0)}</Text>
+                        <View style={[styles.daysBadge, styles.dueSoonChip]}>
+                          <Text style={styles.daysBadgeText}>
+                            {daysLeft === 0 ? 'due today' : `${daysLeft}d left`}
+                          </Text>
+                        </View>
+                      </View>
+                      <Feather name="chevron-right" size={14} color={Colors.textMuted} style={{ marginLeft: 4 }} />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
           <View style={{ height: Spacing.xxl }} />
         </ScrollView>
       )}
@@ -309,6 +448,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
+  },
+  dueSoonBadge: {
+    backgroundColor: Colors.textSecondary,
   },
   totalBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 
@@ -358,7 +500,30 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     marginTop: 2,
   },
+  dueSoonChip: {
+    borderStyle: 'dashed',
+  },
   daysBadgeText: { fontSize: 10, fontWeight: '600', color: Colors.text },
+
+  dueSoonDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xs,
+    gap: Spacing.sm,
+  },
+  dueSoonDividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.border,
+  },
+  dueSoonDividerLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+    color: Colors.textMuted,
+  },
 
   emptyAlert: {
     flexDirection: 'row',

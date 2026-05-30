@@ -33,6 +33,10 @@ import {
   setNotifyArOverdue,
   getNotifyLowStock,
   setNotifyLowStock,
+  getNotifyDueSoon,
+  setNotifyDueSoon,
+  getDueSoonDays,
+  setDueSoonDays,
   getDateFormat,
   setDateFormat,
   initDateFormat,
@@ -43,6 +47,7 @@ import {
   setNotificationsEnabled,
   requestNotificationPermissions,
   cancelOverdueReminder,
+  cancelDueSoonReminder,
 } from '@/utils/notifications';
 import { clearCache } from '@/utils/cache';
 import { formatDate } from '@/utils/currency';
@@ -53,6 +58,14 @@ const REFRESH_OPTIONS: { label: string; value: number }[] = [
   { label: '5 min', value: 5 },
   { label: '10 min', value: 10 },
   { label: '30 min', value: 30 },
+];
+
+const DUE_SOON_DAYS_OPTIONS: { label: string; value: number }[] = [
+  { label: '1 day', value: 1 },
+  { label: '3 days', value: 3 },
+  { label: '7 days', value: 7 },
+  { label: '14 days', value: 14 },
+  { label: '30 days', value: 30 },
 ];
 
 const NOTIFICATION_HOUR_OPTIONS: { label: string; value: number }[] = [
@@ -88,6 +101,8 @@ export default function SettingsScreen() {
   const [notifyAP, setNotifyAPState] = useState(true);
   const [notifyAR, setNotifyARState] = useState(true);
   const [notifyStock, setNotifyStockState] = useState(true);
+  const [notifyDueSoon, setNotifyDueSoonState] = useState(true);
+  const [dueSoonDaysVal, setDueSoonDaysVal] = useState(7);
   const [dateFormat, setDateFormatState] = useState<DateFormat>('natural');
 
   useEffect(() => {
@@ -100,6 +115,8 @@ export default function SettingsScreen() {
     getNotifyApOverdue().then((v) => setNotifyAPState(v));
     getNotifyArOverdue().then((v) => setNotifyARState(v));
     getNotifyLowStock().then((v) => setNotifyStockState(v));
+    getNotifyDueSoon().then((v) => setNotifyDueSoonState(v));
+    getDueSoonDays().then((v) => setDueSoonDaysVal(v));
     getDateFormat().then((v) => setDateFormatState(v));
     LocalAuthentication.hasHardwareAsync().then((has) => {
       if (has) LocalAuthentication.isEnrolledAsync().then((enrolled) => setBiometricAvailable(enrolled));
@@ -175,6 +192,17 @@ export default function SettingsScreen() {
   const handleNotifyStockToggle = useCallback(async (value: boolean) => {
     setNotifyStockState(value);
     await setNotifyLowStock(value);
+  }, []);
+
+  const handleNotifyDueSoonToggle = useCallback(async (value: boolean) => {
+    setNotifyDueSoonState(value);
+    await setNotifyDueSoon(value);
+    if (!value) await cancelDueSoonReminder();
+  }, []);
+
+  const handleDueSoonDaysChange = useCallback(async (days: number) => {
+    setDueSoonDaysVal(days);
+    await setDueSoonDays(days);
   }, []);
 
   const handleDateFormatChange = useCallback(async (fmt: DateFormat) => {
@@ -477,7 +505,7 @@ export default function SettingsScreen() {
                   thumbColor={Colors.surface}
                 />
               </View>
-              <View style={styles.settingRow}>
+              <View style={[styles.settingRow, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight }]}>
                 <View style={styles.settingInfo}>
                   <Text style={styles.settingTitle}>Low-stock items</Text>
                 </View>
@@ -488,8 +516,46 @@ export default function SettingsScreen() {
                   thumbColor={Colors.surface}
                 />
               </View>
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>Upcoming payments (due soon)</Text>
+                </View>
+                <Switch
+                  value={notifyDueSoon}
+                  onValueChange={handleNotifyDueSoonToggle}
+                  trackColor={{ false: Colors.border, true: Colors.text }}
+                  thumbColor={Colors.surface}
+                />
+              </View>
             </>
           )}
+        </View>
+
+        {/* Due Soon Window */}
+        <Text style={styles.sectionLabel}>ALERTS — DUE SOON WINDOW</Text>
+        <View style={styles.card}>
+          <View style={[styles.settingRow, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight }]}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingTitle}>Upcoming due date window</Text>
+              <Text style={styles.settingDesc}>
+                Bills and invoices due within this many days appear as "Due Soon" alerts on the Alerts screen.
+              </Text>
+            </View>
+          </View>
+          <View style={styles.refreshOptionsRow}>
+            {DUE_SOON_DAYS_OPTIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[styles.refreshChip, dueSoonDaysVal === opt.value && styles.refreshChipActive]}
+                onPress={() => handleDueSoonDaysChange(opt.value)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.refreshChipText, dueSoonDaysVal === opt.value && styles.refreshChipTextActive]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         {/* Data & Cache */}

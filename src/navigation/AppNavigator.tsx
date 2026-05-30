@@ -17,6 +17,7 @@ import { getBiometricEnabled } from '@/utils/settings';
 import {
   getNotificationsEnabled,
   scheduleOverdueReminder,
+  scheduleDueSoonReminder,
 } from '@/utils/notifications';
 import { getUnreadCount } from '@/utils/notificationLog';
 import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
@@ -49,7 +50,7 @@ const BADGE_STYLE = {
 };
 
 export default function AppNavigator() {
-  const { totalOverdue, apOverdue, arOverdue, lowStock } = useOverdue();
+  const { totalOverdue, apOverdue, arOverdue, lowStock, apDueSoon, arDueSoon } = useOverdue();
   const { logout } = useAuth();
   const navigation = useNavigation();
   const handleSessionExpired = useCallback(() => { logout(); }, [logout]);
@@ -79,17 +80,23 @@ export default function AppNavigator() {
     getNotificationsEnabled().then((enabled) => {
       if (!enabled) return;
       scheduleOverdueReminder({ apOverdue, arOverdue, lowStock }).then(() => {
-        // Refresh inbox badge after scheduling (inbox is updated inside scheduleOverdueReminder)
         getUnreadCount().then(setInboxUnread);
       });
     });
   }, [apOverdue, arOverdue, lowStock]);
 
-  // Navigate to Alerts screen when user taps the overdue notification
+  useEffect(() => {
+    getNotificationsEnabled().then((enabled) => {
+      if (!enabled) return;
+      scheduleDueSoonReminder({ apDueSoon, arDueSoon });
+    });
+  }, [apDueSoon, arDueSoon]);
+
+  // Navigate to Alerts screen when user taps the overdue or due-soon notification
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data as any;
-      if (data?.type === 'overdue') {
+      if (data?.type === 'overdue' || data?.type === 'due-soon') {
         navigation.dispatch(
           CommonActions.navigate({ name: 'More', params: { screen: 'Alerts' } })
         );
