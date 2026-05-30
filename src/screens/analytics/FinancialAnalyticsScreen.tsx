@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
 import CompanySelector from '@/components/CompanySelector';
@@ -36,8 +37,10 @@ import { getCached, setCached } from '@/utils/cache';
 import { formatCurrency } from '@/utils/currency';
 import { exportFinancialAnalyticsPDF } from '@/utils/pdfExport';
 import type { MoreStackParamList } from '@/navigation/MoreNavigator';
+import type { AppTabParamList } from '@/navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList>;
+type TabNav = BottomTabNavigationProp<AppTabParamList>;
 
 // Grayscale fills: lightest (current) → darkest (most overdue)
 const AGING_FILLS = ['#d1d5db', '#9ca3af', '#6b7280', '#374151', '#111827'];
@@ -229,7 +232,7 @@ function PartnerRankList({
   maxAmount,
 }: {
   label: string;
-  items: { name: string; outstanding: number; count: number }[];
+  items: { id: number; name: string; outstanding: number; count: number; overdue?: number; onPress?: () => void }[];
   maxAmount: number;
 }) {
   if (items.length === 0) return null;
@@ -238,10 +241,12 @@ function PartnerRankList({
     <View style={rankStyles.card}>
       {items.map((item, idx) => {
         const barWidth = maxAmount > 0 ? (item.outstanding / maxAmount) * 100 : 0;
+        const RowWrapper = item.onPress ? TouchableOpacity : View;
         return (
-          <View
-            key={item.name}
+          <RowWrapper
+            key={item.id}
             style={[rankStyles.row, idx < items.length - 1 && rankStyles.rowBorder]}
+            {...(item.onPress ? { onPress: item.onPress, activeOpacity: 0.7 } : {})}
           >
             <Text style={rankStyles.rank}>{idx + 1}</Text>
             <View style={rankStyles.info}>
@@ -254,7 +259,10 @@ function PartnerRankList({
               </View>
               <Text style={rankStyles.sub}>{item.count} {label}</Text>
             </View>
-          </View>
+            {item.onPress && (
+              <Feather name="chevron-right" size={14} color={Colors.textMuted} style={{ marginLeft: 4 }} />
+            )}
+          </RowWrapper>
         );
       })}
     </View>
@@ -315,6 +323,7 @@ const rankStyles = StyleSheet.create({
 
 export default function FinancialAnalyticsScreen() {
   const navigation = useNavigation<Nav>();
+  const tabNav = navigation.getParent<TabNav>();
   const { companyId, selectedCompany } = useCompany();
 
   const [data, setData] = useState<FinancialData | null>(null);
@@ -392,29 +401,36 @@ export default function FinancialAnalyticsScreen() {
     const maxVendorAmt = top5Vendors[0]?.outstanding ?? 1;
     const maxCustomerAmt = top5Customers[0]?.outstanding ?? 1;
 
+    const goToAP = () => tabNav?.navigate('Finance', { screen: 'AccountsPayable' } as any);
+    const goToAR = () => tabNav?.navigate('Finance', { screen: 'AccountsReceivable' } as any);
+
     return (
       <>
         {/* Net Position */}
         <NetPositionCard arTotal={arTotal} apTotal={apTotal} />
 
         {/* ── AP Section ── */}
-        <SectionHeader
-          title="Accounts Payable"
-          meta={`${apSummary.vendors_count ?? 0} vendors · ${apSummary.bills_count ?? 0} bills`}
-        />
-        <View style={styles.tileRow}>
-          <SummaryTile
-            label="Total Outstanding"
-            value={formatCurrency(apTotal)}
-            sub="across all vendors"
+        <TouchableOpacity activeOpacity={0.7} onPress={goToAP}>
+          <SectionHeader
+            title="Accounts Payable"
+            meta={`${apSummary.vendors_count ?? 0} vendors · ${apSummary.bills_count ?? 0} bills  ›`}
           />
-          <SummaryTile
-            label="Overdue"
-            value={formatCurrency(apOverdue)}
-            danger={apOverdue > 0}
-            sub={apOverdue > 0 ? 'past due date' : 'none overdue'}
-          />
-        </View>
+        </TouchableOpacity>
+        <TouchableOpacity activeOpacity={0.85} onPress={goToAP}>
+          <View style={styles.tileRow}>
+            <SummaryTile
+              label="Total Outstanding"
+              value={formatCurrency(apTotal)}
+              sub="across all vendors"
+            />
+            <SummaryTile
+              label="Overdue"
+              value={formatCurrency(apOverdue)}
+              danger={apOverdue > 0}
+              sub={apOverdue > 0 ? 'past due date' : 'none overdue'}
+            />
+          </View>
+        </TouchableOpacity>
 
         {/* AP Aging */}
         <View style={styles.agingCard}>
@@ -432,9 +448,21 @@ export default function FinancialAnalyticsScreen() {
             <PartnerRankList
               label="bills"
               items={top5Vendors.map((v) => ({
+                id: v.id,
                 name: v.name ?? `Vendor #${v.id}`,
                 outstanding: v.outstanding ?? 0,
                 count: v.bills_count ?? 0,
+                overdue: v.overdue ?? 0,
+                onPress: () =>
+                  tabNav?.navigate('Finance', {
+                    screen: 'VendorDetail',
+                    params: {
+                      vendorId: v.id,
+                      vendorName: v.name ?? `Vendor #${v.id}`,
+                      outstanding: v.outstanding,
+                      overdue: v.overdue,
+                    },
+                  } as any),
               }))}
               maxAmount={maxVendorAmt}
             />
@@ -442,23 +470,27 @@ export default function FinancialAnalyticsScreen() {
         )}
 
         {/* ── AR Section ── */}
-        <SectionHeader
-          title="Accounts Receivable"
-          meta={`${arSummary.customers_count ?? 0} customers · ${arSummary.invoices_count ?? 0} invoices`}
-        />
-        <View style={styles.tileRow}>
-          <SummaryTile
-            label="Total Outstanding"
-            value={formatCurrency(arTotal)}
-            sub="across all customers"
+        <TouchableOpacity activeOpacity={0.7} onPress={goToAR}>
+          <SectionHeader
+            title="Accounts Receivable"
+            meta={`${arSummary.customers_count ?? 0} customers · ${arSummary.invoices_count ?? 0} invoices  ›`}
           />
-          <SummaryTile
-            label="Overdue"
-            value={formatCurrency(arOverdue)}
-            danger={arOverdue > 0}
-            sub={arOverdue > 0 ? 'past due date' : 'none overdue'}
-          />
-        </View>
+        </TouchableOpacity>
+        <TouchableOpacity activeOpacity={0.85} onPress={goToAR}>
+          <View style={styles.tileRow}>
+            <SummaryTile
+              label="Total Outstanding"
+              value={formatCurrency(arTotal)}
+              sub="across all customers"
+            />
+            <SummaryTile
+              label="Overdue"
+              value={formatCurrency(arOverdue)}
+              danger={arOverdue > 0}
+              sub={arOverdue > 0 ? 'past due date' : 'none overdue'}
+            />
+          </View>
+        </TouchableOpacity>
 
         {/* AR Aging */}
         <View style={styles.agingCard}>
@@ -476,9 +508,21 @@ export default function FinancialAnalyticsScreen() {
             <PartnerRankList
               label="invoices"
               items={top5Customers.map((c) => ({
+                id: c.id,
                 name: c.name ?? `Customer #${c.id}`,
                 outstanding: c.outstanding ?? 0,
                 count: c.invoices_count ?? 0,
+                overdue: c.overdue ?? 0,
+                onPress: () =>
+                  tabNav?.navigate('Finance', {
+                    screen: 'CustomerDetail',
+                    params: {
+                      customerId: c.id,
+                      customerName: c.name ?? `Customer #${c.id}`,
+                      outstanding: c.outstanding,
+                      overdue: c.overdue,
+                    },
+                  } as any),
               }))}
               maxAmount={maxCustomerAmt}
             />
