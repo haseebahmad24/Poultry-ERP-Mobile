@@ -3230,3 +3230,154 @@ export async function exportStockHealthPDF(data: StockHealthPDFData): Promise<vo
 
   await printAndShare(wrapHtml('Stock Health Report', body), 'stock-health.pdf');
 }
+
+// ─── Financial Analytics PDF ───────────────────────────────────────────────
+
+export interface FinancialAnalyticsData {
+  apSummary: APSummary;
+  arSummary: ARSummary;
+  topVendors: APVendor[];
+  topCustomers: ARCustomer[];
+}
+
+export async function exportFinancialAnalyticsPDF(
+  data: FinancialAnalyticsData,
+  companyName?: string,
+): Promise<void> {
+  const { apSummary, arSummary, topVendors, topCustomers } = data;
+
+  const apTotal = apSummary.total_outstanding ?? 0;
+  const arTotal = arSummary.total_outstanding ?? 0;
+  const net = arTotal - apTotal;
+
+  function agingRow(label: string, amount: number, total: number) {
+    const pct = total > 0 ? ((amount / total) * 100).toFixed(1) : '0.0';
+    const barW = total > 0 ? Math.round((amount / total) * 100) : 0;
+    return `
+      <tr>
+        <td>${label}</td>
+        <td class="right">${formatCurrency(amount)}</td>
+        <td class="right" style="color:#888">${pct}%</td>
+        <td style="width:80px">
+          <div style="height:6px;background:#eee;border-radius:3px;overflow:hidden">
+            <div style="height:6px;background:#374151;border-radius:3px;width:${barW}%"></div>
+          </div>
+        </td>
+      </tr>
+    `;
+  }
+
+  const apAging = apSummary.aging;
+  const arAging = arSummary.aging;
+
+  const apAgingRows = [
+    agingRow('Current', apAging?.current ?? 0, apTotal),
+    agingRow('1-30 Days', apAging?.days_30 ?? 0, apTotal),
+    agingRow('31-60 Days', apAging?.days_60 ?? 0, apTotal),
+    agingRow('61-90 Days', apAging?.days_90 ?? 0, apTotal),
+    agingRow('90+ Days', apAging?.over_90 ?? 0, apTotal),
+  ].join('');
+
+  const arAgingRows = [
+    agingRow('Current', arAging?.current ?? 0, arTotal),
+    agingRow('1-30 Days', arAging?.days_30 ?? 0, arTotal),
+    agingRow('31-60 Days', arAging?.days_60 ?? 0, arTotal),
+    agingRow('61-90 Days', arAging?.days_90 ?? 0, arTotal),
+    agingRow('90+ Days', arAging?.over_90 ?? 0, arTotal),
+  ].join('');
+
+  const top5V = [...topVendors]
+    .sort((a, b) => (b.outstanding ?? 0) - (a.outstanding ?? 0))
+    .slice(0, 5);
+  const top5C = [...topCustomers]
+    .sort((a, b) => (b.outstanding ?? 0) - (a.outstanding ?? 0))
+    .slice(0, 5);
+
+  const vendorRows = top5V.map((v, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${v.name ?? `Vendor #${v.id}`}</td>
+      <td class="right">${v.bills_count ?? 0} bills</td>
+      <td class="right">${formatCurrency(v.outstanding ?? 0)}</td>
+      <td class="right" style="color:#c00">${formatCurrency(v.overdue ?? 0)}</td>
+    </tr>
+  `).join('');
+
+  const customerRows = top5C.map((c, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${c.name ?? `Customer #${c.id}`}</td>
+      <td class="right">${c.invoices_count ?? 0} invoices</td>
+      <td class="right">${formatCurrency(c.outstanding ?? 0)}</td>
+      <td class="right" style="color:#c00">${formatCurrency(c.overdue ?? 0)}</td>
+    </tr>
+  `).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Financial Analytics</div>
+      <div class="report-meta">
+        Generated ${new Date().toLocaleDateString()}
+        ${companyName ? ` · ${companyName}` : ''}
+      </div>
+    </div>
+
+    <div class="net-row">
+      <span class="net-label">NET POSITION (AR − AP)</span>
+      <span class="net-value">${net >= 0 ? '+' : ''}${formatCurrency(net)}</span>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${formatCurrency(apTotal)}</div>
+        <div class="label">AP Outstanding</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(apSummary.total_overdue ?? 0)}</div>
+        <div class="label">AP Overdue</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(arTotal)}</div>
+        <div class="label">AR Outstanding</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(arSummary.total_overdue ?? 0)}</div>
+        <div class="label">AR Overdue</div>
+      </div>
+    </div>
+
+    <div class="section-label">AP Aging Breakdown</div>
+    <table>
+      <thead>
+        <tr><th>Bucket</th><th class="right">Amount</th><th class="right">%</th><th>Bar</th></tr>
+      </thead>
+      <tbody>${apAgingRows || '<tr><td colspan="4" class="muted">No aging data</td></tr>'}</tbody>
+    </table>
+
+    <div class="section-label" style="margin-top:20px">AR Aging Breakdown</div>
+    <table>
+      <thead>
+        <tr><th>Bucket</th><th class="right">Amount</th><th class="right">%</th><th>Bar</th></tr>
+      </thead>
+      <tbody>${arAgingRows || '<tr><td colspan="4" class="muted">No aging data</td></tr>'}</tbody>
+    </table>
+
+    <div class="section-label" style="margin-top:20px">Top Vendors by Outstanding</div>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Vendor</th><th class="right">Bills</th><th class="right">Outstanding</th><th class="right">Overdue</th></tr>
+      </thead>
+      <tbody>${vendorRows || '<tr><td colspan="5" class="muted">No data</td></tr>'}</tbody>
+    </table>
+
+    <div class="section-label" style="margin-top:20px">Top Customers by Outstanding</div>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Customer</th><th class="right">Invoices</th><th class="right">Outstanding</th><th class="right">Overdue</th></tr>
+      </thead>
+      <tbody>${customerRows || '<tr><td colspan="5" class="muted">No data</td></tr>'}</tbody>
+    </table>
+  `;
+
+  await printAndShare(wrapHtml('Financial Analytics', body), 'financial-analytics.pdf');
+}

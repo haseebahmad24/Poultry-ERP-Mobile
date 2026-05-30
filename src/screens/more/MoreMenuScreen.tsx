@@ -120,6 +120,12 @@ const ANALYTICS_ITEMS: {
     screen: 'StockHealth',
   },
   {
+    icon: 'dollar-sign',
+    label: 'Financial Analytics',
+    subtitle: 'AP/AR aging, net position, top payables & receivables',
+    screen: 'FinancialAnalytics',
+  },
+  {
     icon: 'bar-chart',
     label: 'Company Comparison',
     subtitle: 'Side-by-side KPI ranking across all companies',
