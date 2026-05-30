@@ -20,6 +20,7 @@ import BookmarksScreen from '@/screens/bookmarks/BookmarksScreen';
 import ComparisonScreen from '@/screens/comparison/ComparisonScreen';
 import DeliveryCalendarScreen from '@/screens/deliveryCalendar/DeliveryCalendarScreen';
 import ProcurementAnalyticsScreen from '@/screens/analytics/ProcurementAnalyticsScreen';
+import StockHealthScreen from '@/screens/analytics/StockHealthScreen';
 
 export type MoreStackParamList = {
   MoreMenu: undefined;
@@ -55,6 +56,7 @@ export type MoreStackParamList = {
   Comparison: undefined;
   DeliveryCalendar: undefined;
   ProcurementAnalytics: undefined;
+  StockHealth: undefined;
 };
 
 const Stack = createNativeStackNavigator<MoreStackParamList>();
@@ -162,6 +164,11 @@ export default function MoreNavigator() {
       <Stack.Screen
         name="ProcurementAnalytics"
         component={ProcurementAnalyticsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="StockHealth"
+        component={StockHealthScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

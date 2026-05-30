@@ -3125,3 +3125,108 @@ export async function exportProcurementAnalyticsPDF(data: ProcurementAnalyticsDa
 
   await printAndShare(wrapHtml('Procurement Analytics', body), 'procurement-analytics.pdf');
 }
+
+// ─── Stock Health PDF ─────────────────────────────────────────────────────────
+
+export interface StockHealthPDFData {
+  totalItems: number;
+  inStockItems: number;
+  lowStockItems: number;
+  outOfStockItems: number;
+  threshold: number;
+  topByQty: Array<{ item_name: string; warehouse_name?: string; qty: number; unit?: string }>;
+  lowStock: Array<{ item_name: string; warehouse_name?: string; qty: number; unit?: string }>;
+  warehouseStats: Array<{ warehouse: string; itemCount: number; totalQty: number }>;
+}
+
+export async function exportStockHealthPDF(data: StockHealthPDFData): Promise<void> {
+  const { totalItems, inStockItems, lowStockItems, outOfStockItems, threshold,
+    topByQty, lowStock, warehouseStats } = data;
+
+  const lowStockRows = lowStock.map((s) => `
+    <tr>
+      <td>${s.item_name}</td>
+      <td>${s.warehouse_name ?? '—'}</td>
+      <td class="right">${(s.qty ?? 0).toLocaleString()} ${s.unit ?? ''}</td>
+    </tr>
+  `).join('');
+
+  const topRows = topByQty.map((s, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${s.item_name}</td>
+      <td>${s.warehouse_name ?? '—'}</td>
+      <td class="right">${(s.qty ?? 0).toLocaleString()} ${s.unit ?? ''}</td>
+    </tr>
+  `).join('');
+
+  const warehouseRows = warehouseStats.map((w) => `
+    <tr>
+      <td>${w.warehouse}</td>
+      <td class="right">${w.itemCount}</td>
+      <td class="right">${w.totalQty.toLocaleString()}</td>
+    </tr>
+  `).join('');
+
+  const healthPct = totalItems > 0 ? ((inStockItems / totalItems) * 100).toFixed(1) : '0.0';
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Stock Health Report</div>
+      <div class="report-meta">Generated ${new Date().toLocaleDateString()} · Low-stock threshold: ${threshold} units</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${totalItems}</div>
+        <div class="label">Total Items</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${inStockItems} (${healthPct}%)</div>
+        <div class="label">Healthy Stock</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${lowStockItems}</div>
+        <div class="label">Low Stock</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${outOfStockItems}</div>
+        <div class="label">Out of Stock</div>
+      </div>
+    </div>
+
+    ${lowStockRows ? `
+    <div class="section-label">Low Stock Items (below ${threshold} units)</div>
+    <table>
+      <thead>
+        <tr><th>Item</th><th>Warehouse</th><th class="right">Qty</th></tr>
+      </thead>
+      <tbody>
+        ${lowStockRows}
+      </tbody>
+    </table>
+    ` : ''}
+
+    <div class="section-label" style="margin-top:20px">Top Items by Quantity</div>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Item</th><th>Warehouse</th><th class="right">Qty</th></tr>
+      </thead>
+      <tbody>
+        ${topRows || '<tr><td colspan="4" class="muted">No data</td></tr>'}
+      </tbody>
+    </table>
+
+    <div class="section-label" style="margin-top:20px">Warehouse Distribution</div>
+    <table>
+      <thead>
+        <tr><th>Warehouse</th><th class="right">Items</th><th class="right">Total Qty</th></tr>
+      </thead>
+      <tbody>
+        ${warehouseRows || '<tr><td colspan="3" class="muted">No data</td></tr>'}
+      </tbody>
+    </table>
+  `;
+
+  await printAndShare(wrapHtml('Stock Health Report', body), 'stock-health.pdf');
+}

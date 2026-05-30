@@ -114,6 +114,12 @@ const ANALYTICS_ITEMS: {
     screen: 'ProcurementAnalytics',
   },
   {
+    icon: 'activity',
+    label: 'Stock Health',
+    subtitle: 'Stock levels, low-stock alerts, warehouse breakdown',
+    screen: 'StockHealth',
+  },
+  {
     icon: 'bar-chart',
     label: 'Company Comparison',
     subtitle: 'Side-by-side KPI ranking across all companies',
