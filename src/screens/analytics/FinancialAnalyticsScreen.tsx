@@ -172,7 +172,7 @@ const netStyles = StyleSheet.create({
   card: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     padding: Spacing.md,
     marginHorizontal: Spacing.md,

@@ -895,7 +895,7 @@ const styles = StyleSheet.create({
     height: 7,
     borderRadius: Radius.full,
     backgroundColor: Colors.text,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.surface,
   },
   inboxBannerText: { flex: 1, fontSize: 12, color: Colors.textSecondary },
