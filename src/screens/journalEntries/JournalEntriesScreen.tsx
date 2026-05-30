@@ -410,6 +410,8 @@ function JECard({
   const isDraft = statusKey === 'DRAFT';
   const isVoid = statusKey === 'VOID';
   const hasLines = (entry.lines?.length ?? 0) > 0;
+  const longNarration = (entry.narration?.length ?? 0) > 80;
+  const [narrationExpanded, setNarrationExpanded] = useState(false);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
@@ -420,9 +422,29 @@ function JECard({
         <View style={styles.cardInfo}>
           <Text style={styles.voucherNo}>{entry.voucher_no ?? `#${entry.id}`}</Text>
           {entry.narration && (
-            <Text style={styles.narration} numberOfLines={1}>
-              {entry.narration}
-            </Text>
+            <TouchableOpacity
+              activeOpacity={longNarration ? 0.7 : 1}
+              onPress={longNarration ? (e) => { e.stopPropagation(); setNarrationExpanded((v) => !v); } : undefined}
+            >
+              <Text
+                style={[styles.narration, longNarration && styles.narrationExpandable]}
+                numberOfLines={narrationExpanded ? undefined : 1}
+              >
+                {entry.narration}
+              </Text>
+              {longNarration && (
+                <View style={styles.narrationToggle}>
+                  <Feather
+                    name={narrationExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={11}
+                    color={Colors.textMuted}
+                  />
+                  <Text style={styles.narrationToggleText}>
+                    {narrationExpanded ? 'less' : 'more'}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
           )}
         </View>
         <View style={styles.cardRight}>
@@ -634,6 +656,14 @@ const styles = StyleSheet.create({
   cardInfo: { flex: 1 },
   voucherNo: { ...Typography.h4 },
   narration: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 2 },
+  narrationExpandable: { color: Colors.text },
+  narrationToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginTop: 2,
+  },
+  narrationToggleText: { fontSize: 10, color: Colors.textMuted },
   cardRight: { alignItems: 'flex-end', gap: 4 },
   dateText: { ...Typography.bodySmall, color: Colors.textMuted },
   statusBadge: {
