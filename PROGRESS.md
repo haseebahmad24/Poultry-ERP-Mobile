@@ -1,5 +1,41 @@
 # Mobile App Progress
 
+## Session 30 — 2026-05-30
+
+### Completed This Session
+
+**Procurement Analytics Screen** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- New screen under More → Analytics section
+- KPI summary row: Total PO Value, Total SO Value, Open POs, Open SOs
+- Monthly trend chart: grouped vertical bar chart (last 6 months), PO count vs SO count per month
+- Top 5 Vendors ranked by total PO value with progress bars and order count
+- Top 5 Customers ranked by total SO value with progress bars and order count
+- PO Status Distribution: chips grid with count + % share + mini progress bar
+- SO Status Distribution: same pattern for sales orders
+- PDF export via `exportProcurementAnalyticsPDF()` in pdfExport.ts
+- Pull-to-refresh with offline cache (key: `procurement-analytics:<companyId>`)
+- CompanySelector at top for per-company filtering
+- Dashboard "Analytics" quick action tile added
+
+**Stock Health Screen** (`src/screens/analytics/StockHealthScreen.tsx`)
+- New screen under More → Analytics section
+- Stock status overview card: Healthy / Low Stock / Out of Stock counts + stacked horizontal bar
+- Legend showing threshold boundary (configurable in Settings)
+- Conditional "Low Stock Items" section (shows only when items exist below threshold), sorted ascending by qty
+- Top 8 items by quantity with ranked bars
+- Warehouse distribution list: per-warehouse item count + total qty with progress bars
+- PDF export via `exportStockHealthPDF()` in pdfExport.ts
+- Pull-to-refresh with offline cache (key: `stock-health:<companyId>`)
+
+**Analytics section in MoreMenu**
+- New "ANALYTICS" section added to MoreMenuScreen between Operations and Finance
+- Contains: Procurement Analytics, Stock Health, Company Comparison (moved from Admin)
+- Admin section now focuses on business data: Partners, Companies, Bookmarks, Settings
+
+**FEATURES.docx + generate-docs.js** — Updated with Session 30 changelog
+
+---
+
 ## Session 29 — 2026-05-29
 
 ### Completed This Session
@@ -1109,7 +1145,7 @@
 
 ## What's Next (Session 30+)
 
-Sessions 1–29 are complete. All roadmap screens + polish + key enhancements are done. Remaining enhancement options:
+Sessions 1–30 are complete. All roadmap screens + polish + analytics are done. Remaining enhancement options:
 
 1. ~~**Partner payments timeline**~~ — ✅ Done (Session 28)
 2. **Journal Entry creation form** — Draft JE with account line entry (requires POST API on web app)
@@ -1121,6 +1157,8 @@ Sessions 1–29 are complete. All roadmap screens + polish + key enhancements ar
 8. ~~**Dashboard Summary PDF**~~ — ✅ Done (Session 26)
 9. ~~**PO/SO delivery calendar view**~~ — ✅ Done (Session 29)
 10. **Export queue** — Schedule multiple PDF exports and download as combined ZIP
+11. ~~**Procurement Analytics**~~ — ✅ Done (Session 30)
+12. ~~**Stock Health screen**~~ — ✅ Done (Session 30)
 
 ---
 
@@ -1239,6 +1277,12 @@ Sessions 1–29 are complete. All roadmap screens + polish + key enhancements ar
 | Upcoming Deliveries section on Dashboard (next 5 deliveries, urgency chips) | ✅ Done |
 | Supply Chain snapshot: delivery stats card (overdue / due-7d count, taps to calendar) | ✅ Done |
 | Dashboard Quick Actions: Deliveries tile → DeliveryCalendar | ✅ Done |
+| Procurement Analytics screen (monthly PO/SO trend, top vendors, top customers, status breakdown) | ✅ Done |
+| Stock Health screen (overview bar, low-stock list, top items, warehouse distribution) | ✅ Done |
+| MoreMenu Analytics section (Procurement Analytics + Stock Health + Company Comparison) | ✅ Done |
+| Dashboard Analytics quick-action tile → ProcurementAnalytics | ✅ Done |
+| PDF export — Procurement Analytics | ✅ Done |
+| PDF export — Stock Health | ✅ Done |
 
 ---
 
@@ -1297,3 +1341,4 @@ Sessions 1–29 are complete. All roadmap screens + polish + key enhancements ar
 | 2026-05-28 | Session-25 audit + KPICard + InventoryScreen sort label | Post-build audit of sessions 24–25 additions (Dashboard MoM trend, KPICard trend props, recently-viewed section, sparkline, supply chain snapshot, stock sort, stock ledger PDF). Two fixes: (1) `KPICard` trend color: removed `'#16a34a'` / `'#dc2626'` semantic green/red — now uses `Colors.textSecondary` for any non-zero trend; the trending-up/down Feather icon already conveys direction without color. (2) `InventoryScreen` sort label text: `'Qty ↑'` / `'Qty ↓'` unicode arrows simplified to `'Qty'` (direction shown by the adjacent Feather arrow-up/down icon). Zero semantic hex values remain anywhere in the codebase. |
 | 2026-05-28 | Session-26 audit: TrialBalance icon fix + AP/AR search bar | Full post-build audit of sessions 25–26 additions (recently-viewed tracking, Account Statement screen, Dashboard PDF export). All new screens already clean. Two targeted fixes: (1) `TrialBalanceScreen` empty state icon: `Feather name="scale"` (not in Feather set — renders nothing) → `Feather name="book-open"` for correct icon rendering. (2) `AccountsPayableScreen` + `AccountsReceivableScreen` search inputs: wrapped bare `TextInput` in a proper bordered `searchBar` pill (matching the pattern used everywhere else in the app); `searchContainer` background changed from `Colors.background` (gray) to `Colors.surface` (white) with a hairline border at the bottom. Search inputs are now visually consistent across all screens. |
 | 2026-05-29 | Session-27 audit: VendorDetail + CustomerDetail Ledger tab hairline fix | Full audit of all 4 files added/modified by build-agent session 27 (`VendorDetailScreen` Ledger tab, `CustomerDetailScreen` Ledger tab, `JournalEntriesScreen` account picker modal, `JournalEntryDetailScreen` tappable account lines + PDF export). All new code already clean: Feather icons, Colors tokens, hairline borders, Radius/Spacing/Typography tokens, no emojis, no shadows. Single fix applied to both detail screens: `ledgerTotalsRow.borderTopWidth: 1` → `StyleSheet.hairlineWidth` — the only raw non-hairline border added by the build agent this session. Codebase-wide grep confirms: zero emojis, zero semantic color hex values, zero `Shadow.*` usages, zero raw `borderWidth: 1` (only `hairlineWidth` and intentional unread-dot halos). |
+| 2026-05-30 | Session-30 audit: analytics screen design fixes | Post-build audit of `ProcurementAnalyticsScreen` and `StockHealthScreen`. Two violations found and fixed: (1) `ProcurementAnalyticsScreen` `chartStyles.bar.borderRadius: 2` → `Radius.sm` — hardcoded pixel radius on vertical bar should use token. (2) `StockHealthScreen` `barStyles.warnText.color: '#6b7280'` → `Colors.textSecondary` — hardcoded semantic gray hex value not in the approved monochrome palette. All other styles already clean: Feather icons, hairline borders, Radius/Spacing/Typography tokens, no emojis, no shadows, no semantic fill colors. |
