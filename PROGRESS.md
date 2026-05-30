@@ -1,5 +1,54 @@
 # Mobile App Progress
 
+## Session 33 — 2026-05-30
+
+### Completed This Session
+
+**Financial Analytics → AP/AR Drill-Through** (`src/screens/analytics/FinancialAnalyticsScreen.tsx`)
+- AP section header and summary tiles are tappable → cross-tab navigation to Finance > AccountsPayable
+- AR section header and summary tiles are tappable → cross-tab navigation to Finance > AccountsReceivable
+- Top Vendors rank list rows: each row taps → Finance > VendorDetail (passes vendorId, vendorName, outstanding, overdue)
+- Top Customers rank list rows: each row taps → Finance > CustomerDetail (same params)
+- `PartnerRankList` updated: accepts optional `onPress` per item; renders `chevron-right` indicator when tappable
+- Uses `navigation.getParent<TabNav>().navigate('Finance', { screen, params })` pattern
+
+**Due Soon Alerts** (`src/screens/alerts/AlertsScreen.tsx`)
+- New "Bills Due in N Days (AP)" section — bills due within configurable window (default 7d), not yet overdue
+- New "Invoices Due in N Days (AR)" section — same pattern for AR invoices
+- `daysDueIn()` helper: returns positive days-until-due for upcoming, −9999 for paid/closed/cancelled
+- Items sorted soonest-first; dashed chip badge shows "Xd left" or "due today"
+- UPCOMING divider row separates critical overdue alerts from informational upcoming section
+- "All clear" state now triggers only when all 5 categories are empty (overdue bills, overdue invoices, low stock, due-soon bills, due-soon invoices)
+- Header badge: black for overdue, secondary gray for due-soon (when no overdue items)
+
+**OverdueContext Extended** (`src/context/OverdueContext.tsx`)
+- Added `apDueSoon` + `arDueSoon` count states
+- Added `setAPDueSoon` + `setARDueSoon` setters
+- AlertsScreen publishes due-soon counts to context on every load
+
+**Due Soon Push Notification** (`src/utils/notifications.ts`)
+- `scheduleDueSoonReminder({ apDueSoon, arDueSoon })`: schedules a separate daily notification 30 minutes after the overdue reminder hour
+- Content: "Upcoming payments" title + "X bills due soon · Y invoices due soon" body
+- Respects `getNotifyDueSoon()` setting; cancels when total = 0
+- `cancelDueSoonReminder()` counterpart function
+- AppNavigator: schedules due-soon reminder when `[apDueSoon, arDueSoon]` changes; "due-soon" notification tap → Alerts screen
+
+**Settings: Due Soon Configuration** (`src/utils/settings.ts`, `src/screens/settings/SettingsScreen.tsx`)
+- `getDueSoonDays()` / `setDueSoonDays()`: configurable window (1/3/7/14/30 days, default 7)
+- `getNotifyDueSoon()` / `setNotifyDueSoon()`: toggle for due-soon push notifications (default true)
+- New "Upcoming payments (due soon)" Switch in NOTIFICATIONS card
+- New "ALERTS — DUE SOON WINDOW" section with 5-chip picker
+
+**FEATURES.docx + generate-docs.js** — Updated with Session 33 changelog, new roadmap rows, drill-through + due-soon entries in Section 3
+
+### Next Session
+- Consider: JE creation form (draft a new journal entry — requires POST API)
+- Consider: Batch partner ledger export — export all vendor/customer ledgers as ZIP from AP/AR screen
+- Consider: AP/AR "Due Soon" section on dashboard (quick glance at what's coming due this week)
+- Consider: Push notification deep-link directly to VendorDetail/CustomerDetail for specific due bills
+
+---
+
 ## Session 32 — 2026-05-30
 
 ### Completed This Session
