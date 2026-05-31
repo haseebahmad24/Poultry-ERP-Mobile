@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   kindDot: {
     width: 7,
     height: 7,
-    borderRadius: 999,
+    borderRadius: Radius.full,
     flexShrink: 0,
   },
   info: { flex: 1 },
