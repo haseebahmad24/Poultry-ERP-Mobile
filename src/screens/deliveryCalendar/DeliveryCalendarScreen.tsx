@@ -36,10 +36,10 @@ const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 // Monochrome dot shades — darkest = most urgent
 const DOT_SHADES = {
-  overdue: '#0a0a0a',
-  today: '#525252',
-  urgent: '#a3a3a3',
-  soon: '#d4d4d4',
+  overdue: Colors.text,
+  today: Colors.textSecondary,
+  urgent: Colors.textMuted,
+  soon: Colors.border,
   normal: 'transparent',
 };
 
