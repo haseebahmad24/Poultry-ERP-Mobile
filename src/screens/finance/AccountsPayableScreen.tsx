@@ -166,6 +166,21 @@ export default function AccountsPayableScreen() {
   const overdueCount = bills.filter((b) => daysOverdue(b.due_date, b.status) > 0).length;
   const dueSoonCount = bills.filter((b) => { const d = daysDueIn(b.due_date, b.status); return d >= 0 && d <= dueSoonDays; }).length;
 
+  // Pay-by mini bar: bucket unpaid bills by urgency
+  const payByStats = (() => {
+    let overdueAmt = 0, weekAmt = 0, laterAmt = 0;
+    for (const b of bills) {
+      const outstanding = b.outstanding ?? (b.amount ?? 0) - (b.paid ?? 0);
+      if (outstanding <= 0) continue;
+      const od = daysOverdue(b.due_date, b.status);
+      if (od > 0) { overdueAmt += outstanding; continue; }
+      const dd = daysDueIn(b.due_date, b.status);
+      if (dd >= 0 && dd <= 7) weekAmt += outstanding;
+      else if (dd > 7) laterAmt += outstanding;
+    }
+    return { overdueAmt, weekAmt, laterAmt };
+  })();
+
   const filteredVendors = vendorSearch.trim()
     ? vendors.filter((v) => v.name?.toLowerCase().includes(vendorSearch.toLowerCase()))
     : vendors;
@@ -317,6 +332,29 @@ export default function AccountsPayableScreen() {
                 })}
               </View>
             </View>
+            {/* Pay-by summary row — shown when filter is 'all' and outstanding bills exist */}
+            {billFilter === 'all' && bills.length > 0 && (payByStats.overdueAmt > 0 || payByStats.weekAmt > 0 || payByStats.laterAmt > 0) && (
+              <View style={styles.payByBar}>
+                {payByStats.overdueAmt > 0 && (
+                  <View style={[styles.payByTile, styles.payByTileOverdue]}>
+                    <Text style={styles.payByLabel}>OVERDUE</Text>
+                    <Text style={styles.payByValue}>{formatCurrency(payByStats.overdueAmt)}</Text>
+                  </View>
+                )}
+                {payByStats.weekAmt > 0 && (
+                  <View style={styles.payByTile}>
+                    <Text style={styles.payByLabel}>THIS WEEK</Text>
+                    <Text style={styles.payByValue}>{formatCurrency(payByStats.weekAmt)}</Text>
+                  </View>
+                )}
+                {payByStats.laterAmt > 0 && (
+                  <View style={[styles.payByTile, styles.payByTileMuted]}>
+                    <Text style={styles.payByLabel}>LATER</Text>
+                    <Text style={[styles.payByValue, styles.payByValueMuted]}>{formatCurrency(payByStats.laterAmt)}</Text>
+                  </View>
+                )}
+              </View>
+            )}
             <SectionHeader
               title="Bills"
               meta={`${filteredBills.length} record${filteredBills.length !== 1 ? 's' : ''}${billFilter !== 'all' ? ` · ${billFilter === 'overdue' ? 'overdue filter' : `due in ${dueSoonDays}d`}` : ''}`}
@@ -704,4 +742,31 @@ const styles = StyleSheet.create({
   },
   filterChipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
   filterChipTextActive: { color: '#fff', fontWeight: '600' },
+
+  // Pay-by summary bar
+  payByBar: {
+    flexDirection: 'row',
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  payByTile: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.xs,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: Colors.border,
+  },
+  payByTileOverdue: { backgroundColor: Colors.surfaceHover },
+  payByTileMuted: { opacity: 0.7 },
+  payByLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    color: Colors.textMuted,
+    marginBottom: 2,
+  },
+  payByValue: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  payByValueMuted: { color: Colors.textSecondary },
 });

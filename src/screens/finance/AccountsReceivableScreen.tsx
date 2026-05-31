@@ -165,6 +165,21 @@ export default function AccountsReceivableScreen() {
   const overdueCount = invoices.filter((inv) => daysOverdue(inv.due_date, inv.status) > 0).length;
   const dueSoonCount = invoices.filter((inv) => { const d = daysDueIn(inv.due_date, inv.status); return d >= 0 && d <= dueSoonDays; }).length;
 
+  // Collect-by mini bar: bucket uncollected invoices by urgency
+  const collectByStats = (() => {
+    let overdueAmt = 0, weekAmt = 0, laterAmt = 0;
+    for (const inv of invoices) {
+      const outstanding = inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0);
+      if (outstanding <= 0) continue;
+      const od = daysOverdue(inv.due_date, inv.status);
+      if (od > 0) { overdueAmt += outstanding; continue; }
+      const dd = daysDueIn(inv.due_date, inv.status);
+      if (dd >= 0 && dd <= 7) weekAmt += outstanding;
+      else if (dd > 7) laterAmt += outstanding;
+    }
+    return { overdueAmt, weekAmt, laterAmt };
+  })();
+
   const filteredCustomers = customerSearch.trim()
     ? customers.filter((c) => c.name?.toLowerCase().includes(customerSearch.toLowerCase()))
     : customers;
@@ -316,6 +331,29 @@ export default function AccountsReceivableScreen() {
                 })}
               </View>
             </View>
+            {/* Collect-by summary row — shown when filter is 'all' and outstanding invoices exist */}
+            {invoiceFilter === 'all' && invoices.length > 0 && (collectByStats.overdueAmt > 0 || collectByStats.weekAmt > 0 || collectByStats.laterAmt > 0) && (
+              <View style={styles.payByBar}>
+                {collectByStats.overdueAmt > 0 && (
+                  <View style={[styles.payByTile, styles.payByTileOverdue]}>
+                    <Text style={styles.payByLabel}>OVERDUE</Text>
+                    <Text style={styles.payByValue}>{formatCurrency(collectByStats.overdueAmt)}</Text>
+                  </View>
+                )}
+                {collectByStats.weekAmt > 0 && (
+                  <View style={styles.payByTile}>
+                    <Text style={styles.payByLabel}>THIS WEEK</Text>
+                    <Text style={styles.payByValue}>{formatCurrency(collectByStats.weekAmt)}</Text>
+                  </View>
+                )}
+                {collectByStats.laterAmt > 0 && (
+                  <View style={[styles.payByTile, styles.payByTileMuted]}>
+                    <Text style={styles.payByLabel}>LATER</Text>
+                    <Text style={[styles.payByValue, styles.payByValueMuted]}>{formatCurrency(collectByStats.laterAmt)}</Text>
+                  </View>
+                )}
+              </View>
+            )}
             <SectionHeader
               title="Invoices"
               meta={`${filteredInvoices.length} record${filteredInvoices.length !== 1 ? 's' : ''}${invoiceFilter !== 'all' ? ` · ${invoiceFilter === 'overdue' ? 'overdue filter' : `due in ${dueSoonDays}d`}` : ''}`}
@@ -703,4 +741,31 @@ const styles = StyleSheet.create({
   },
   filterChipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
   filterChipTextActive: { color: '#fff', fontWeight: '600' },
+
+  // Collect-by summary bar
+  payByBar: {
+    flexDirection: 'row',
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  payByTile: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.xs,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: Colors.border,
+  },
+  payByTileOverdue: { backgroundColor: Colors.surfaceHover },
+  payByTileMuted: { opacity: 0.7 },
+  payByLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    color: Colors.textMuted,
+    marginBottom: 2,
+  },
+  payByValue: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  payByValueMuted: { color: Colors.textSecondary },
 });
