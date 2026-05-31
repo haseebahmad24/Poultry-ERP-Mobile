@@ -23,6 +23,8 @@ import { fetchSalesOrders, SalesOrder } from '@/api/salesOrders';
 import { fetchMaterials, Material } from '@/api/materials';
 import { fetchPartners, Partner } from '@/api/partners';
 import { fetchStockBalances, StockBalance } from '@/api/inventory';
+import { fetchAPBills, APBill } from '@/api/accountsPayable';
+import { fetchARInvoices, ARInvoice } from '@/api/accountsReceivable';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCached, setCached } from '@/utils/cache';
 import { formatCurrency } from '@/utils/currency';
@@ -61,7 +63,7 @@ async function clearSearchHistory(): Promise<void> {
 type Nav = NativeStackNavigationProp<MoreStackParamList>;
 type TabNav = BottomTabNavigationProp<AppTabParamList>;
 
-type ResultType = 'po' | 'so' | 'material' | 'partner' | 'stock';
+type ResultType = 'po' | 'so' | 'material' | 'partner' | 'stock' | 'bill' | 'invoice';
 
 interface SearchResult {
   type: ResultType;
@@ -89,6 +91,16 @@ interface SearchResult {
     status?: string;
     description?: string;
   };
+  billMeta?: {
+    vendorId?: number;
+    vendorName?: string;
+    outstanding?: number;
+  };
+  invoiceMeta?: {
+    customerId?: number;
+    customerName?: string;
+    outstanding?: number;
+  };
 }
 
 interface SectionData {
@@ -105,6 +117,8 @@ const TYPE_ICONS: Record<ResultType, string> = {
   material: 'layers',
   partner: 'users',
   stock: 'box',
+  bill: 'file-text',
+  invoice: 'file-text',
 };
 
 const TYPE_LABELS: Record<ResultType, string> = {
@@ -113,6 +127,8 @@ const TYPE_LABELS: Record<ResultType, string> = {
   material: 'Materials',
   partner: 'Business Partners',
   stock: 'Stock Balances',
+  bill: 'AP Bills',
+  invoice: 'AR Invoices',
 };
 
 function matches(query: string, ...fields: (string | undefined)[]): boolean {
@@ -197,6 +213,42 @@ function stockToResult(s: StockBalance, idx: number): SearchResult {
   };
 }
 
+function billToResult(b: APBill): SearchResult {
+  const outstanding = b.outstanding ?? b.amount ?? 0;
+  return {
+    type: 'bill',
+    id: `bill-${b.id}`,
+    rawId: b.id,
+    title: b.bill_number ?? `Bill #${b.id}`,
+    subtitle: b.vendor ?? 'Unknown vendor',
+    meta: formatCurrency(outstanding),
+    badge: b.status,
+    billMeta: {
+      vendorId: b.vendor_id,
+      vendorName: b.vendor,
+      outstanding,
+    },
+  };
+}
+
+function invoiceToResult(inv: ARInvoice): SearchResult {
+  const outstanding = inv.outstanding ?? inv.amount ?? 0;
+  return {
+    type: 'invoice',
+    id: `invoice-${inv.id}`,
+    rawId: inv.id,
+    title: inv.invoice_number ?? `Invoice #${inv.id}`,
+    subtitle: inv.customer ?? 'Unknown customer',
+    meta: formatCurrency(outstanding),
+    badge: inv.status,
+    invoiceMeta: {
+      customerId: inv.customer_id,
+      customerName: inv.customer,
+      outstanding,
+    },
+  };
+}
+
 export default function SearchScreen() {
   const navigation = useNavigation<Nav>();
   const inputRef = useRef<TextInput>(null);
@@ -210,17 +262,21 @@ export default function SearchScreen() {
   const [allMaterials, setAllMaterials] = useState<Material[]>([]);
   const [allPartners, setAllPartners] = useState<Partner[]>([]);
   const [allStock, setAllStock] = useState<StockBalance[]>([]);
+  const [allBills, setAllBills] = useState<APBill[]>([]);
+  const [allInvoices, setAllInvoices] = useState<ARInvoice[]>([]);
 
-  // Load all data sources (cache-first)
+  // Load all data sources (cache-first). AP/AR bills/invoices reuse the AP/AR screen cache keys.
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [cachedPOs, cachedSOs, cachedMats, cachedPartners, cachedStock] = await Promise.all([
+      const [cachedPOs, cachedSOs, cachedMats, cachedPartners, cachedStock, cachedAP, cachedAR] = await Promise.all([
         getCached<PurchaseOrder[]>('search:pos'),
         getCached<SalesOrder[]>('search:sos'),
         getCached<Material[]>('search:materials'),
         getCached<Partner[]>('search:partners'),
         getCached<StockBalance[]>('search:stock'),
+        getCached<{ bills: APBill[] }>('ap:all'),
+        getCached<{ invoices: ARInvoice[] }>('ar:all'),
       ]);
 
       if (cachedPOs) setAllPOs(cachedPOs.data);
@@ -228,6 +284,8 @@ export default function SearchScreen() {
       if (cachedMats) setAllMaterials(cachedMats.data);
       if (cachedPartners) setAllPartners(cachedPartners.data);
       if (cachedStock) setAllStock(cachedStock.data);
+      if (cachedAP?.data.bills) setAllBills(cachedAP.data.bills);
+      if (cachedAR?.data.invoices) setAllInvoices(cachedAR.data.invoices);
 
       const needsRefresh =
         !cachedPOs || cachedPOs.stale ||
@@ -235,6 +293,9 @@ export default function SearchScreen() {
         !cachedMats || cachedMats.stale ||
         !cachedPartners || cachedPartners.stale ||
         !cachedStock || cachedStock.stale;
+
+      const needsBillsRefresh = !cachedAP || cachedAP.stale;
+      const needsInvoicesRefresh = !cachedAR || cachedAR.stale;
 
       if (needsRefresh) {
         const [pos, sos, mats, parts, stock] = await Promise.all([
@@ -256,6 +317,18 @@ export default function SearchScreen() {
           setCached('search:partners', parts),
           setCached('search:stock', stock),
         ]);
+      }
+
+      if (needsBillsRefresh) {
+        fetchAPBills().then((bills) => {
+          setAllBills(bills);
+        }).catch(() => {});
+      }
+
+      if (needsInvoicesRefresh) {
+        fetchARInvoices().then((invoices) => {
+          setAllInvoices(invoices);
+        }).catch(() => {});
       }
     } catch {
       // ignore — show whatever was loaded from cache
@@ -301,14 +374,26 @@ export default function SearchScreen() {
       .slice(0, 10)
       .map((s, i) => stockToResult(s, i));
 
+    const billResults = allBills
+      .filter((b) => matches(q, b.bill_number, b.vendor, String(b.id)))
+      .slice(0, 10)
+      .map(billToResult);
+
+    const invoiceResults = allInvoices
+      .filter((inv) => matches(q, inv.invoice_number, inv.customer, String(inv.id)))
+      .slice(0, 10)
+      .map(invoiceToResult);
+
     return ([
       { key: 'po' as ResultType, label: TYPE_LABELS.po, icon: TYPE_ICONS.po, count: poResults.length, items: poResults },
       { key: 'so' as ResultType, label: TYPE_LABELS.so, icon: TYPE_ICONS.so, count: soResults.length, items: soResults },
+      { key: 'bill' as ResultType, label: TYPE_LABELS.bill, icon: TYPE_ICONS.bill, count: billResults.length, items: billResults },
+      { key: 'invoice' as ResultType, label: TYPE_LABELS.invoice, icon: TYPE_ICONS.invoice, count: invoiceResults.length, items: invoiceResults },
       { key: 'stock' as ResultType, label: TYPE_LABELS.stock, icon: TYPE_ICONS.stock, count: stockResults.length, items: stockResults },
       { key: 'material' as ResultType, label: TYPE_LABELS.material, icon: TYPE_ICONS.material, count: matResults.length, items: matResults },
       { key: 'partner' as ResultType, label: TYPE_LABELS.partner, icon: TYPE_ICONS.partner, count: partnerResults.length, items: partnerResults },
     ] as SectionData[]).filter((s) => s.count > 0);
-  }, [q, hasQuery, allPOs, allSOs, allMaterials, allPartners, allStock]);
+  }, [q, hasQuery, allPOs, allSOs, allMaterials, allPartners, allStock, allBills, allInvoices]);
 
   const totalResults = sections.reduce((acc, s) => acc + s.count, 0);
 
@@ -353,6 +438,38 @@ export default function SearchScreen() {
           });
         }
         break;
+      case 'bill': {
+        const tabNav = navigation.getParent<TabNav>();
+        if (result.billMeta?.vendorId != null) {
+          tabNav?.navigate('Finance', {
+            screen: 'VendorDetail',
+            params: {
+              vendorId: result.billMeta.vendorId,
+              vendorName: result.billMeta.vendorName ?? result.subtitle,
+              outstanding: result.billMeta.outstanding,
+            },
+          } as any);
+        } else {
+          tabNav?.navigate('Finance', { screen: 'AccountsPayable' } as any);
+        }
+        break;
+      }
+      case 'invoice': {
+        const tabNav = navigation.getParent<TabNav>();
+        if (result.invoiceMeta?.customerId != null) {
+          tabNav?.navigate('Finance', {
+            screen: 'CustomerDetail',
+            params: {
+              customerId: result.invoiceMeta.customerId,
+              customerName: result.invoiceMeta.customerName ?? result.subtitle,
+              outstanding: result.invoiceMeta.outstanding,
+            },
+          } as any);
+        } else {
+          tabNav?.navigate('Finance', { screen: 'AccountsReceivable' } as any);
+        }
+        break;
+      }
       case 'stock': {
         // Cross-tab navigation: switch to Inventory tab then open ItemLedger
         const tabNav = navigation.getParent<TabNav>();
@@ -445,7 +562,7 @@ export default function SearchScreen() {
           <TextInput
             ref={inputRef}
             style={styles.searchInput}
-            placeholder="Search POs, SOs, stock, materials, partners…"
+            placeholder="Search POs, SOs, bills, invoices, materials…"
             placeholderTextColor={Colors.textMuted}
             value={query}
             onChangeText={setQuery}
@@ -514,7 +631,7 @@ export default function SearchScreen() {
             <Feather name="search" size={36} color={Colors.border} />
             <Text style={styles.stateTitle}>Search everything</Text>
             <Text style={styles.stateText}>
-              Type at least 2 characters to search across purchase orders, sales orders, stock balances, materials, and partners.
+              Type at least 2 characters to search across purchase orders, sales orders, AP bills, AR invoices, stock, materials, and partners.
             </Text>
           </View>
         )
