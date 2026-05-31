@@ -35,6 +35,7 @@ import { getCached, setCached } from '@/utils/cache';
 import OfflineBanner from '@/components/OfflineBanner';
 import { useOverdue } from '@/context/OverdueContext';
 import { exportARSummaryPDF } from '@/utils/pdfExport';
+import { getDueSoonDays } from '@/utils/settings';
 
 type ARNavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
@@ -53,6 +54,19 @@ function daysOverdue(dueDate: string | undefined, status: string | undefined): n
   return diff > 0 ? diff : 0;
 }
 
+function daysDueIn(dueDate: string | undefined, status: string | undefined): number {
+  if (!dueDate) return -9999;
+  const st = (status ?? '').toUpperCase();
+  if (st === 'PAID' || st === 'RECEIVED' || st === 'CLOSED' || st === 'CANCELLED') return -9999;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+  return Math.floor((due.getTime() - today.getTime()) / 86_400_000);
+}
+
+type InvoiceFilter = 'all' | 'overdue' | 'due-soon';
+
 export default function AccountsReceivableScreen() {
   const { companyId, selectedCompany } = useCompany();
   const { setAROverdue } = useOverdue();
@@ -67,6 +81,8 @@ export default function AccountsReceivableScreen() {
   const [stale, setStale] = useState(false);
   const [invoiceSearch, setInvoiceSearch] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
+  const [invoiceFilter, setInvoiceFilter] = useState<InvoiceFilter>('all');
+  const [dueSoonDays, setDueSoonDays] = useState(7);
 
   const cacheKey = `ar:${companyId ?? 'all'}`;
 
@@ -107,6 +123,7 @@ export default function AccountsReceivableScreen() {
   }, [companyId, cacheKey]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { getDueSoonDays().then(setDueSoonDays); }, []);
 
   if (loading) return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -123,7 +140,7 @@ export default function AccountsReceivableScreen() {
     return <ErrorView message={error} onRetry={() => load()} />;
   }
 
-  const filteredInvoices = (invoiceSearch.trim()
+  const searchedInvoices = invoiceSearch.trim()
     ? invoices.filter((inv) => {
         const q = invoiceSearch.toLowerCase();
         return (
@@ -132,12 +149,21 @@ export default function AccountsReceivableScreen() {
           inv.status?.toLowerCase().includes(q)
         );
       })
-    : invoices
-  ).slice().sort((a, b) => {
+    : invoices;
+
+  const filteredInvoices = searchedInvoices.filter((inv) => {
+    if (invoiceFilter === 'overdue') return daysOverdue(inv.due_date, inv.status) > 0;
+    if (invoiceFilter === 'due-soon') {
+      const d = daysDueIn(inv.due_date, inv.status);
+      return d >= 0 && d <= dueSoonDays;
+    }
+    return true;
+  }).slice().sort((a, b) => {
     return daysOverdue(b.due_date, b.status) - daysOverdue(a.due_date, a.status);
   });
 
   const overdueCount = invoices.filter((inv) => daysOverdue(inv.due_date, inv.status) > 0).length;
+  const dueSoonCount = invoices.filter((inv) => { const d = daysDueIn(inv.due_date, inv.status); return d >= 0 && d <= dueSoonDays; }).length;
 
   const filteredCustomers = customerSearch.trim()
     ? customers.filter((c) => c.name?.toLowerCase().includes(customerSearch.toLowerCase()))
@@ -273,15 +299,29 @@ export default function AccountsReceivableScreen() {
                   </TouchableOpacity>
                 )}
               </View>
+              <View style={styles.filterChips}>
+                {(['all', 'overdue', 'due-soon'] as InvoiceFilter[]).map((f) => {
+                  const label = f === 'all' ? 'All' : f === 'overdue' ? `Overdue${overdueCount > 0 ? ` (${overdueCount})` : ''}` : `Due Soon${dueSoonCount > 0 ? ` (${dueSoonCount})` : ''}`;
+                  return (
+                    <TouchableOpacity
+                      key={f}
+                      style={[styles.filterChip, invoiceFilter === f && styles.filterChipActive]}
+                      onPress={() => setInvoiceFilter(f)}
+                    >
+                      <Text style={[styles.filterChipText, invoiceFilter === f && styles.filterChipTextActive]}>
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
             <SectionHeader
               title="Invoices"
-              meta={overdueCount > 0
-                ? `${filteredInvoices.length} records · ${overdueCount} overdue`
-                : `${filteredInvoices.length} records`}
+              meta={`${filteredInvoices.length} record${filteredInvoices.length !== 1 ? 's' : ''}${invoiceFilter !== 'all' ? ` · ${invoiceFilter === 'overdue' ? 'overdue filter' : `due in ${dueSoonDays}d`}` : ''}`}
             />
             {filteredInvoices.length === 0 ? (
-              <EmptyState icon="file-text" message={invoiceSearch ? 'No invoices match search' : 'No invoices found'} />
+              <EmptyState icon="file-text" message={invoiceSearch ? 'No invoices match search' : `No ${invoiceFilter !== 'all' ? invoiceFilter + ' ' : ''}invoices found`} />
             ) : (
               <View style={styles.cardList}>
                 {filteredInvoices.map((inv) => (
@@ -643,4 +683,24 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   overdueBannerText: { fontSize: 12, fontWeight: '700', color: Colors.text },
+
+  filterChips: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+  },
+  filterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  filterChipActive: {
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
+  },
+  filterChipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
+  filterChipTextActive: { color: '#fff', fontWeight: '600' },
 });
