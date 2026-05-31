@@ -457,6 +457,49 @@ export default function DashboardScreen() {
           />
         </View>
 
+        {/* Finance Health — AR vs AP comparison, only when both loaded */}
+        {kpis != null && (kpis.totalAR > 0 || kpis.totalAP > 0) && (() => {
+          const ar = kpis.totalAR ?? 0;
+          const ap = kpis.totalAP ?? 0;
+          const net = ar - ap;
+          const total = ar + ap;
+          const arPct = total > 0 ? ar / total : 0.5;
+          const ratio = ap > 0 ? ar / ap : null;
+          return (
+            <>
+              <SectionHeader title="Finance Health" meta="AR vs AP" />
+              <View style={styles.fhCard}>
+                <View style={styles.fhBarTrack}>
+                  <View style={[styles.fhBarAR, { flex: arPct }]} />
+                  <View style={[styles.fhBarAP, { flex: 1 - arPct }]} />
+                </View>
+                <View style={styles.fhLegend}>
+                  <View style={styles.fhLegendItem}>
+                    <View style={[styles.fhDot, styles.fhDotAR]} />
+                    <View>
+                      <Text style={styles.fhLegendLabel}>RECEIVABLES</Text>
+                      <Text style={styles.fhLegendValue}>{formatCurrency(ar)}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.fhLegendCenter}>
+                    <Text style={styles.fhNetLabel}>{net >= 0 ? 'Net +' : 'Net '}{formatCurrency(Math.abs(net))}</Text>
+                    {ratio != null && (
+                      <Text style={styles.fhRatio}>ratio {ratio.toFixed(2)}×</Text>
+                    )}
+                  </View>
+                  <View style={[styles.fhLegendItem, { alignItems: 'flex-end' }]}>
+                    <View>
+                      <Text style={[styles.fhLegendLabel, { textAlign: 'right' }]}>PAYABLES</Text>
+                      <Text style={styles.fhLegendValue}>{formatCurrency(ap)}</Text>
+                    </View>
+                    <View style={[styles.fhDot, styles.fhDotAP]} />
+                  </View>
+                </View>
+              </View>
+            </>
+          );
+        })()}
+
         {/* Supply Chain Snapshot */}
         {supplyChain !== null && (
           <>
@@ -867,6 +910,44 @@ const styles = StyleSheet.create({
   wcValue: { fontSize: 13, fontWeight: '500', color: Colors.text },
   wcValueBold: { fontSize: 15, fontWeight: '700' },
   wcDivider: { height: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
+
+  fhCard: {
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    gap: Spacing.sm,
+  },
+  fhBarTrack: {
+    flexDirection: 'row',
+    height: 8,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+    backgroundColor: Colors.borderLight,
+  },
+  fhBarAR: { backgroundColor: Colors.text },
+  fhBarAP: { backgroundColor: Colors.textMuted },
+  fhLegend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  fhLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  fhDot: { width: 8, height: 8, borderRadius: Radius.full },
+  fhDotAR: { backgroundColor: Colors.text },
+  fhDotAP: { backgroundColor: Colors.textMuted },
+  fhLegendLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    color: Colors.textMuted,
+  },
+  fhLegendValue: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  fhLegendCenter: { alignItems: 'center' },
+  fhNetLabel: { fontSize: 12, fontWeight: '700', color: Colors.text },
+  fhRatio: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
 
   scRow: {
     flexDirection: 'row',
