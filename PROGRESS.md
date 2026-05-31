@@ -1,5 +1,48 @@
 # Mobile App Progress
 
+## Session 35 — 2026-05-31
+
+### Completed This Session
+
+**Vendor/Customer Contact Info** (`src/screens/finance/VendorDetailScreen.tsx`, `src/screens/finance/CustomerDetailScreen.tsx`)
+- Both screens now fetch partner data from `/api/mobile/partners` in a `useEffect` after main data loads (best-effort, non-blocking)
+- Match logic: partner is found by `id === vendorId/customerId` OR `name` case-insensitive match
+- Contact card rendered between aging chart and tab bar: phone (Feather phone → `tel:` link), email (Feather mail → `mailto:` link), address (Feather map-pin, static text)
+- Uses `Linking.openURL()` from React Native — phone opens native dialer, email opens mail client
+- Card only shown when at least one contact field (phone/email/address) is available
+- Styles: `contactCard` (flexRow/wrap, hairline bottom border), `contactItem`, `contactText` (underline for tappable items)
+
+**AP/AR Pay-by / Collect-by Mini Summary Bar** (`src/screens/finance/AccountsPayableScreen.tsx`, `src/screens/finance/AccountsReceivableScreen.tsx`)
+- **AccountsPayableScreen** gains a `payByStats` computation bucketing outstanding bills: **Overdue** | **This Week** (0–7d) | **Later** (8d+)
+- **AccountsReceivableScreen** gains identical `collectByStats` for outstanding invoices
+- Mini bar rendered above the Bills/Invoices `SectionHeader`, only when `filter === 'all'` and at least one bucket has value
+- Overdue tile: `surfaceHover` background for visual emphasis; Later tile: muted opacity
+- Each tile shows uppercase label + formatted outstanding amount — instant cash-flow snapshot without navigating to CashFlow screen
+
+**Dashboard "Finance Health" Card** (`src/screens/dashboard/DashboardScreen.tsx`)
+- New card section between Working Capital and Supply Chain
+- Stacked horizontal bar: dark segment = AR (Receivables), muted = AP (Payables), proportional width
+- Legend row: left = RECEIVABLES label + amount; center = Net position (+/−) and AR/AP ratio (X.XXx); right = PAYABLES label + amount
+- Only rendered when `kpis.totalAR > 0 || kpis.totalAP > 0`
+- Styles: `fhCard`, `fhBarTrack`, `fhBarAR`, `fhBarAP`, `fhLegend`, `fhLegendItem`, `fhDot`, `fhNetLabel`, `fhRatio`
+
+**Upcoming Payments PDF Export** (`src/utils/pdfExport.ts`, `src/screens/dashboard/DashboardScreen.tsx`)
+- `exportUpcomingPaymentsPDF({ bills, invoices, dueSoonDays, companyName })` added to `pdfExport.ts`
+- 3-tile summary: To Pay (AP bills total) | To Collect (AR invoices total) | Net Cash Impact (AR−AP)
+- Bills table: Bill# / Vendor / Due Date / Days Left / Outstanding — sorted soonest-first; overdue entries bold
+- Invoices table: Invoice# / Customer / Due Date / Days Left / Outstanding — same sort
+- Dashboard "Upcoming Payments" section header replaced with inline row including `file-text` PDF button
+- `exportingPayments` state drives ActivityIndicator while generating; button disabled during export
+
+### Next Session
+- Consider: Vendor/Customer balance history chart (last 6 months outstanding trend) in VendorDetail/CustomerDetail
+- Consider: AP/AR screen — "Pay by week" calendar view showing amounts due per day/week
+- Consider: Journal Entry creation form (requires POST API support from backend)
+- Consider: Global company selector in Dashboard top bar affecting all screens at once
+- Consider: Partner list improvements — direct call/email from partner list row (not just detail screen)
+
+---
+
 ## Session 34 — 2026-05-31
 
 ### Completed This Session
