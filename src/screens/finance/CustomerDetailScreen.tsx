@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -16,6 +17,7 @@ import { FinanceStackParamList } from '@/navigation/FinanceNavigator';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
 import { fetchARInvoices, ARInvoice } from '@/api/accountsReceivable';
+import { fetchPartners, Partner } from '@/api/partners';
 import DetailSkeleton from '@/components/DetailSkeleton';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
@@ -121,6 +123,7 @@ export default function CustomerDetailScreen({ route }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<Tab>('invoices');
+  const [partner, setPartner] = useState<Partner | null>(null);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -138,6 +141,17 @@ export default function CustomerDetailScreen({ route }: Props) {
   }, [companyId, customerId, customerName]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Fetch partner contact info (best-effort, does not block main view)
+  useEffect(() => {
+    fetchPartners(companyId).then((list) => {
+      const match = list.find(
+        (p) => p.id === customerId ||
+          p.name?.toLowerCase() === (customerName ?? '').toLowerCase()
+      );
+      if (match) setPartner(match);
+    }).catch(() => {});
+  }, [companyId, customerId, customerName]);
 
   if (loading) return <SafeAreaView style={{flex:1,backgroundColor:Colors.background}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={4} listCount={5} /></SafeAreaView>;
   if (error && invoices.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
@@ -214,6 +228,38 @@ export default function CustomerDetailScreen({ route }: Props) {
         <View style={styles.agingCard}>
           <Text style={styles.agingTitle}>AGING BREAKDOWN</Text>
           <AgingChart buckets={buildAgingBuckets(invoices)} barHeight={10} />
+        </View>
+      )}
+
+      {/* Contact info row — shown when partner data is available */}
+      {(partner?.phone || partner?.email || partner?.address) && (
+        <View style={styles.contactCard}>
+          {partner.phone ? (
+            <TouchableOpacity
+              style={styles.contactItem}
+              onPress={() => Linking.openURL(`tel:${partner.phone}`)}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Feather name="phone" size={13} color={Colors.textSecondary} />
+              <Text style={styles.contactText}>{partner.phone}</Text>
+            </TouchableOpacity>
+          ) : null}
+          {partner.email ? (
+            <TouchableOpacity
+              style={styles.contactItem}
+              onPress={() => Linking.openURL(`mailto:${partner.email}`)}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Feather name="mail" size={13} color={Colors.textSecondary} />
+              <Text style={styles.contactText}>{partner.email}</Text>
+            </TouchableOpacity>
+          ) : null}
+          {partner.address ? (
+            <View style={styles.contactItem}>
+              <Feather name="map-pin" size={13} color={Colors.textSecondary} />
+              <Text style={[styles.contactText, { flex: 1 }]} numberOfLines={1}>{partner.address}</Text>
+            </View>
+          ) : null}
         </View>
       )}
 
@@ -580,6 +626,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.8,
     color: Colors.textMuted,
+  },
+  contactCard: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.md,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  contactText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textDecorationLine: 'underline',
   },
   summaryTile: {
     flex: 1,
