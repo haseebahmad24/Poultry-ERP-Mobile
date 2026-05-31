@@ -27,14 +27,17 @@ import VoucherActivityChart from '@/components/VoucherActivityChart';
 import VoucherSparkline from '@/components/VoucherSparkline';
 import RecentlyViewedSection from '@/components/RecentlyViewedSection';
 import UpcomingDeliveriesSection from '@/components/UpcomingDeliveriesSection';
+import DueSoonPaymentsSection from '@/components/DueSoonPaymentsSection';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
-import { getAutoRefreshInterval } from '@/utils/settings';
+import { getAutoRefreshInterval, getDueSoonDays } from '@/utils/settings';
 import { getUnreadCount } from '@/utils/notificationLog';
 import { getBookmarks } from '@/utils/bookmarks';
 import { getRecentlyViewed, RecentItem } from '@/utils/recentlyViewed';
 import { exportDashboardSummaryPDF } from '@/utils/pdfExport';
+import { fetchAPBills, APBill } from '@/api/accountsPayable';
+import { fetchARInvoices, ARInvoice } from '@/api/accountsReceivable';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
 
 type Nav = BottomTabNavigationProp<AppTabParamList>;
@@ -151,6 +154,9 @@ export default function DashboardScreen() {
   const [supplyChain, setSupplyChain] = useState<SupplyChainSnapshot | null>(null);
   const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
   const [exporting, setExporting] = useState(false);
+  const [dueSoonBills, setDueSoonBills] = useState<APBill[]>([]);
+  const [dueSoonInvoices, setDueSoonInvoices] = useState<ARInvoice[]>([]);
+  const [dueSoonDays, setDueSoonDays] = useState(7);
 
   const cacheKey = `dashboard:${selectedCompany?.id ?? 'all'}`;
 
@@ -205,13 +211,42 @@ export default function DashboardScreen() {
       .catch(() => {});
   }, [selectedCompany]);
 
-  // Re-read auto-refresh interval, inbox unread count, and recently viewed on focus
+  // Re-read auto-refresh interval, inbox unread count, recently viewed, and due-soon on focus
   useFocusEffect(useCallback(() => {
     getAutoRefreshInterval().then(setAutoRefreshInterval);
     getUnreadCount().then(setInboxUnread);
     getBookmarks().then((list) => setBookmarkCount(list.length));
     getRecentlyViewed().then((items) => setRecentItems(items.slice(0, 5)));
-  }, []));
+
+    // Load due-soon payments from AP/AR cache (zero extra API calls)
+    const cid = selectedCompany?.id ?? 'all';
+    Promise.all([
+      getDueSoonDays(),
+      getCached<{ bills: APBill[] }>(`ap:${cid}`).then((c) =>
+        c ? c.data.bills : fetchAPBills(selectedCompany?.id)
+      ),
+      getCached<{ invoices: ARInvoice[] }>(`ar:${cid}`).then((c) =>
+        c ? c.data.invoices : fetchARInvoices(selectedCompany?.id)
+      ),
+    ]).then(([dsd, bills, invoices]) => {
+      setDueSoonDays(dsd);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const filterDueSoon = (dueDate: string | undefined, status: string | undefined) => {
+        if (!dueDate) return false;
+        const st = (status ?? '').toUpperCase();
+        if (st === 'PAID' || st === 'RECEIVED' || st === 'CLOSED' || st === 'CANCELLED') return false;
+        const due = new Date(dueDate);
+        due.setHours(0, 0, 0, 0);
+        const d = Math.floor((due.getTime() - today.getTime()) / 86_400_000);
+        return d >= 0 && d <= dsd;
+      };
+
+      setDueSoonBills((bills ?? []).filter((b) => filterDueSoon(b.due_date, b.status)));
+      setDueSoonInvoices((invoices ?? []).filter((inv) => filterDueSoon(inv.due_date, inv.status)));
+    }).catch(() => {});
+  }, [selectedCompany]));
 
   useEffect(() => {
     if (autoRefreshInterval <= 0) return;
@@ -525,6 +560,24 @@ export default function DashboardScreen() {
                 </TouchableOpacity>
               )}
             </View>
+          </>
+        )}
+
+        {/* Due Soon Payments — AP bills + AR invoices due within the configured window */}
+        {(dueSoonBills.length > 0 || dueSoonInvoices.length > 0) && (
+          <>
+            <SectionHeader
+              title="Upcoming Payments"
+              meta={`due in ${dueSoonDays}d`}
+            />
+            <DueSoonPaymentsSection
+              bills={dueSoonBills}
+              invoices={dueSoonInvoices}
+              dueSoonDays={dueSoonDays}
+              onPressBills={() => navigation.navigate('Finance', { screen: 'AccountsPayable' } as any)}
+              onPressInvoices={() => navigation.navigate('Finance', { screen: 'AccountsReceivable' } as any)}
+              onPressViewAll={() => navigation.navigate('Finance', { screen: 'CashFlow' } as any)}
+            />
           </>
         )}
 
