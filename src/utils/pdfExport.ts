@@ -3381,3 +3381,110 @@ export async function exportFinancialAnalyticsPDF(
 
   await printAndShare(wrapHtml('Financial Analytics', body), 'financial-analytics.pdf');
 }
+
+export async function exportUpcomingPaymentsPDF(params: {
+  bills: APBill[];
+  invoices: ARInvoice[];
+  dueSoonDays: number;
+  companyName?: string;
+}): Promise<void> {
+  const { bills, invoices, dueSoonDays, companyName } = params;
+
+  function daysLeft(dueDate: string | undefined): number {
+    if (!dueDate) return 9999;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const due = new Date(dueDate); due.setHours(0,0,0,0);
+    return Math.floor((due.getTime() - today.getTime()) / 86_400_000);
+  }
+
+  const totalBills = bills.reduce((s, b) => s + (b.outstanding ?? (b.amount ?? 0) - (b.paid ?? 0)), 0);
+  const totalInvoices = invoices.reduce((s, inv) => s + (inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0)), 0);
+  const net = totalInvoices - totalBills;
+
+  const billRows = bills
+    .slice().sort((a, b) => daysLeft(a.due_date) - daysLeft(b.due_date))
+    .map((b) => {
+      const d = daysLeft(b.due_date);
+      const dLabel = d === 0 ? 'Due today' : d < 0 ? `${Math.abs(d)}d overdue` : `${d}d left`;
+      const outstanding = b.outstanding ?? (b.amount ?? 0) - (b.paid ?? 0);
+      return `<tr>
+        <td>${b.bill_number ?? `Bill-${b.id}`}</td>
+        <td>${b.vendor ?? '—'}</td>
+        <td>${b.due_date ? formatDate(b.due_date) : '—'}</td>
+        <td class="right" style="${d <= 0 ? 'font-weight:700' : ''}">${dLabel}</td>
+        <td class="right">${formatCurrency(outstanding)}</td>
+      </tr>`;
+    }).join('');
+
+  const invoiceRows = invoices
+    .slice().sort((a, b) => daysLeft(a.due_date) - daysLeft(b.due_date))
+    .map((inv) => {
+      const d = daysLeft(inv.due_date);
+      const dLabel = d === 0 ? 'Due today' : d < 0 ? `${Math.abs(d)}d overdue` : `${d}d left`;
+      const outstanding = inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0);
+      return `<tr>
+        <td>${inv.invoice_number ?? `Invoice-${inv.id}`}</td>
+        <td>${inv.customer ?? '—'}</td>
+        <td>${inv.due_date ? formatDate(inv.due_date) : '—'}</td>
+        <td class="right" style="${d <= 0 ? 'font-weight:700' : ''}">${dLabel}</td>
+        <td class="right">${formatCurrency(outstanding)}</td>
+      </tr>`;
+    }).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Upcoming Payments</div>
+      <div class="report-meta">
+        Due within ${dueSoonDays} days · Generated ${new Date().toLocaleDateString()}
+        ${companyName ? ` · ${companyName}` : ''}
+      </div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalBills)}</div>
+        <div class="label">To Pay (AP Bills)</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalInvoices)}</div>
+        <div class="label">To Collect (AR Invoices)</div>
+      </div>
+      <div class="summary-block">
+        <div class="value" style="${net >= 0 ? '' : 'color:#c00'}">${net >= 0 ? '+' : ''}${formatCurrency(net)}</div>
+        <div class="label">Net Cash Impact</div>
+      </div>
+    </div>
+
+    ${bills.length > 0 ? `
+    <div class="section-label">Bills to Pay (${bills.length})</div>
+    <table>
+      <thead>
+        <tr><th>Bill #</th><th>Vendor</th><th>Due Date</th><th class="right">Status</th><th class="right">Outstanding</th></tr>
+      </thead>
+      <tbody>${billRows}</tbody>
+      <tfoot>
+        <tr style="font-weight:700;border-top:1px solid #000">
+          <td colspan="4">Total</td>
+          <td class="right">${formatCurrency(totalBills)}</td>
+        </tr>
+      </tfoot>
+    </table>` : ''}
+
+    ${invoices.length > 0 ? `
+    <div class="section-label" style="margin-top:20px">Invoices to Collect (${invoices.length})</div>
+    <table>
+      <thead>
+        <tr><th>Invoice #</th><th>Customer</th><th>Due Date</th><th class="right">Status</th><th class="right">Outstanding</th></tr>
+      </thead>
+      <tbody>${invoiceRows}</tbody>
+      <tfoot>
+        <tr style="font-weight:700;border-top:1px solid #000">
+          <td colspan="4">Total</td>
+          <td class="right">${formatCurrency(totalInvoices)}</td>
+        </tr>
+      </tfoot>
+    </table>` : ''}
+  `;
+
+  await printAndShare(wrapHtml('Upcoming Payments', body), 'upcoming-payments.pdf');
+}

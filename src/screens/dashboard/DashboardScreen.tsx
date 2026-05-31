@@ -35,7 +35,7 @@ import { getAutoRefreshInterval, getDueSoonDays } from '@/utils/settings';
 import { getUnreadCount } from '@/utils/notificationLog';
 import { getBookmarks } from '@/utils/bookmarks';
 import { getRecentlyViewed, RecentItem } from '@/utils/recentlyViewed';
-import { exportDashboardSummaryPDF } from '@/utils/pdfExport';
+import { exportDashboardSummaryPDF, exportUpcomingPaymentsPDF } from '@/utils/pdfExport';
 import { fetchAPBills, APBill } from '@/api/accountsPayable';
 import { fetchARInvoices, ARInvoice } from '@/api/accountsReceivable';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
@@ -154,6 +154,7 @@ export default function DashboardScreen() {
   const [supplyChain, setSupplyChain] = useState<SupplyChainSnapshot | null>(null);
   const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
   const [exporting, setExporting] = useState(false);
+  const [exportingPayments, setExportingPayments] = useState(false);
   const [dueSoonBills, setDueSoonBills] = useState<APBill[]>([]);
   const [dueSoonInvoices, setDueSoonInvoices] = useState<ARInvoice[]>([]);
   const [dueSoonDays, setDueSoonDays] = useState(7);
@@ -609,10 +610,33 @@ export default function DashboardScreen() {
         {/* Due Soon Payments — AP bills + AR invoices due within the configured window */}
         {(dueSoonBills.length > 0 || dueSoonInvoices.length > 0) && (
           <>
-            <SectionHeader
-              title="Upcoming Payments"
-              meta={`due in ${dueSoonDays}d`}
-            />
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeaderTitle}>Upcoming Payments</Text>
+              <View style={styles.sectionHeaderRight}>
+                <Text style={styles.sectionHeaderMeta}>due in {dueSoonDays}d</Text>
+                <TouchableOpacity
+                  onPress={async () => {
+                    setExportingPayments(true);
+                    try {
+                      await exportUpcomingPaymentsPDF({
+                        bills: dueSoonBills,
+                        invoices: dueSoonInvoices,
+                        dueSoonDays,
+                        companyName: selectedCompany?.name,
+                      });
+                    } finally {
+                      setExportingPayments(false);
+                    }
+                  }}
+                  disabled={exportingPayments}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  {exportingPayments
+                    ? <ActivityIndicator size="small" color={Colors.textMuted} />
+                    : <Feather name="file-text" size={14} color={Colors.textMuted} />}
+                </TouchableOpacity>
+              </View>
+            </View>
             <DueSoonPaymentsSection
               bills={dueSoonBills}
               invoices={dueSoonInvoices}
@@ -887,6 +911,18 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   inlineErrorText: { color: Colors.text, fontSize: 13, flex: 1 },
+
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    marginTop: Spacing.lg,
+  },
+  sectionHeaderTitle: { ...Typography.h4 },
+  sectionHeaderMeta: { ...Typography.bodySmall, marginRight: Spacing.sm },
+  sectionHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 
   kpiGrid: { paddingHorizontal: Spacing.md, gap: 10 },
   kpiRow: { flexDirection: 'row', gap: 10 },
