@@ -72,11 +72,16 @@ const MENU_ITEMS: MenuItem[] = [
 
 export default function FinanceMenuScreen() {
   const navigation = useNavigation<Nav>();
-  const { apOverdue, arOverdue } = useOverdue();
+  const { apOverdue, arOverdue, apDueSoon, arDueSoon } = useOverdue();
 
   const alertCounts: Record<string, number> = {
     'Accounts Payable': apOverdue,
     'Accounts Receivable': arOverdue,
+  };
+
+  const dueSoonCounts: Record<string, number> = {
+    'Accounts Payable': apDueSoon,
+    'Accounts Receivable': arDueSoon,
   };
 
   return (
@@ -96,6 +101,7 @@ export default function FinanceMenuScreen() {
         <View style={styles.sectionCard}>
           {MENU_ITEMS.map((item, idx) => {
             const alertCount = alertCounts[item.label] ?? 0;
+            const dueSoonCount = dueSoonCounts[item.label] ?? 0;
             return (
               <TouchableOpacity
                 key={item.label}
@@ -127,6 +133,11 @@ export default function FinanceMenuScreen() {
                 {alertCount > 0 && (
                   <View style={styles.alertBadge}>
                     <Text style={styles.alertBadgeText}>{alertCount}</Text>
+                  </View>
+                )}
+                {alertCount === 0 && dueSoonCount > 0 && (
+                  <View style={styles.dueSoonBadge}>
+                    <Text style={styles.dueSoonBadgeText}>{dueSoonCount}</Text>
                   </View>
                 )}
                 {item.available ? (
@@ -208,4 +219,16 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   alertBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  dueSoonBadge: {
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    marginRight: 6,
+  },
+  dueSoonBadgeText: { color: Colors.textSecondary, fontSize: 11, fontWeight: '600' },
 });
