@@ -1,5 +1,54 @@
 # Mobile App Progress
 
+## Session 34 — 2026-05-31
+
+### Completed This Session
+
+**Dashboard "Upcoming Payments" Section** (`src/components/DueSoonPaymentsSection.tsx`, `src/screens/dashboard/DashboardScreen.tsx`)
+- New `DueSoonPaymentsSection` component: shows upcoming AP bills + AR invoices due within the configured "due soon" window directly on the Dashboard
+- Reads from AP/AR cache (`ap:<companyId>` / `ar:<companyId>`) in a `useFocusEffect` — zero extra API calls when cache is warm
+- If cache is cold, fetches AP/AR data in the background; updates on every Dashboard focus
+- Combined bill+invoice list sorted by days-until-due (soonest first), max 5 shown
+- Card header: `X payments due in Nd` + total outstanding amount
+- Per-row: bullet dot (black=bill, gray=invoice), ref number, party · due date, formatted amount, "Xd left" or "due today" dashed chip
+- Footer: "View all N upcoming payments" or "View cash flow" → navigates to Finance > CashFlow
+- Section hidden when both arrays are empty (no visual noise)
+- `SectionHeader` label: "Upcoming Payments · due in Nd"
+
+**Global Search: AP Bills + AR Invoices** (`src/screens/search/SearchScreen.tsx`)
+- Added `'bill'` and `'invoice'` as new `ResultType` values
+- Bill results: searches `bill_number`, `vendor`, `id`; shows vendor name + outstanding amount + status badge
+- Invoice results: searches `invoice_number`, `customer`, `id`; shows customer name + outstanding + status badge
+- Data sourced from AP/AR cache (`ap:all` / `ar:all`) — reuses data cached by AP/AR screens; falls back to fresh API fetch when cache is absent/stale
+- Navigation: bill tap → Finance > VendorDetail (with vendorId, vendorName, outstanding) when vendor_id available; else → AP screen. Invoice tap → Finance > CustomerDetail; else → AR screen.
+- Search placeholder updated: "Search POs, SOs, bills, invoices, materials…"
+- Help text updated to mention all 7 searchable types
+
+**AP/AR Invoice Filter Chips** (`src/screens/finance/AccountsPayableScreen.tsx`, `src/screens/finance/AccountsReceivableScreen.tsx`)
+- Both screens gain a filter chip row below their respective search bars on the Bills/Invoices tab
+- Three filter modes: **All** (default) | **Overdue** (red-badge count) | **Due Soon** (upcoming within configured window)
+- Filter counts shown inline in chip label: `Overdue (3)`, `Due Soon (5)`
+- Active chip: filled dark background with white text; inactive: outline
+- `daysDueIn()` helper added to both screens for the due-soon computation
+- `dueSoonDays` read from `getDueSoonDays()` settings on mount (respects user preference)
+- Section header meta updated to show filter state: "23 records · due in 7d"
+- Empty state message adapts: "No overdue bills found" / "No due soon invoices found"
+
+**FinanceMenu Due-Soon Outline Badge** (`src/screens/financeMenu/FinanceMenuScreen.tsx`)
+- AP and AR rows in Finance menu now show a secondary outline badge (hairline border) with the `apDueSoon` / `arDueSoon` count
+- Badge only appears when overdue count = 0 (overdue badge takes priority)
+- Uses `apDueSoon` + `arDueSoon` from `useOverdue()` context (populated by AlertsScreen on load)
+- Style: outline pill, gray text — visually distinct from the solid overdue badge
+
+### Next Session
+- Consider: AP/AR screen — "Pay by" summary: total amount of bills/invoices due this week vs next week (mini cash-flow stats bar)
+- Consider: Vendor/Customer contact info display — show phone/email from partner data as tappable links in VendorDetail/CustomerDetail
+- Consider: Dashboard "Finance Health" mini-card — ratio of AR/AP, days outstanding average
+- Consider: Journal Entry creation form (requires POST API)
+- Consider: PDF export for the Dashboard Upcoming Payments section
+
+---
+
 ## Session 33 — 2026-05-30
 
 ### Completed This Session
