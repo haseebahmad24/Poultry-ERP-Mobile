@@ -846,7 +846,7 @@ const styles = StyleSheet.create({
   timelineDot: {
     width: 10,
     height: 10,
-    borderRadius: 5,
+    borderRadius: Radius.full,
     borderWidth: 1.5,
     borderColor: Colors.text,
     backgroundColor: Colors.surface,

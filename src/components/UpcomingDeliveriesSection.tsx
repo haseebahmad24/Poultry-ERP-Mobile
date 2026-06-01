@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   typeDot: {
     width: 7,
     height: 7,
-    borderRadius: 999,
+    borderRadius: Radius.full,
     flexShrink: 0,
   },
   info: { flex: 1 },
