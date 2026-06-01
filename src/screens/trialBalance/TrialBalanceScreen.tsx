@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   RefreshControl,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -28,6 +27,7 @@ import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 import { formatCurrency } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import { exportTrialBalancePDF, exportCombinedReportPDF } from '@/utils/pdfExport';
+import { exportTrialBalanceCSV } from '@/utils/csvExport';
 
 type NavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
@@ -112,29 +112,14 @@ export default function TrialBalanceScreen() {
     });
   };
 
-  const handleExport = async () => {
-    const colW = 30;
-    const amtW = 16;
-    const line = '-'.repeat(colW + amtW * 2 + 4);
-    const pad = (s: string, w: number) => s.length >= w ? s.slice(0, w - 1) + '…' : s.padEnd(w);
-    const padL = (s: string, w: number) => s.padStart(w);
-
-    const header = `Trial Balance\nCompany: ${ctxCompany?.name ?? 'All'}\nAs of: ${asOf}\n${line}`;
-    const col = `${pad('Account', colW)}  ${padL('Debit', amtW)}  ${padL('Credit', amtW)}`;
-    const rows = filteredRows.map((r) => {
-      const indent = '  '.repeat(r.level ?? 0);
-      const name = indent + (r.account_code ? `${r.account_code} ${r.account_name ?? ''}` : (r.account_name ?? ''));
-      const dr = r.debit ? formatCurrency(r.debit) : '';
-      const cr = r.credit ? formatCurrency(r.credit) : '';
-      return `${pad(name, colW)}  ${padL(dr, amtW)}  ${padL(cr, amtW)}`;
+  const handleExportCSV = async () => {
+    await exportTrialBalanceCSV({
+      rows: filteredRows,
+      companyName: ctxCompany?.name ?? 'All Companies',
+      asOf,
+      totalDebit,
+      totalCredit,
     });
-    const totals = `${line}\n${pad('TOTAL', colW)}  ${padL(formatCurrency(totalDebit), amtW)}  ${padL(formatCurrency(totalCredit), amtW)}`;
-    const balanced = Math.abs(totalDebit - totalCredit) < 0.01
-      ? 'Balanced'
-      : `Out of balance by ${formatCurrency(Math.abs(totalDebit - totalCredit))}`;
-
-    const text = [header, col, line, ...rows, totals, balanced].join('\n');
-    await Share.share({ message: text, title: 'Trial Balance' });
   };
 
   if (error && result.rows.length === 0 && !isStale) return <ErrorView message={error} onRetry={() => load()} />;
@@ -159,9 +144,9 @@ export default function TrialBalanceScreen() {
               <Feather name="file-text" size={13} color={Colors.text} />
               <Text style={styles.exportBtnText}>PDF</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
-              <Feather name="share" size={13} color={Colors.text} />
-              <Text style={styles.exportBtnText}>Share</Text>
+            <TouchableOpacity style={styles.exportBtn} onPress={handleExportCSV}>
+              <Feather name="grid" size={13} color={Colors.text} />
+              <Text style={styles.exportBtnText}>CSV</Text>
             </TouchableOpacity>
           </>
         )}

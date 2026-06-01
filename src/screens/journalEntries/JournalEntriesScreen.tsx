@@ -5,7 +5,6 @@ import {
   Modal,
   RefreshControl,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -32,6 +31,7 @@ import OfflineBanner from '@/components/OfflineBanner';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import { exportJournalEntriesPDF } from '@/utils/pdfExport';
+import { exportJournalEntriesCSV } from '@/utils/csvExport';
 
 type RouteType = RouteProp<FinanceStackParamList, 'JournalEntries'>;
 type NavProp = NativeStackNavigationProp<FinanceStackParamList>;
@@ -130,17 +130,14 @@ export default function JournalEntriesScreen() {
     });
   };
 
-  const handleExport = async () => {
-    const line = '─'.repeat(55);
-    const header = `JOURNAL ENTRIES\nType: ${selectedType}${validFrom ? `  From: ${validFrom}` : ''}${validTo ? `  To: ${validTo}` : ''}\n${line}`;
-    const rows = filtered.map((e) => {
-      const lines = (e.lines ?? []).map((l) =>
-        `    ${(l.account ?? '').padEnd(28)}  DR: ${l.debit ? formatCurrency(l.debit) : '—'.padStart(12)}  CR: ${l.credit ? formatCurrency(l.credit) : '—'.padStart(12)}`
-      ).join('\n');
-      return `${e.voucher_type ?? ''} ${e.voucher_no ?? ''}  ${e.dt ?? ''}  ${e.status ?? ''}\n  ${e.narration ?? ''}\n${lines}`;
+  const handleExportCSV = async () => {
+    await exportJournalEntriesCSV({
+      entries: filtered,
+      companyName: selectedCompany?.name ?? 'All Companies',
+      type: selectedType,
+      from: validFrom,
+      to: validTo,
     });
-    const text = [header, ...rows].join(`\n${line}\n`);
-    await Share.share({ message: text, title: 'Journal Entries' });
   };
 
   if (error && entries.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
@@ -161,9 +158,9 @@ export default function JournalEntriesScreen() {
               <Feather name="file-text" size={13} color={Colors.text} />
               <Text style={styles.exportBtnText}>PDF</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
-              <Feather name="share" size={13} color={Colors.textSecondary} />
-              <Text style={styles.exportBtnText}>Share</Text>
+            <TouchableOpacity style={styles.exportBtn} onPress={handleExportCSV}>
+              <Feather name="grid" size={13} color={Colors.textSecondary} />
+              <Text style={styles.exportBtnText}>CSV</Text>
             </TouchableOpacity>
           </>
         )}
