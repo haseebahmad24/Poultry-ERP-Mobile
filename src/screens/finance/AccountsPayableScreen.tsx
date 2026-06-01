@@ -37,6 +37,7 @@ import { useOverdue } from '@/context/OverdueContext';
 import { exportAPSummaryPDF } from '@/utils/pdfExport';
 import { getDueSoonDays } from '@/utils/settings';
 import WeeklyScheduleCard, { WeekBucket } from '@/components/WeeklyScheduleCard';
+import { getFlaggedIds, toggleFlagged } from '@/utils/flaggedItems';
 
 type APNavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
@@ -85,6 +86,8 @@ export default function AccountsPayableScreen() {
   const [vendorSearch, setVendorSearch] = useState('');
   const [billFilter, setBillFilter] = useState<BillFilter>('all');
   const [dueSoonDays, setDueSoonDays] = useState(7);
+  const [flaggedBillIds, setFlaggedBillIds] = useState<Set<number>>(new Set());
+  const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
 
   const cacheKey = `ap:${companyId ?? 'all'}`;
 
@@ -126,6 +129,7 @@ export default function AccountsPayableScreen() {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { getDueSoonDays().then(setDueSoonDays); }, []);
+  useEffect(() => { getFlaggedIds('bill').then(setFlaggedBillIds); }, []);
 
   if (loading) return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -154,6 +158,7 @@ export default function AccountsPayableScreen() {
     : bills;
 
   const filteredBills = searchedBills.filter((b) => {
+    if (showFlaggedOnly && !flaggedBillIds.has(b.id)) return false;
     if (billFilter === 'overdue') return daysOverdue(b.due_date, b.status) > 0;
     if (billFilter === 'due-soon') {
       const d = daysDueIn(b.due_date, b.status);
@@ -373,6 +378,17 @@ export default function AccountsPayableScreen() {
                     </TouchableOpacity>
                   );
                 })}
+                <TouchableOpacity
+                  style={[styles.filterChip, showFlaggedOnly && styles.filterChipActive]}
+                  onPress={() => setShowFlaggedOnly((v) => !v)}
+                >
+                  <Feather name="star" size={11} color={showFlaggedOnly ? '#fff' : Colors.textSecondary} />
+                  {flaggedBillIds.size > 0 && (
+                    <Text style={[styles.filterChipText, showFlaggedOnly && styles.filterChipTextActive]}>
+                      {` ${flaggedBillIds.size}`}
+                    </Text>
+                  )}
+                </TouchableOpacity>
               </View>
             </View>
             {/* Pay-by summary row — shown when filter is 'all' and outstanding bills exist */}
@@ -407,7 +423,17 @@ export default function AccountsPayableScreen() {
             ) : (
               <View style={styles.cardList}>
                 {filteredBills.map((bill) => (
-                  <BillCard key={bill.id} bill={bill} overdueDays={daysOverdue(bill.due_date, bill.status)} />
+                  <BillCard
+                    key={bill.id}
+                    bill={bill}
+                    overdueDays={daysOverdue(bill.due_date, bill.status)}
+                    flagged={flaggedBillIds.has(bill.id)}
+                    onToggleFlag={async () => {
+                      await toggleFlagged('bill', bill.id);
+                      const updated = await getFlaggedIds('bill');
+                      setFlaggedBillIds(updated);
+                    }}
+                  />
                 ))}
               </View>
             )}
@@ -470,7 +496,12 @@ function KPICard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function BillCard({ bill, overdueDays }: { bill: APBill; overdueDays: number }) {
+function BillCard({ bill, overdueDays, flagged, onToggleFlag }: {
+  bill: APBill;
+  overdueDays: number;
+  flagged?: boolean;
+  onToggleFlag?: () => void;
+}) {
   const outstanding = bill.outstanding ?? (bill.amount ?? 0) - (bill.paid ?? 0);
   const isOverdue = overdueDays > 0;
   const isPaid = (bill.status ?? '').toUpperCase() === 'PAID';
@@ -490,6 +521,9 @@ function BillCard({ bill, overdueDays }: { bill: APBill; overdueDays: number }) 
           <Text style={styles.cardTitle}>{bill.bill_number ?? `Bill-${bill.id}`}</Text>
           <Text style={styles.cardSub}>{bill.vendor ?? 'Unknown Vendor'}</Text>
         </View>
+        <TouchableOpacity onPress={onToggleFlag} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginRight: 8 }}>
+          <Feather name="star" size={16} color={flagged ? Colors.text : Colors.borderLight} />
+        </TouchableOpacity>
         <View style={[styles.statusBadge, isPaid && styles.statusBadgeMuted]}>
           <Text style={[styles.statusText, isPaid && styles.statusTextMuted]}>{bill.status ?? '—'}</Text>
         </View>

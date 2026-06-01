@@ -37,6 +37,7 @@ import { useOverdue } from '@/context/OverdueContext';
 import { exportARSummaryPDF } from '@/utils/pdfExport';
 import { getDueSoonDays } from '@/utils/settings';
 import WeeklyScheduleCard, { WeekBucket } from '@/components/WeeklyScheduleCard';
+import { getFlaggedIds, toggleFlagged } from '@/utils/flaggedItems';
 
 type ARNavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
@@ -84,6 +85,8 @@ export default function AccountsReceivableScreen() {
   const [customerSearch, setCustomerSearch] = useState('');
   const [invoiceFilter, setInvoiceFilter] = useState<InvoiceFilter>('all');
   const [dueSoonDays, setDueSoonDays] = useState(7);
+  const [flaggedInvoiceIds, setFlaggedInvoiceIds] = useState<Set<number>>(new Set());
+  const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
 
   const cacheKey = `ar:${companyId ?? 'all'}`;
 
@@ -125,6 +128,7 @@ export default function AccountsReceivableScreen() {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { getDueSoonDays().then(setDueSoonDays); }, []);
+  useEffect(() => { getFlaggedIds('invoice').then(setFlaggedInvoiceIds); }, []);
 
   if (loading) return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -153,6 +157,7 @@ export default function AccountsReceivableScreen() {
     : invoices;
 
   const filteredInvoices = searchedInvoices.filter((inv) => {
+    if (showFlaggedOnly && !flaggedInvoiceIds.has(inv.id)) return false;
     if (invoiceFilter === 'overdue') return daysOverdue(inv.due_date, inv.status) > 0;
     if (invoiceFilter === 'due-soon') {
       const d = daysDueIn(inv.due_date, inv.status);
@@ -372,6 +377,17 @@ export default function AccountsReceivableScreen() {
                     </TouchableOpacity>
                   );
                 })}
+                <TouchableOpacity
+                  style={[styles.filterChip, showFlaggedOnly && styles.filterChipActive]}
+                  onPress={() => setShowFlaggedOnly((v) => !v)}
+                >
+                  <Feather name="star" size={11} color={showFlaggedOnly ? '#fff' : Colors.textSecondary} />
+                  {flaggedInvoiceIds.size > 0 && (
+                    <Text style={[styles.filterChipText, showFlaggedOnly && styles.filterChipTextActive]}>
+                      {` ${flaggedInvoiceIds.size}`}
+                    </Text>
+                  )}
+                </TouchableOpacity>
               </View>
             </View>
             {/* Collect-by summary row — shown when filter is 'all' and outstanding invoices exist */}
@@ -406,7 +422,17 @@ export default function AccountsReceivableScreen() {
             ) : (
               <View style={styles.cardList}>
                 {filteredInvoices.map((inv) => (
-                  <InvoiceCard key={inv.id} invoice={inv} overdueDays={daysOverdue(inv.due_date, inv.status)} />
+                  <InvoiceCard
+                    key={inv.id}
+                    invoice={inv}
+                    overdueDays={daysOverdue(inv.due_date, inv.status)}
+                    flagged={flaggedInvoiceIds.has(inv.id)}
+                    onToggleFlag={async () => {
+                      await toggleFlagged('invoice', inv.id);
+                      const updated = await getFlaggedIds('invoice');
+                      setFlaggedInvoiceIds(updated);
+                    }}
+                  />
                 ))}
               </View>
             )}
@@ -469,7 +495,12 @@ function KPICard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function InvoiceCard({ invoice: inv, overdueDays }: { invoice: ARInvoice; overdueDays: number }) {
+function InvoiceCard({ invoice: inv, overdueDays, flagged, onToggleFlag }: {
+  invoice: ARInvoice;
+  overdueDays: number;
+  flagged?: boolean;
+  onToggleFlag?: () => void;
+}) {
   const outstanding = inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0);
   const isOverdue = overdueDays > 0;
   const isPaid = (inv.status ?? '').toUpperCase() === 'PAID';
@@ -489,6 +520,9 @@ function InvoiceCard({ invoice: inv, overdueDays }: { invoice: ARInvoice; overdu
           <Text style={styles.cardTitle}>{inv.invoice_number ?? `INV-${inv.id}`}</Text>
           <Text style={styles.cardSub}>{inv.customer ?? 'Unknown Customer'}</Text>
         </View>
+        <TouchableOpacity onPress={onToggleFlag} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginRight: 8 }}>
+          <Feather name="star" size={16} color={flagged ? Colors.text : Colors.borderLight} />
+        </TouchableOpacity>
         <View style={[styles.statusBadge, isPaid && styles.statusBadgeMuted]}>
           <Text style={[styles.statusText, isPaid && styles.statusTextMuted]}>{inv.status ?? '—'}</Text>
         </View>
