@@ -22,6 +22,7 @@ import DetailSkeleton from '@/components/DetailSkeleton';
 import ErrorView from '@/components/ErrorView';
 import SectionHeader from '@/components/SectionHeader';
 import AgingChart, { AgingBucket } from '@/components/AgingChart';
+import MonthlyBalanceChart from '@/components/MonthlyBalanceChart';
 import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { exportCustomerDetailPDF, exportCustomerLedgerPDF, PartnerLedgerEntry } from '@/utils/pdfExport';
@@ -228,6 +229,14 @@ export default function CustomerDetailScreen({ route }: Props) {
         <View style={styles.agingCard}>
           <Text style={styles.agingTitle}>AGING BREAKDOWN</Text>
           <AgingChart buckets={buildAgingBuckets(invoices)} barHeight={10} />
+        </View>
+      )}
+
+      {/* 6-month outstanding balance trend */}
+      {ledgerEntries.length > 0 && (
+        <View style={styles.trendCard}>
+          <Text style={styles.trendTitle}>6-MONTH OUTSTANDING TREND</Text>
+          <MonthlyBalanceChart entries={ledgerEntries} />
         </View>
       )}
 
@@ -622,6 +631,20 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   agingTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    color: Colors.textMuted,
+  },
+  trendCard: {
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xs,
+  },
+  trendTitle: {
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.8,

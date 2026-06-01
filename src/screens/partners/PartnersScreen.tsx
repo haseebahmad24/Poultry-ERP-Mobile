@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -243,16 +244,24 @@ function PartnerCard({ partner: p, onPress }: { partner: Partner; onPress: () =>
       {(p.email || p.phone) && (
         <View style={styles.contactRow}>
           {p.email && (
-            <View style={styles.contactItem}>
+            <TouchableOpacity
+              style={styles.contactItem}
+              onPress={(e) => { e.stopPropagation?.(); Linking.openURL(`mailto:${p.email}`); }}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
               <Feather name="mail" size={11} color={Colors.textMuted} />
-              <Text style={styles.contactText}>{p.email}</Text>
-            </View>
+              <Text style={styles.contactTextTappable}>{p.email}</Text>
+            </TouchableOpacity>
           )}
           {p.phone && (
-            <View style={styles.contactItem}>
+            <TouchableOpacity
+              style={styles.contactItem}
+              onPress={(e) => { e.stopPropagation?.(); Linking.openURL(`tel:${p.phone}`); }}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
               <Feather name="phone" size={11} color={Colors.textMuted} />
-              <Text style={styles.contactText}>{p.phone}</Text>
-            </View>
+              <Text style={styles.contactTextTappable}>{p.phone}</Text>
+            </TouchableOpacity>
           )}
         </View>
       )}
@@ -378,6 +387,7 @@ const styles = StyleSheet.create({
   contactRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
   contactItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   contactText: { fontSize: 12, color: Colors.textSecondary },
+  contactTextTappable: { fontSize: 12, color: Colors.textSecondary, textDecorationLine: 'underline' },
 
   emptyState: {
     marginHorizontal: Spacing.md,
