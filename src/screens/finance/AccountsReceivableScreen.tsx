@@ -36,6 +36,7 @@ import OfflineBanner from '@/components/OfflineBanner';
 import { useOverdue } from '@/context/OverdueContext';
 import { exportARSummaryPDF } from '@/utils/pdfExport';
 import { getDueSoonDays } from '@/utils/settings';
+import WeeklyScheduleCard, { WeekBucket } from '@/components/WeeklyScheduleCard';
 
 type ARNavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
@@ -180,6 +181,45 @@ export default function AccountsReceivableScreen() {
     return { overdueAmt, weekAmt, laterAmt };
   })();
 
+  // Weekly collection schedule — next 4 weeks + overdue
+  function getWeekRange(weekOffset: number): { start: Date; end: Date } {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const start = new Date(now.getTime() + weekOffset * 7 * 86_400_000);
+    const end = new Date(start.getTime() + 6 * 86_400_000);
+    return { start, end };
+  }
+  function fmtDateRange(start: Date, end: Date): string {
+    const mo = (d: Date) => d.toLocaleString('default', { month: 'short' });
+    const day = (d: Date) => d.getDate();
+    if (start.getMonth() === end.getMonth()) return `${mo(start)} ${day(start)}–${day(end)}`;
+    return `${mo(start)} ${day(start)}–${mo(end)} ${day(end)}`;
+  }
+  const arWeeklyBuckets: WeekBucket[] = (() => {
+    const buckets: WeekBucket[] = [
+      { label: 'Overdue', sublabel: 'Past due', amount: 0, count: 0, isOverdue: true },
+      { label: 'This Week', sublabel: fmtDateRange(getWeekRange(0).start, getWeekRange(0).end), amount: 0, count: 0 },
+      { label: 'Week 2', sublabel: fmtDateRange(getWeekRange(1).start, getWeekRange(1).end), amount: 0, count: 0 },
+      { label: 'Week 3', sublabel: fmtDateRange(getWeekRange(2).start, getWeekRange(2).end), amount: 0, count: 0 },
+      { label: 'Week 4', sublabel: fmtDateRange(getWeekRange(3).start, getWeekRange(3).end), amount: 0, count: 0 },
+      { label: 'Later', sublabel: '30+ days', amount: 0, count: 0 },
+    ];
+    for (const inv of invoices) {
+      const outstanding = inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0);
+      if (outstanding <= 0) continue;
+      const od = daysOverdue(inv.due_date, inv.status);
+      if (od > 0) { buckets[0].amount += outstanding; buckets[0].count++; continue; }
+      const dd = daysDueIn(inv.due_date, inv.status);
+      if (dd < 0) continue;
+      if (dd < 7) { buckets[1].amount += outstanding; buckets[1].count++; }
+      else if (dd < 14) { buckets[2].amount += outstanding; buckets[2].count++; }
+      else if (dd < 21) { buckets[3].amount += outstanding; buckets[3].count++; }
+      else if (dd < 30) { buckets[4].amount += outstanding; buckets[4].count++; }
+      else { buckets[5].amount += outstanding; buckets[5].count++; }
+    }
+    return buckets;
+  })();
+
   const filteredCustomers = customerSearch.trim()
     ? customers.filter((c) => c.name?.toLowerCase().includes(customerSearch.toLowerCase()))
     : customers;
@@ -267,6 +307,9 @@ export default function AccountsReceivableScreen() {
             <View style={styles.agingCard}>
               <AgingChart buckets={arAgingBuckets} />
             </View>
+
+            <SectionHeader title="Collection Schedule" meta="By week · upcoming" />
+            <WeeklyScheduleCard buckets={arWeeklyBuckets} emptyLabel="No outstanding invoices" />
 
             {customers.length > 0 && (
               <>
