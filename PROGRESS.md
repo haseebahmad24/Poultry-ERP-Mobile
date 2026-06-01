@@ -1,5 +1,55 @@
 # Mobile App Progress
 
+## Session 36 — 2026-06-01
+
+### Completed This Session
+
+**6-Month Outstanding Balance Trend Chart** (`src/components/MonthlyBalanceChart.tsx`, `src/screens/finance/VendorDetailScreen.tsx`, `src/screens/finance/CustomerDetailScreen.tsx`)
+- New `MonthlyBalanceChart` shared component: takes `{date, balance}[]` ledger entries and renders a 6-column vertical bar chart
+- `computeMonthlyBalances()`: for each of the last 6 months, finds the last ledger entry on or before month-end to get closing balance
+- Bar heights proportional to max balance; current month column uses bold/dark bar + `textSecondary` value label
+- `fmtShort()` formats values as "45K", "1.2M", etc. to keep labels compact
+- Mounted in `VendorDetailScreen` between the aging breakdown and contact card — shows "6-MONTH OUTSTANDING TREND" section label
+- Mounted in `CustomerDetailScreen` in the same position — identical layout for AR side
+- Both screens import `MonthlyBalanceChart` from `@/components/MonthlyBalanceChart`
+- Section only rendered when `ledgerEntries.length > 0` (no empty placeholder)
+- Styles: `trendCard`, `trendTitle` (same pattern as `agingCard`/`agingTitle`)
+
+**Partner List Tappable Call/Email** (`src/screens/partners/PartnersScreen.tsx`)
+- Added `Linking` to React Native imports
+- `PartnerCard` email row: wrapped in `TouchableOpacity` → `Linking.openURL('mailto:${p.email}')` on tap
+- `PartnerCard` phone row: wrapped in `TouchableOpacity` → `Linking.openURL('tel:${p.phone}')` on tap
+- `contactTextTappable` style: underlined text to signal tappability; distinguishes from non-tappable address text
+- Outer card `onPress` still navigates to PartnerDetail; inner contact taps are independently consumed
+
+**Vendor/Customer Recently Viewed Tracking** (`src/screens/finance/VendorDetailScreen.tsx`, `src/screens/finance/CustomerDetailScreen.tsx`, `src/screens/dashboard/DashboardScreen.tsx`)
+- Both VendorDetailScreen and CustomerDetailScreen now call `addRecentlyViewed()` in a `useEffect([loading])` after data loads
+- Vendor entry: `type: 'vendor'`, title = vendorName, subtitle = "Vendor · AP", navParams includes outstanding + overdue
+- Customer entry: `type: 'customer'`, title = customerName, subtitle = "Customer · AR", same navParams
+- Dashboard `onPress` handler in `RecentlyViewedSection` now has `case 'vendor'` and `case 'customer'` branches
+- Vendor tap: `navigate('Finance', { screen: 'VendorDetail', params: { vendorId, vendorName, outstanding, overdue } })`
+- Customer tap: `navigate('Finance', { screen: 'CustomerDetail', params: { customerId, customerName, outstanding, overdue } })`
+- `RecentlyViewedSection` already had icons for both types (briefcase/user) — no component changes needed
+
+**Weekly Payment/Collection Schedule** (`src/components/WeeklyScheduleCard.tsx`, `src/screens/finance/AccountsPayableScreen.tsx`, `src/screens/finance/AccountsReceivableScreen.tsx`)
+- New `WeeklyScheduleCard` component: displays a list of weekly buckets with proportional horizontal bars
+- Each row: bucket label (e.g., "This Week") + date range sublabel + bar track with fill proportional to max amount + amount value + item count
+- Overdue bucket gets bold label + dark bar fill (`Colors.text`); regular buckets use `Colors.textSecondary`
+- `WeekBucket` type exported: `{ label, sublabel, amount, count, isOverdue? }`
+- **AP Summary tab**: `apWeeklyBuckets` computed from all bills (Overdue / This Week / Week 2 / Week 3 / Week 4 / Later) — shown as "Payment Schedule · By week · upcoming" section
+- **AR Summary tab**: `arWeeklyBuckets` computed from all invoices (same structure) — shown as "Collection Schedule · By week · upcoming" section
+- `getWeekRange()` / `fmtDateRange()` helpers compute date ranges for sublabels (e.g., "Jun 1–7")
+- Schedule card hidden when all buckets are zero (null return from `WeeklyScheduleCard`)
+
+### Next Session
+- Consider: Vendor/Customer notes field (show notes/description from partner data if available)
+- Consider: AP/AR bills — mark as reviewed / add a flag/star system for follow-up tracking
+- Consider: Journal Entry creation form (requires POST API support)
+- Consider: PO delivery status push notification (when delivery date is approaching)
+- Consider: Financial Reports — export to Excel/CSV format in addition to PDF
+
+---
+
 ## Session 35 — 2026-05-31
 
 ### Completed This Session
