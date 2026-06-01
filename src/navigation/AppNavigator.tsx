@@ -100,6 +100,10 @@ export default function AppNavigator() {
         navigation.dispatch(
           CommonActions.navigate({ name: 'More', params: { screen: 'Alerts' } })
         );
+      } else if (data?.type === 'po-delivery') {
+        navigation.dispatch(
+          CommonActions.navigate({ name: 'More', params: { screen: 'PurchaseOrders' } })
+        );
       }
     });
     return () => sub.remove();

@@ -12,6 +12,8 @@ const KEYS = {
   NOTIFY_DUE_SOON: 'setting:notifyDueSoon',
   DUE_SOON_DAYS: 'setting:dueSoonDays',
   DATE_FORMAT: 'setting:dateFormat',
+  NOTIFY_PO_DELIVERY: 'setting:notifyPoDelivery',
+  PO_DELIVERY_DAYS: 'setting:poDeliveryDays',
 };
 
 export type DateFormat = 'natural' | 'dmy' | 'mdy';
@@ -195,4 +197,34 @@ export async function getDueSoonDays(): Promise<number> {
 
 export async function setDueSoonDays(days: number): Promise<void> {
   await AsyncStorage.setItem(KEYS.DUE_SOON_DAYS, String(Math.max(1, days)));
+}
+
+/** Returns whether PO delivery approaching notifications are enabled. Default: true. */
+export async function getNotifyPoDelivery(): Promise<boolean> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.NOTIFY_PO_DELIVERY);
+    return raw === null ? true : raw === 'true';
+  } catch {
+    return true;
+  }
+}
+
+export async function setNotifyPoDelivery(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEYS.NOTIFY_PO_DELIVERY, enabled ? 'true' : 'false');
+}
+
+/** Returns days before delivery date to trigger the notification. Default: 3. */
+export async function getPoDeliveryDays(): Promise<number> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.PO_DELIVERY_DAYS);
+    if (raw === null) return 3;
+    const n = parseInt(raw, 10);
+    return isNaN(n) || n < 1 ? 3 : n;
+  } catch {
+    return 3;
+  }
+}
+
+export async function setPoDeliveryDays(days: number): Promise<void> {
+  await AsyncStorage.setItem(KEYS.PO_DELIVERY_DAYS, String(Math.max(1, days)));
 }

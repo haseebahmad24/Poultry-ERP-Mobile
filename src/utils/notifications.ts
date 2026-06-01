@@ -6,12 +6,15 @@ import {
   getNotifyArOverdue,
   getNotifyLowStock,
   getNotifyDueSoon,
+  getNotifyPoDelivery,
+  getPoDeliveryDays,
 } from '@/utils/settings';
 import { logNotificationEvent } from '@/utils/notificationLog';
 
 const KEY_NOTIFICATIONS_ENABLED = 'setting:notificationsEnabled';
 const IDENTIFIER_OVERDUE = 'poultry-erp-overdue-reminder';
 const IDENTIFIER_DUE_SOON = 'poultry-erp-due-soon-reminder';
+const IDENTIFIER_PO_DELIVERY = 'poultry-erp-po-delivery';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -153,4 +156,72 @@ export async function scheduleDueSoonReminder(params: {
 
 export async function cancelDueSoonReminder(): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(IDENTIFIER_DUE_SOON).catch(() => {});
+}
+
+export async function schedulePoDeliveryReminder(orders: { delivery_date?: string; status?: string; po_number?: string }[]): Promise<void> {
+  const [notifyEnabled, notifyPO, hour, deliveryDays] = await Promise.all([
+    getNotificationsEnabled(),
+    getNotifyPoDelivery(),
+    getNotificationHour(),
+    getPoDeliveryDays(),
+  ]);
+
+  if (!notifyEnabled || !notifyPO) {
+    await Notifications.cancelScheduledNotificationAsync(IDENTIFIER_PO_DELIVERY).catch(() => {});
+    return;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const overdueOrders: string[] = [];
+  const approachingOrders: string[] = [];
+
+  for (const o of orders) {
+    const s = (o.status ?? '').toUpperCase();
+    if (['CLOSED', 'CANCELLED', 'RECEIVED', 'COMPLETE'].includes(s)) continue;
+    if (!o.delivery_date) continue;
+    const due = new Date(o.delivery_date);
+    due.setHours(0, 0, 0, 0);
+    const diff = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+    const label = o.po_number ?? 'PO';
+    if (diff < 0) overdueOrders.push(label);
+    else if (diff <= deliveryDays) approachingOrders.push(label);
+  }
+
+  const totalCount = overdueOrders.length + approachingOrders.length;
+  if (totalCount === 0) {
+    await Notifications.cancelScheduledNotificationAsync(IDENTIFIER_PO_DELIVERY).catch(() => {});
+    return;
+  }
+
+  const parts: string[] = [];
+  if (overdueOrders.length > 0)
+    parts.push(`${overdueOrders.length} delivery overdue`);
+  if (approachingOrders.length > 0)
+    parts.push(`${approachingOrders.length} due within ${deliveryDays}d`);
+
+  // Schedule 1 hour after the main overdue reminder to avoid stacking
+  const trigger = new Date();
+  trigger.setHours(hour + 1 > 23 ? hour : hour + 1, 0, 0, 0);
+  if (trigger <= new Date()) trigger.setDate(trigger.getDate() + 1);
+
+  try {
+    await Notifications.cancelScheduledNotificationAsync(IDENTIFIER_PO_DELIVERY).catch(() => {});
+    await Notifications.scheduleNotificationAsync({
+      identifier: IDENTIFIER_PO_DELIVERY,
+      content: {
+        title: 'PO delivery reminder',
+        body: parts.join(' · '),
+        data: { type: 'po-delivery' },
+      },
+      trigger: { date: trigger } as any,
+    });
+  } catch {
+    // Ignore scheduling failures in Expo Go
+  }
+}
+
+export async function cancelPoDeliveryReminder(): Promise<void> {
+  await Notifications.cancelScheduledNotificationAsync(IDENTIFIER_PO_DELIVERY).catch(() => {});
 }

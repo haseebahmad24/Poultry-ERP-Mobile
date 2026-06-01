@@ -24,6 +24,7 @@ import OfflineBanner from '@/components/OfflineBanner';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import { exportPOListPDF } from '@/utils/pdfExport';
+import { schedulePoDeliveryReminder } from '@/utils/notifications';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 
@@ -89,6 +90,8 @@ export default function PurchaseOrdersScreen() {
       setOrders(data);
       setIsStale(false);
       await setCached(cacheKey, data);
+      // Best-effort: schedule PO delivery reminder based on fresh data
+      schedulePoDeliveryReminder(data).catch(() => {});
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {

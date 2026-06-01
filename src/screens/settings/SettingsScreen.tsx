@@ -37,6 +37,10 @@ import {
   setNotifyDueSoon,
   getDueSoonDays,
   setDueSoonDays,
+  getNotifyPoDelivery,
+  setNotifyPoDelivery,
+  getPoDeliveryDays,
+  setPoDeliveryDays,
   getDateFormat,
   setDateFormat,
   initDateFormat,
@@ -48,6 +52,7 @@ import {
   requestNotificationPermissions,
   cancelOverdueReminder,
   cancelDueSoonReminder,
+  cancelPoDeliveryReminder,
 } from '@/utils/notifications';
 import { clearCache } from '@/utils/cache';
 import { formatDate } from '@/utils/currency';
@@ -103,6 +108,8 @@ export default function SettingsScreen() {
   const [notifyStock, setNotifyStockState] = useState(true);
   const [notifyDueSoon, setNotifyDueSoonState] = useState(true);
   const [dueSoonDaysVal, setDueSoonDaysVal] = useState(7);
+  const [notifyPODelivery, setNotifyPODeliveryState] = useState(true);
+  const [poDeliveryDaysVal, setPoDeliveryDaysVal] = useState(3);
   const [dateFormat, setDateFormatState] = useState<DateFormat>('natural');
 
   useEffect(() => {
@@ -117,6 +124,8 @@ export default function SettingsScreen() {
     getNotifyLowStock().then((v) => setNotifyStockState(v));
     getNotifyDueSoon().then((v) => setNotifyDueSoonState(v));
     getDueSoonDays().then((v) => setDueSoonDaysVal(v));
+    getNotifyPoDelivery().then((v) => setNotifyPODeliveryState(v));
+    getPoDeliveryDays().then((v) => setPoDeliveryDaysVal(v));
     getDateFormat().then((v) => setDateFormatState(v));
     LocalAuthentication.hasHardwareAsync().then((has) => {
       if (has) LocalAuthentication.isEnrolledAsync().then((enrolled) => setBiometricAvailable(enrolled));
@@ -203,6 +212,17 @@ export default function SettingsScreen() {
   const handleDueSoonDaysChange = useCallback(async (days: number) => {
     setDueSoonDaysVal(days);
     await setDueSoonDays(days);
+  }, []);
+
+  const handleNotifyPODeliveryToggle = useCallback(async (value: boolean) => {
+    setNotifyPODeliveryState(value);
+    await setNotifyPoDelivery(value);
+    if (!value) await cancelPoDeliveryReminder();
+  }, []);
+
+  const handlePoDeliveryDaysChange = useCallback(async (days: number) => {
+    setPoDeliveryDaysVal(days);
+    await setPoDeliveryDays(days);
   }, []);
 
   const handleDateFormatChange = useCallback(async (fmt: DateFormat) => {
@@ -516,13 +536,25 @@ export default function SettingsScreen() {
                   thumbColor={Colors.surface}
                 />
               </View>
-              <View style={styles.settingRow}>
+              <View style={[styles.settingRow, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight }]}>
                 <View style={styles.settingInfo}>
                   <Text style={styles.settingTitle}>Upcoming payments (due soon)</Text>
                 </View>
                 <Switch
                   value={notifyDueSoon}
                   onValueChange={handleNotifyDueSoonToggle}
+                  trackColor={{ false: Colors.border, true: Colors.text }}
+                  thumbColor={Colors.surface}
+                />
+              </View>
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>PO delivery approaching</Text>
+                  <Text style={styles.settingDesc}>Alert when a purchase order delivery date is near.</Text>
+                </View>
+                <Switch
+                  value={notifyPODelivery}
+                  onValueChange={handleNotifyPODeliveryToggle}
                   trackColor={{ false: Colors.border, true: Colors.text }}
                   thumbColor={Colors.surface}
                 />
@@ -551,6 +583,39 @@ export default function SettingsScreen() {
                 activeOpacity={0.7}
               >
                 <Text style={[styles.refreshChipText, dueSoonDaysVal === opt.value && styles.refreshChipTextActive]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* PO Delivery Lead Time */}
+        <Text style={styles.sectionLabel}>ALERTS — PO DELIVERY WINDOW</Text>
+        <View style={styles.card}>
+          <View style={[styles.settingRow, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight }]}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingTitle}>Delivery approaching window</Text>
+              <Text style={styles.settingDesc}>
+                Purchase orders with delivery dates within this many days trigger a daily notification.
+              </Text>
+            </View>
+          </View>
+          <View style={styles.refreshOptionsRow}>
+            {([
+              { label: '1 day', value: 1 },
+              { label: '2 days', value: 2 },
+              { label: '3 days', value: 3 },
+              { label: '5 days', value: 5 },
+              { label: '7 days', value: 7 },
+            ] as { label: string; value: number }[]).map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[styles.refreshChip, poDeliveryDaysVal === opt.value && styles.refreshChipActive]}
+                onPress={() => handlePoDeliveryDaysChange(opt.value)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.refreshChipText, poDeliveryDaysVal === opt.value && styles.refreshChipTextActive]}>
                   {opt.label}
                 </Text>
               </TouchableOpacity>
