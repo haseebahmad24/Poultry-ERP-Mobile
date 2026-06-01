@@ -708,6 +708,28 @@ export default function DashboardScreen() {
                       },
                     } as any);
                     break;
+                  case 'vendor':
+                    navigation.navigate('Finance', {
+                      screen: 'VendorDetail',
+                      params: {
+                        vendorId: item.entityId,
+                        vendorName: item.title,
+                        outstanding: item.navParams?.outstanding as number | undefined,
+                        overdue: item.navParams?.overdue as number | undefined,
+                      },
+                    } as any);
+                    break;
+                  case 'customer':
+                    navigation.navigate('Finance', {
+                      screen: 'CustomerDetail',
+                      params: {
+                        customerId: item.entityId,
+                        customerName: item.title,
+                        outstanding: item.navParams?.outstanding as number | undefined,
+                        overdue: item.navParams?.overdue as number | undefined,
+                      },
+                    } as any);
+                    break;
                 }
               }}
             />

@@ -26,6 +26,7 @@ import MonthlyBalanceChart from '@/components/MonthlyBalanceChart';
 import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { exportCustomerDetailPDF, exportCustomerLedgerPDF, PartnerLedgerEntry } from '@/utils/pdfExport';
+import { addRecentlyViewed } from '@/utils/recentlyViewed';
 
 type Props = NativeStackScreenProps<FinanceStackParamList, 'CustomerDetail'>;
 
@@ -153,6 +154,20 @@ export default function CustomerDetailScreen({ route }: Props) {
       if (match) setPartner(match);
     }).catch(() => {});
   }, [companyId, customerId, customerName]);
+
+  // Track in recently viewed
+  useEffect(() => {
+    if (!loading && !error) {
+      addRecentlyViewed({
+        id: `customer-${customerId}`,
+        type: 'customer',
+        title: customerName ?? `Customer ${customerId}`,
+        subtitle: 'Customer · AR',
+        entityId: customerId,
+        navParams: { outstanding, overdue },
+      });
+    }
+  }, [loading]);
 
   if (loading) return <SafeAreaView style={{flex:1,backgroundColor:Colors.background}} edges={['top']}><StatusBar style="dark" /><DetailSkeleton tileCount={4} listCount={5} /></SafeAreaView>;
   if (error && invoices.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
