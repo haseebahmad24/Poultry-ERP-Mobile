@@ -1,5 +1,47 @@
 # Mobile App Progress
 
+## Session 37 — 2026-06-01
+
+### Completed This Session
+
+**CSV Share Export** (`src/utils/csvExport.ts`, `src/screens/trialBalance/TrialBalanceScreen.tsx`, `src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- New `src/utils/csvExport.ts` utility: RFC 4180-compliant CSV generation with proper escaping (commas, quotes, newlines in values)
+- `exportTrialBalanceCSV()`: account code, name, level, debit, credit rows + totals + company/as-of header rows
+- `exportJournalEntriesCSV()`: one row per JE line — voucher type/no/date/account/debit/credit/narration/status
+- `exportAPBillsCSV()` and `exportARInvoicesCSV()` prepared for future AP/AR screens
+- Both functions use `Share.share()` — native share sheet, no extra packages needed
+- TrialBalanceScreen: replaced "Share" text button with "CSV" grid-icon button
+- JournalEntriesScreen: replaced "Share" text button with "CSV" grid-icon button
+- Unused `Share` import removed from both screens
+
+**PO Delivery Approaching Notifications** (`src/utils/settings.ts`, `src/utils/notifications.ts`, `src/screens/purchaseOrders/PurchaseOrdersScreen.tsx`, `src/screens/settings/SettingsScreen.tsx`, `src/navigation/AppNavigator.tsx`)
+- `settings.ts`: `NOTIFY_PO_DELIVERY` (bool, default true) + `PO_DELIVERY_DAYS` (int, default 3) keys + getter/setter functions
+- `notifications.ts`: `schedulePoDeliveryReminder(orders[])` — scans open POs for overdue or approaching delivery dates within N days; schedules daily notification 1 hour after overdue reminder; `IDENTIFIER_PO_DELIVERY` constant
+- `cancelPoDeliveryReminder()` exported
+- `PurchaseOrdersScreen`: calls `schedulePoDeliveryReminder(data)` after each fresh API fetch (best-effort, non-blocking)
+- `SettingsScreen`: "PO delivery approaching" toggle in Notifications section + new "ALERTS — PO DELIVERY WINDOW" chip selector (1/2/3/5/7 days)
+- `AppNavigator`: tapping PO delivery notification navigates to PurchaseOrders screen
+
+**Bill/Invoice Flag System** (`src/utils/flaggedItems.ts`, `src/screens/finance/AccountsPayableScreen.tsx`, `src/screens/finance/AccountsReceivableScreen.tsx`)
+- New `src/utils/flaggedItems.ts`: AsyncStorage-backed star/flag toggle per `type: 'bill' | 'invoice'`
+  - `toggleFlagged()` returns new state; `getFlaggedIds()` returns Set<number>; `clearAllFlagged()` for cleanup
+- `AccountsPayableScreen` bills tab:
+  - `flaggedBillIds` state (Set<number>) loaded from AsyncStorage on mount
+  - Star chip added to filter row — shows count badge (⭐ N) and toggles `showFlaggedOnly`
+  - `BillCard` gets `flagged` + `onToggleFlag` props: filled star when flagged, borderLight outline when not
+  - `onToggleFlag` writes to AsyncStorage then reloads the full flag set for consistency
+- `AccountsReceivableScreen` invoices tab: identical pattern via `InvoiceCard` + `flaggedInvoiceIds`
+- Flags persist across restarts; star filter can be combined with overdue/due-soon filters
+
+### Next Session
+- Consider: AP/AR CSV export buttons (bills and invoices tabs — `exportAPBillsCSV` / `exportARInvoicesCSV` already in csvExport.ts)
+- Consider: Vendor/Customer notes field (requires API support or local note-taking system)
+- Consider: Journal Entry creation form (requires POST API support)
+- Consider: Dashboard "Pending Actions" card — unread inbox + flagged bills/invoices count in one card
+- Consider: Stock Health screen improvements — item detail drill-down from low-stock list
+
+---
+
 ## Session 36 — 2026-06-01
 
 ### Completed This Session
