@@ -1,5 +1,47 @@
 # Mobile App Progress
 
+## Session 39 — 2026-06-02
+
+### Completed This Session
+
+**Out-of-Stock Items List in Stock Health** (`src/screens/analytics/StockHealthScreen.tsx`)
+- `computeStockHealth` now returns `outOfStock: StockBalance[]` — all items with qty ≤ 0, sorted alphabetically A–Z, no 8-item cap (unlike low-stock)
+- `StockHealthData` type extended with `outOfStock` field
+- New "Out of Stock" section displayed above the low-stock list (zero-stock is more critical), only shown when `outOfStockItems > 0`
+- `RankedItemList` new `showOutOfStock` prop: x-circle icon badge, no proportional bar track, qty shown as `'0'` in muted colour
+- All out-of-stock items are tappable — opens the same `ItemDetailModal` drill-down as low-stock items (warehouse breakdown + recent ledger)
+
+**Mark as Reviewed for Bills & Invoices** (`src/utils/reviewedItems.ts`, `src/screens/finance/AccountsPayableScreen.tsx`, `src/screens/finance/AccountsReceivableScreen.tsx`)
+- New `src/utils/reviewedItems.ts`: AsyncStorage-backed utility mirroring `flaggedItems.ts`
+  - `getReviewedIds(type)` → `Set<number>`, `toggleReviewed(type, id)` → new state, `clearAllReviewed(type)`
+  - Separate keys: `reviewed_bills` / `reviewed_invoices`
+- `AccountsPayableScreen` bills tab:
+  - `reviewedBillIds` state loaded on mount
+  - `check-circle` filter chip (shows count badge when any bills reviewed) toggling `showReviewedOnly`
+  - `BillCard`: check-circle icon (filled = reviewed, borderLight = not); opacity 0.6 on reviewed cards
+  - `showReviewedOnly` filter composable with flagged/overdue/due-soon
+- `AccountsReceivableScreen` invoices tab: identical pattern via `InvoiceCard` + `reviewedInvoiceIds`
+
+**Vendor & Customer Local Notes** (`src/utils/partnerNotes.ts`, `src/screens/finance/VendorDetailScreen.tsx`, `src/screens/finance/CustomerDetailScreen.tsx`)
+- New `src/utils/partnerNotes.ts`:
+  - `getNote(type, id)` → stored string or `''`; `saveNote(type, id, text)` → stores or removes (empty text → `removeItem`)
+  - Keyed by `partner_note:<type>:<id>` for clean per-entity namespacing
+- `VendorDetailScreen`: new "Notes" tab (4th tab after Bills / Payments / Ledger)
+  - Multi-line `TextInput` backed by AsyncStorage; Save button with `noteSaving` loading state
+  - Tab label shows `' ·'` dot when a note is non-empty — visible from the tab bar
+  - Hint text shown when note is empty (payment terms, contact preferences, follow-up reminders)
+- `CustomerDetailScreen`: identical Notes tab with customer-specific copy text
+- Notes persist across restarts; stored on device only, no API involvement
+
+### Next Session
+- Consider: Inventory screen date-range filter on stock ledger tab (currently only filters by keyword/item)
+- Consider: AP/AR batch actions on flagged items (unflag all, export flagged-only as PDF)
+- Consider: "Mark as reviewed" also on VendorDetailScreen bills + CustomerDetailScreen invoices (propagate state from AP/AR)
+- Consider: StockHealthScreen out-of-stock PDF export (add outOfStock array to StockHealthPDFData)
+- Consider: Partner notes field also accessible from PartnersScreen (not just Vendor/Customer detail)
+
+---
+
 ## Session 38 — 2026-06-02
 
 ### Completed This Session
