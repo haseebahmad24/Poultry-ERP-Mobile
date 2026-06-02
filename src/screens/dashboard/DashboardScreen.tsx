@@ -127,7 +127,7 @@ const QUICK_ACTIONS: QuickAction[] = [
   },
   {
     label: 'Analytics',
-    icon: 'trending-up',
+    icon: 'bar-chart',
     navigate: (nav) => nav.navigate('More', { screen: 'ProcurementAnalytics' } as any),
   },
 ];

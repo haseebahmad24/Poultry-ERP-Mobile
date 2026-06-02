@@ -120,7 +120,7 @@ const ANALYTICS_ITEMS: {
     screen: 'StockHealth',
   },
   {
-    icon: 'dollar-sign',
+    icon: 'sliders',
     label: 'Financial Analytics',
     subtitle: 'AP/AR aging, net position, top payables & receivables',
     screen: 'FinancialAnalytics',
