@@ -1,5 +1,7 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -19,7 +21,7 @@ import SectionHeader from '@/components/SectionHeader';
 import ErrorView from '@/components/ErrorView';
 import ListScreenSkeleton from '@/components/ListScreenSkeleton';
 import { useCompany } from '@/context/CompanyContext';
-import { fetchStockBalances, fetchWarehouses, StockBalance, Warehouse } from '@/api/inventory';
+import { fetchStockBalances, fetchWarehouses, fetchStockLedger, StockBalance, StockLedgerEntry, Warehouse } from '@/api/inventory';
 import { getCached, setCached } from '@/utils/cache';
 import { getLowStockThreshold } from '@/utils/settings';
 import { exportStockHealthPDF, StockHealthPDFData } from '@/utils/pdfExport';
@@ -178,7 +180,7 @@ const barStyles = StyleSheet.create({
 });
 
 /** Ranked item list */
-function RankedItemList({ items, showLowWarning }: { items: StockBalance[]; showLowWarning?: boolean }) {
+function RankedItemList({ items, showLowWarning, onPress }: { items: StockBalance[]; showLowWarning?: boolean; onPress?: (item: StockBalance) => void }) {
   if (items.length === 0) {
     return (
       <View style={itemStyles.empty}>
@@ -195,8 +197,11 @@ function RankedItemList({ items, showLowWarning }: { items: StockBalance[]; show
         const barPct = qty / maxQty;
         const isLast = i === items.length - 1;
         return (
-          <View key={`${item.item_name}-${item.warehouse_name ?? ''}-${i}`}
+          <TouchableOpacity
+            key={`${item.item_name}-${item.warehouse_name ?? ''}-${i}`}
             style={[itemStyles.row, !isLast && itemStyles.rowBorder]}
+            activeOpacity={onPress ? 0.6 : 1}
+            onPress={onPress ? () => onPress(item) : undefined}
           >
             <View style={itemStyles.rankBadge}>
               {showLowWarning ? (
@@ -218,7 +223,8 @@ function RankedItemList({ items, showLowWarning }: { items: StockBalance[]; show
               <Text style={itemStyles.qty}>{qty.toLocaleString()}</Text>
               {item.unit && <Text style={itemStyles.unit}>{item.unit}</Text>}
             </View>
-          </View>
+            {onPress && <Feather name="chevron-right" size={14} color={Colors.textMuted} />}
+          </TouchableOpacity>
         );
       })}
     </View>
@@ -352,16 +358,271 @@ const whStyles = StyleSheet.create({
   qty: { fontSize: 14, fontWeight: '700', color: Colors.text },
 });
 
+// ─── Item Detail Modal ────────────────────────────────────────────────────────
+
+function ItemDetailModal({
+  item,
+  allStock,
+  companyId,
+  onClose,
+}: {
+  item: StockBalance;
+  allStock: StockBalance[];
+  companyId?: string | number;
+  onClose: () => void;
+}) {
+  const [ledger, setLedger] = useState<StockLedgerEntry[]>([]);
+  const [ledgerLoading, setLedgerLoading] = useState(true);
+
+  // All warehouse rows for this item (aggregate by warehouse)
+  const warehouseRows = React.useMemo(() => {
+    const rows = allStock.filter(
+      (s) => s.item_name === item.item_name || (item.item_id != null && s.item_id === item.item_id)
+    );
+    const map = new Map<string, { qty: number; unit?: string }>();
+    for (const r of rows) {
+      const wh = r.warehouse_name ?? 'Unassigned';
+      const existing = map.get(wh);
+      if (existing) {
+        existing.qty += r.qty ?? 0;
+      } else {
+        map.set(wh, { qty: r.qty ?? 0, unit: r.unit });
+      }
+    }
+    return Array.from(map.entries())
+      .map(([warehouse, { qty, unit }]) => ({ warehouse, qty, unit }))
+      .sort((a, b) => b.qty - a.qty);
+  }, [allStock, item]);
+
+  const totalQty = warehouseRows.reduce((s, r) => s + r.qty, 0);
+
+  useEffect(() => {
+    setLedgerLoading(true);
+    fetchStockLedger({ itemId: item.item_id, companyId })
+      .then((entries) => setLedger(entries.slice(0, 15)))
+      .catch(() => setLedger([]))
+      .finally(() => setLedgerLoading(false));
+  }, [item.item_id, companyId]);
+
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+      <View style={modalStyles.backdrop}>
+        <TouchableOpacity style={modalStyles.backdropTap} activeOpacity={1} onPress={onClose} />
+        <View style={modalStyles.sheet}>
+          {/* Handle */}
+          <View style={modalStyles.handle} />
+
+          {/* Header */}
+          <View style={modalStyles.header}>
+            <View style={modalStyles.headerInfo}>
+              <Text style={modalStyles.headerName} numberOfLines={2}>{item.item_name}</Text>
+              {item.item_code && <Text style={modalStyles.headerCode}>{item.item_code}</Text>}
+            </View>
+            <TouchableOpacity style={modalStyles.closeBtn} onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Feather name="x" size={18} color={Colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={modalStyles.body}>
+            {/* Summary tiles */}
+            <View style={modalStyles.tileRow}>
+              <View style={modalStyles.tile}>
+                <Text style={modalStyles.tileValue}>{totalQty.toLocaleString()}</Text>
+                <Text style={modalStyles.tileLabel}>Total Stock</Text>
+              </View>
+              <View style={modalStyles.tileDivider} />
+              <View style={modalStyles.tile}>
+                <Text style={modalStyles.tileValue}>{warehouseRows.length}</Text>
+                <Text style={modalStyles.tileLabel}>Warehouses</Text>
+              </View>
+              {item.unit && (
+                <>
+                  <View style={modalStyles.tileDivider} />
+                  <View style={modalStyles.tile}>
+                    <Text style={modalStyles.tileValue}>{item.unit}</Text>
+                    <Text style={modalStyles.tileLabel}>Unit</Text>
+                  </View>
+                </>
+              )}
+            </View>
+
+            {/* Per-warehouse breakdown */}
+            <Text style={modalStyles.sectionTitle}>STOCK BY WAREHOUSE</Text>
+            <View style={modalStyles.card}>
+              {warehouseRows.length === 0 ? (
+                <Text style={modalStyles.emptyText}>No warehouse data</Text>
+              ) : (
+                warehouseRows.map((row, i) => {
+                  const pct = totalQty > 0 ? row.qty / totalQty : 0;
+                  const isLast = i === warehouseRows.length - 1;
+                  return (
+                    <View key={row.warehouse} style={[modalStyles.whRow, !isLast && modalStyles.rowBorder]}>
+                      <View style={modalStyles.whNameCol}>
+                        <Text style={modalStyles.whName} numberOfLines={1}>{row.warehouse}</Text>
+                        <View style={modalStyles.barTrack}>
+                          <View style={[modalStyles.barFill, { width: `${pct * 100}%` }]} />
+                        </View>
+                      </View>
+                      <View style={modalStyles.whQtyCol}>
+                        <Text style={modalStyles.whQty}>{row.qty.toLocaleString()}</Text>
+                        <Text style={modalStyles.whPct}>{Math.round(pct * 100)}%</Text>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </View>
+
+            {/* Recent ledger entries */}
+            <Text style={modalStyles.sectionTitle}>RECENT ACTIVITY</Text>
+            {ledgerLoading ? (
+              <ActivityIndicator size="small" color={Colors.textMuted} style={{ marginVertical: 16 }} />
+            ) : ledger.length === 0 ? (
+              <View style={modalStyles.card}>
+                <Text style={modalStyles.emptyText}>No ledger entries found</Text>
+              </View>
+            ) : (
+              <View style={modalStyles.card}>
+                {ledger.map((entry, i) => {
+                  const isIn = (entry.qty_in ?? 0) > 0;
+                  const qty = isIn ? entry.qty_in : entry.qty_out;
+                  const isLast = i === ledger.length - 1;
+                  return (
+                    <View key={entry.id ?? i} style={[modalStyles.ledgerRow, !isLast && modalStyles.rowBorder]}>
+                      <View style={[modalStyles.ledgerDot, isIn ? modalStyles.dotIn : modalStyles.dotOut]} />
+                      <View style={modalStyles.ledgerInfo}>
+                        <Text style={modalStyles.ledgerVoucher} numberOfLines={1}>
+                          {entry.voucher_type ?? '—'}{entry.voucher_no ? ` · ${entry.voucher_no}` : ''}
+                        </Text>
+                        <Text style={modalStyles.ledgerDate}>{entry.dt}</Text>
+                      </View>
+                      <View style={modalStyles.ledgerQtyCol}>
+                        <Text style={[modalStyles.ledgerQty, isIn ? modalStyles.qtyIn : modalStyles.qtyOut]}>
+                          {isIn ? '+' : '−'}{(qty ?? 0).toLocaleString()}
+                        </Text>
+                        {entry.balance != null && (
+                          <Text style={modalStyles.ledgerBal}>bal: {entry.balance.toLocaleString()}</Text>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            <View style={{ height: 24 }} />
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const modalStyles = StyleSheet.create({
+  backdrop: { flex: 1, justifyContent: 'flex-end' },
+  backdropTap: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
+  sheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    maxHeight: '85%',
+    paddingTop: Spacing.sm,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.border,
+    alignSelf: 'center',
+    marginBottom: Spacing.sm,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    gap: Spacing.sm,
+  },
+  headerInfo: { flex: 1 },
+  headerName: { ...Typography.h3 },
+  headerCode: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  body: { paddingTop: Spacing.md, paddingHorizontal: Spacing.md },
+  tileRow: {
+    flexDirection: 'row',
+    backgroundColor: Colors.background,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+    marginBottom: Spacing.md,
+  },
+  tile: { flex: 1, alignItems: 'center', paddingVertical: Spacing.md, gap: 2 },
+  tileDivider: { width: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
+  tileValue: { ...Typography.h3 },
+  tileLabel: { fontSize: 10, color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+    marginBottom: Spacing.md,
+  },
+  emptyText: { padding: Spacing.md, color: Colors.textMuted, fontSize: 13, textAlign: 'center' },
+  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight },
+  whRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: 10, gap: Spacing.sm },
+  whNameCol: { flex: 1, gap: 4 },
+  whName: { fontSize: 13, fontWeight: '600', color: Colors.text },
+  barTrack: { height: 3, backgroundColor: Colors.background, borderRadius: Radius.full, overflow: 'hidden' },
+  barFill: { height: '100%', backgroundColor: Colors.text, borderRadius: Radius.full },
+  whQtyCol: { alignItems: 'flex-end' },
+  whQty: { fontSize: 14, fontWeight: '700', color: Colors.text },
+  whPct: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
+  ledgerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: 10, gap: Spacing.sm },
+  ledgerDot: { width: 8, height: 8, borderRadius: Radius.full },
+  dotIn: { backgroundColor: Colors.text },
+  dotOut: { backgroundColor: Colors.textSecondary },
+  ledgerInfo: { flex: 1 },
+  ledgerVoucher: { fontSize: 12, fontWeight: '600', color: Colors.text },
+  ledgerDate: { fontSize: 11, color: Colors.textSecondary, marginTop: 1 },
+  ledgerQtyCol: { alignItems: 'flex-end' },
+  ledgerQty: { fontSize: 13, fontWeight: '700' },
+  qtyIn: { color: Colors.text },
+  qtyOut: { color: Colors.textSecondary },
+  ledgerBal: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
+});
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function StockHealthScreen() {
   const navigation = useNavigation<Nav>();
   const { companyId } = useCompany();
   const [data, setData] = useState<StockHealthData | null>(null);
+  const [allStock, setAllStock] = useState<StockBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<StockBalance | null>(null);
 
   const cacheKey = `stock-health:${companyId ?? 'all'}`;
 
@@ -373,6 +634,7 @@ export default function StockHealthScreen() {
     try {
       const cached = await getCached<{ stock: StockBalance[]; warehouses: Warehouse[]; threshold: number }>(cacheKey);
       if (cached && !isRefresh) {
+        setAllStock(cached.data.stock);
         setData(computeStockHealth(cached.data.stock, cached.data.warehouses, cached.data.threshold));
         setLoading(false);
         return;
@@ -385,6 +647,7 @@ export default function StockHealthScreen() {
       ]);
 
       await setCached(cacheKey, { stock, warehouses, threshold });
+      setAllStock(stock);
       setData(computeStockHealth(stock, warehouses, threshold));
     } catch {
       setError(true);
@@ -452,13 +715,13 @@ export default function StockHealthScreen() {
                 title="Low Stock Items"
                 subtitle={`${data.lowStockItems} item${data.lowStockItems !== 1 ? 's' : ''} below threshold`}
               />
-              <RankedItemList items={data.lowStock} showLowWarning />
+              <RankedItemList items={data.lowStock} showLowWarning onPress={setSelectedItem} />
             </>
           )}
 
           {/* Top items by quantity */}
           <SectionHeader title="Top Items by Quantity" subtitle="Highest stock levels" />
-          <RankedItemList items={data.topByQty} />
+          <RankedItemList items={data.topByQty} onPress={setSelectedItem} />
 
           {/* Warehouse breakdown */}
           <SectionHeader title="Warehouse Distribution" subtitle="Total quantity per warehouse" />
@@ -466,6 +729,15 @@ export default function StockHealthScreen() {
 
           <View style={styles.footer} />
         </ScrollView>
+      )}
+
+      {selectedItem && (
+        <ItemDetailModal
+          item={selectedItem}
+          allStock={allStock}
+          companyId={companyId ?? undefined}
+          onClose={() => setSelectedItem(null)}
+        />
       )}
     </SafeAreaView>
   );
