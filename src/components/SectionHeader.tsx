@@ -5,13 +5,17 @@ import { Colors, Spacing, Typography } from '@/theme';
 type Props = {
   title: string;
   meta?: string;
+  action?: React.ReactNode;
 };
 
-export default function SectionHeader({ title, meta }: Props) {
+export default function SectionHeader({ title, meta, action }: Props) {
   return (
     <View style={styles.row}>
       <Text style={styles.title}>{title}</Text>
-      {meta ? <Text style={styles.meta}>{meta}</Text> : null}
+      <View style={styles.right}>
+        {meta ? <Text style={styles.meta}>{meta}</Text> : null}
+        {action ?? null}
+      </View>
     </View>
   );
 }
@@ -25,6 +29,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     marginTop: Spacing.lg,
   },
+  right: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   title: { ...Typography.h4 },
   meta: { ...Typography.bodySmall },
 });

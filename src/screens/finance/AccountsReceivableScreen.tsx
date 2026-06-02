@@ -35,6 +35,7 @@ import { getCached, setCached } from '@/utils/cache';
 import OfflineBanner from '@/components/OfflineBanner';
 import { useOverdue } from '@/context/OverdueContext';
 import { exportARSummaryPDF } from '@/utils/pdfExport';
+import { exportARInvoicesCSV } from '@/utils/csvExport';
 import { getDueSoonDays } from '@/utils/settings';
 import WeeklyScheduleCard, { WeekBucket } from '@/components/WeeklyScheduleCard';
 import { getFlaggedIds, toggleFlagged } from '@/utils/flaggedItems';
@@ -247,6 +248,13 @@ export default function AccountsReceivableScreen() {
     });
   };
 
+  const handleExportInvoicesCSV = async () => {
+    await exportARInvoicesCSV({
+      invoices: filteredInvoices,
+      companyName: selectedCompany?.name ?? 'All Companies',
+    });
+  };
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
@@ -416,6 +424,12 @@ export default function AccountsReceivableScreen() {
             <SectionHeader
               title="Invoices"
               meta={`${filteredInvoices.length} record${filteredInvoices.length !== 1 ? 's' : ''}${invoiceFilter !== 'all' ? ` · ${invoiceFilter === 'overdue' ? 'overdue filter' : `due in ${dueSoonDays}d`}` : ''}`}
+              action={filteredInvoices.length > 0 ? (
+                <TouchableOpacity style={styles.csvBtn} onPress={handleExportInvoicesCSV}>
+                  <Feather name="download" size={11} color={Colors.textSecondary} />
+                  <Text style={styles.csvBtnText}>CSV</Text>
+                </TouchableOpacity>
+              ) : undefined}
             />
             {filteredInvoices.length === 0 ? (
               <EmptyState icon="file-text" message={invoiceSearch ? 'No invoices match search' : `No ${invoiceFilter !== 'all' ? invoiceFilter + ' ' : ''}invoices found`} />
@@ -619,6 +633,17 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   exportBtnText: { fontSize: 11, fontWeight: '500', color: Colors.textSecondary },
+  csvBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  csvBtnText: { fontSize: 10, fontWeight: '500', color: Colors.textSecondary },
 
   tabBar: {
     flexDirection: 'row',

@@ -35,6 +35,7 @@ import { getCached, setCached } from '@/utils/cache';
 import OfflineBanner from '@/components/OfflineBanner';
 import { useOverdue } from '@/context/OverdueContext';
 import { exportAPSummaryPDF } from '@/utils/pdfExport';
+import { exportAPBillsCSV } from '@/utils/csvExport';
 import { getDueSoonDays } from '@/utils/settings';
 import WeeklyScheduleCard, { WeekBucket } from '@/components/WeeklyScheduleCard';
 import { getFlaggedIds, toggleFlagged } from '@/utils/flaggedItems';
@@ -248,6 +249,13 @@ export default function AccountsPayableScreen() {
     });
   };
 
+  const handleExportBillsCSV = async () => {
+    await exportAPBillsCSV({
+      bills: filteredBills,
+      companyName: selectedCompany?.name ?? 'All Companies',
+    });
+  };
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
@@ -417,6 +425,12 @@ export default function AccountsPayableScreen() {
             <SectionHeader
               title="Bills"
               meta={`${filteredBills.length} record${filteredBills.length !== 1 ? 's' : ''}${billFilter !== 'all' ? ` · ${billFilter === 'overdue' ? 'overdue filter' : `due in ${dueSoonDays}d`}` : ''}`}
+              action={filteredBills.length > 0 ? (
+                <TouchableOpacity style={styles.csvBtn} onPress={handleExportBillsCSV}>
+                  <Feather name="download" size={11} color={Colors.textSecondary} />
+                  <Text style={styles.csvBtnText}>CSV</Text>
+                </TouchableOpacity>
+              ) : undefined}
             />
             {filteredBills.length === 0 ? (
               <EmptyState icon="file-text" message={billSearch ? 'No bills match search' : 'No bills found'} />
@@ -620,6 +634,17 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   exportBtnText: { fontSize: 11, fontWeight: '500', color: Colors.textSecondary },
+  csvBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  csvBtnText: { fontSize: 10, fontWeight: '500', color: Colors.textSecondary },
 
   tabBar: {
     flexDirection: 'row',
