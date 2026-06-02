@@ -1,5 +1,46 @@
 # Mobile App Progress
 
+## Session 38 — 2026-06-02
+
+### Completed This Session
+
+**AP/AR Bills & Invoices CSV Export** (`src/components/SectionHeader.tsx`, `src/screens/finance/AccountsPayableScreen.tsx`, `src/screens/finance/AccountsReceivableScreen.tsx`, `src/utils/csvExport.ts`)
+- `SectionHeader`: added optional `action?: ReactNode` prop — renders to the right of the meta label
+- `AccountsPayableScreen` bills tab: CSV button (download icon + "CSV" label) in `SectionHeader` action slot — calls `exportAPBillsCSV()` with currently-filtered bills
+- `AccountsReceivableScreen` invoices tab: identical CSV button — calls `exportARInvoicesCSV()` with currently-filtered invoices
+- Both export functions were written in Session 37 (`csvExport.ts`); this session wires them into the UI
+- Exported CSV respects active filter chips (overdue / due-soon / flagged-only) — exports what the user sees
+
+**Dashboard "Pending Actions" Card** (`src/screens/dashboard/DashboardScreen.tsx`, `src/utils/flaggedItems.ts`)
+- Replaced the old plain inbox banner with a structured Pending Actions card
+- Loads `flaggedBillCount` and `flaggedInvoiceCount` via `getFlaggedIds()` on screen focus (alongside existing unread inbox count)
+- Card renders only when total > 0; shows up to three tappable rows:
+  - Flagged Bills (amber star icon → AccountsPayable screen)
+  - Flagged Invoices (blue star icon → AccountsReceivable screen)
+  - Unread Notifications (inbox icon + red dot → Inbox screen)
+- Each row: colored icon badge, label, sublabel, count badge (rounded pill), chevron
+- Dividers only between visible rows; card disappears when all counts are zero
+
+**Stock Health Item Drill-Down Modal** (`src/screens/analytics/StockHealthScreen.tsx`)
+- `RankedItemList` rows are now tappable — accepts `onPress: (item: StockBalance) => void` prop + shows chevron
+- New `ItemDetailModal` (React Native `Modal`, slide-up bottom sheet) opens when any item is tapped
+- Modal sections:
+  - **Summary tiles**: total stock qty across all warehouses, warehouse count, unit
+  - **Stock by Warehouse**: aggregates `allStock` client-side by item name/id → proportional bar + percentage
+  - **Recent Activity**: fetches last 15 entries from `/api/mobile/inventory?view=ledger&item_id=...` on mount
+  - Ledger rows: in/out dot (dark=in, gray=out), voucher type + number, date, signed qty change, running balance
+- `allStock` saved in state during initial load (zero extra API calls for the warehouse breakdown)
+- Both low-stock and top-by-qty lists are now tappable drill-downs
+
+### Next Session
+- Consider: out-of-stock items list on StockHealthScreen (currently only shows low-stock + top-by-qty)
+- Consider: Inventory screen date-range filter on stock ledger tab
+- Consider: Vendor/Customer notes field (local note-taking via AsyncStorage, no API needed)
+- Consider: "Mark as reviewed" state for bills/invoices (complements the existing flag/star system)
+- Consider: AP/AR list — batch actions on flagged items (unflag all, export flagged only as PDF)
+
+---
+
 ## Session 37 — 2026-06-01
 
 ### Completed This Session
