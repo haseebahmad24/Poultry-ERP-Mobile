@@ -668,7 +668,7 @@ export default function DashboardScreen() {
                   onPress={() => navigation.navigate('Finance', { screen: 'AccountsPayable' } as any)}
                 >
                   <View style={[styles.pendingIcon, styles.pendingIconWarn]}>
-                    <Feather name="star" size={13} color="#b45309" />
+                    <Feather name="star" size={13} color={Colors.textSecondary} />
                   </View>
                   <View style={styles.pendingInfo}>
                     <Text style={styles.pendingLabel}>Flagged Bills</Text>
@@ -690,7 +690,7 @@ export default function DashboardScreen() {
                   onPress={() => navigation.navigate('Finance', { screen: 'AccountsReceivable' } as any)}
                 >
                   <View style={[styles.pendingIcon, styles.pendingIconBlue]}>
-                    <Feather name="star" size={13} color="#1d4ed8" />
+                    <Feather name="star" size={13} color={Colors.textSecondary} />
                   </View>
                   <View style={styles.pendingInfo}>
                     <Text style={styles.pendingLabel}>Flagged Invoices</Text>
@@ -1180,8 +1180,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pendingIconWarn: { backgroundColor: '#fef3c7' },
-  pendingIconBlue: { backgroundColor: '#dbeafe' },
+  pendingIconWarn: { backgroundColor: Colors.surfaceHover },
+  pendingIconBlue: { backgroundColor: Colors.surfaceHover },
   pendingIconGray: { backgroundColor: Colors.background },
   pendingInboxDot: {
     position: 'absolute',
@@ -1189,7 +1189,7 @@ const styles = StyleSheet.create({
     right: 4,
     width: 6,
     height: 6,
-    borderRadius: 3,
+    borderRadius: Radius.full,
     backgroundColor: Colors.danger,
   },
   pendingInfo: { flex: 1 },
@@ -1198,7 +1198,7 @@ const styles = StyleSheet.create({
   pendingBadge: {
     minWidth: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: Radius.full,
     backgroundColor: Colors.background,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
