@@ -35,6 +35,7 @@ import { getAutoRefreshInterval, getDueSoonDays } from '@/utils/settings';
 import { getUnreadCount } from '@/utils/notificationLog';
 import { getBookmarks } from '@/utils/bookmarks';
 import { getRecentlyViewed, RecentItem } from '@/utils/recentlyViewed';
+import { getFlaggedIds } from '@/utils/flaggedItems';
 import { exportDashboardSummaryPDF, exportUpcomingPaymentsPDF } from '@/utils/pdfExport';
 import { fetchAPBills, APBill } from '@/api/accountsPayable';
 import { fetchARInvoices, ARInvoice } from '@/api/accountsReceivable';
@@ -158,6 +159,8 @@ export default function DashboardScreen() {
   const [dueSoonBills, setDueSoonBills] = useState<APBill[]>([]);
   const [dueSoonInvoices, setDueSoonInvoices] = useState<ARInvoice[]>([]);
   const [dueSoonDays, setDueSoonDays] = useState(7);
+  const [flaggedBillCount, setFlaggedBillCount] = useState(0);
+  const [flaggedInvoiceCount, setFlaggedInvoiceCount] = useState(0);
 
   const cacheKey = `dashboard:${selectedCompany?.id ?? 'all'}`;
 
@@ -218,6 +221,8 @@ export default function DashboardScreen() {
     getUnreadCount().then(setInboxUnread);
     getBookmarks().then((list) => setBookmarkCount(list.length));
     getRecentlyViewed().then((items) => setRecentItems(items.slice(0, 5)));
+    getFlaggedIds('bill').then((ids) => setFlaggedBillCount(ids.size));
+    getFlaggedIds('invoice').then((ids) => setFlaggedInvoiceCount(ids.size));
 
     // Load due-soon payments from AP/AR cache (zero extra API calls)
     const cid = selectedCompany?.id ?? 'all';
@@ -648,24 +653,80 @@ export default function DashboardScreen() {
           </>
         )}
 
-        {/* Inbox unread banner — shown when notification history has unread entries */}
-        {inboxUnread > 0 && (
-          <TouchableOpacity
-            style={styles.inboxBanner}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('More', { screen: 'Inbox' } as any)}
-          >
-            <View style={styles.inboxBannerIcon}>
-              <Feather name="inbox" size={15} color={Colors.text} />
-              <View style={styles.inboxBannerDot} />
+        {/* Pending Actions card — flagged bills, flagged invoices, unread inbox */}
+        {(flaggedBillCount > 0 || flaggedInvoiceCount > 0 || inboxUnread > 0) && (
+          <>
+            <SectionHeader
+              title="Pending Actions"
+              meta={`${flaggedBillCount + flaggedInvoiceCount + inboxUnread} item${flaggedBillCount + flaggedInvoiceCount + inboxUnread !== 1 ? 's' : ''}`}
+            />
+            <View style={styles.pendingCard}>
+              {flaggedBillCount > 0 && (
+                <TouchableOpacity
+                  style={styles.pendingRow}
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('Finance', { screen: 'AccountsPayable' } as any)}
+                >
+                  <View style={[styles.pendingIcon, styles.pendingIconWarn]}>
+                    <Feather name="star" size={13} color="#b45309" />
+                  </View>
+                  <View style={styles.pendingInfo}>
+                    <Text style={styles.pendingLabel}>Flagged Bills</Text>
+                    <Text style={styles.pendingSubLabel}>Marked for follow-up · AP</Text>
+                  </View>
+                  <View style={styles.pendingBadge}>
+                    <Text style={styles.pendingBadgeText}>{flaggedBillCount}</Text>
+                  </View>
+                  <Feather name="chevron-right" size={14} color={Colors.textMuted} />
+                </TouchableOpacity>
+              )}
+              {flaggedBillCount > 0 && (flaggedInvoiceCount > 0 || inboxUnread > 0) && (
+                <View style={styles.pendingDivider} />
+              )}
+              {flaggedInvoiceCount > 0 && (
+                <TouchableOpacity
+                  style={styles.pendingRow}
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('Finance', { screen: 'AccountsReceivable' } as any)}
+                >
+                  <View style={[styles.pendingIcon, styles.pendingIconBlue]}>
+                    <Feather name="star" size={13} color="#1d4ed8" />
+                  </View>
+                  <View style={styles.pendingInfo}>
+                    <Text style={styles.pendingLabel}>Flagged Invoices</Text>
+                    <Text style={styles.pendingSubLabel}>Marked for follow-up · AR</Text>
+                  </View>
+                  <View style={styles.pendingBadge}>
+                    <Text style={styles.pendingBadgeText}>{flaggedInvoiceCount}</Text>
+                  </View>
+                  <Feather name="chevron-right" size={14} color={Colors.textMuted} />
+                </TouchableOpacity>
+              )}
+              {flaggedInvoiceCount > 0 && inboxUnread > 0 && (
+                <View style={styles.pendingDivider} />
+              )}
+              {inboxUnread > 0 && (
+                <TouchableOpacity
+                  style={styles.pendingRow}
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('More', { screen: 'Inbox' } as any)}
+                >
+                  <View style={[styles.pendingIcon, styles.pendingIconGray]}>
+                    <Feather name="inbox" size={13} color={Colors.textSecondary} />
+                    <View style={styles.pendingInboxDot} />
+                  </View>
+                  <View style={styles.pendingInfo}>
+                    <Text style={styles.pendingLabel}>Unread Notifications</Text>
+                    <Text style={styles.pendingSubLabel}>In your inbox</Text>
+                  </View>
+                  <View style={styles.pendingBadge}>
+                    <Text style={styles.pendingBadgeText}>{inboxUnread}</Text>
+                  </View>
+                  <Feather name="chevron-right" size={14} color={Colors.textMuted} />
+                </TouchableOpacity>
+              )}
             </View>
-            <Text style={styles.inboxBannerText}>
-              {inboxUnread === 1
-                ? '1 unread notification in your inbox'
-                : `${inboxUnread} unread notifications in your inbox`}
-            </Text>
-            <Feather name="chevron-right" size={14} color={Colors.textMuted} />
-          </TouchableOpacity>
+          </>
         )}
 
         {/* Recently Viewed */}
@@ -1091,6 +1152,61 @@ const styles = StyleSheet.create({
     borderColor: Colors.surface,
   },
   inboxBannerText: { flex: 1, fontSize: 12, color: Colors.textSecondary },
+
+  pendingCard: {
+    marginHorizontal: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  pendingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 12,
+    gap: Spacing.sm,
+  },
+  pendingDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.border,
+    marginLeft: Spacing.md + 32 + Spacing.sm,
+  },
+  pendingIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pendingIconWarn: { backgroundColor: '#fef3c7' },
+  pendingIconBlue: { backgroundColor: '#dbeafe' },
+  pendingIconGray: { backgroundColor: Colors.background },
+  pendingInboxDot: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.danger,
+  },
+  pendingInfo: { flex: 1 },
+  pendingLabel: { fontSize: 13, fontWeight: '600', color: Colors.text },
+  pendingSubLabel: { fontSize: 11, color: Colors.textSecondary, marginTop: 1 },
+  pendingBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  pendingBadgeText: { fontSize: 11, fontWeight: '700', color: Colors.text },
 
   quickGrid: {
     flexDirection: 'row',
