@@ -34,6 +34,7 @@ type Nav = NativeStackNavigationProp<MoreStackParamList>;
 type StockHealthData = StockHealthPDFData & {
   topByQty: StockBalance[];
   lowStock: StockBalance[];
+  outOfStock: StockBalance[];
 };
 
 function computeStockHealth(stock: StockBalance[], _warehouses: Warehouse[], threshold: number): StockHealthData {
@@ -48,6 +49,10 @@ function computeStockHealth(stock: StockBalance[], _warehouses: Warehouse[], thr
     .slice(0, 8);
 
   const lowSorted = [...lowStockList].sort((a, b) => (a.qty ?? 0) - (b.qty ?? 0)).slice(0, 8);
+
+  const outOfStockSorted = [...outOfStock].sort((a, b) =>
+    (a.item_name ?? '').localeCompare(b.item_name ?? '')
+  );
 
   // Group by warehouse
   const warehouseMap = new Map<string, { itemCount: number; totalQty: number }>();
@@ -72,6 +77,7 @@ function computeStockHealth(stock: StockBalance[], _warehouses: Warehouse[], thr
     outOfStockItems: outOfStock.length,
     topByQty,
     lowStock: lowSorted,
+    outOfStock: outOfStockSorted,
     warehouseStats,
     threshold,
   };
@@ -180,7 +186,12 @@ const barStyles = StyleSheet.create({
 });
 
 /** Ranked item list */
-function RankedItemList({ items, showLowWarning, onPress }: { items: StockBalance[]; showLowWarning?: boolean; onPress?: (item: StockBalance) => void }) {
+function RankedItemList({ items, showLowWarning, showOutOfStock, onPress }: {
+  items: StockBalance[];
+  showLowWarning?: boolean;
+  showOutOfStock?: boolean;
+  onPress?: (item: StockBalance) => void;
+}) {
   if (items.length === 0) {
     return (
       <View style={itemStyles.empty}>
@@ -194,7 +205,7 @@ function RankedItemList({ items, showLowWarning, onPress }: { items: StockBalanc
     <View style={itemStyles.card}>
       {items.map((item, i) => {
         const qty = item.qty ?? 0;
-        const barPct = qty / maxQty;
+        const barPct = showOutOfStock ? 0 : qty / maxQty;
         const isLast = i === items.length - 1;
         return (
           <TouchableOpacity
@@ -204,7 +215,9 @@ function RankedItemList({ items, showLowWarning, onPress }: { items: StockBalanc
             onPress={onPress ? () => onPress(item) : undefined}
           >
             <View style={itemStyles.rankBadge}>
-              {showLowWarning ? (
+              {showOutOfStock ? (
+                <Feather name="x-circle" size={14} color={Colors.textMuted} />
+              ) : showLowWarning ? (
                 <Feather name="alert-circle" size={14} color={Colors.textSecondary} />
               ) : (
                 <Text style={itemStyles.rankText}>{i + 1}</Text>
@@ -215,12 +228,16 @@ function RankedItemList({ items, showLowWarning, onPress }: { items: StockBalanc
               {item.warehouse_name && (
                 <Text style={itemStyles.warehouse} numberOfLines={1}>{item.warehouse_name}</Text>
               )}
-              <View style={itemStyles.barTrack}>
-                <View style={[itemStyles.barFill, { width: `${barPct * 100}%` }]} />
-              </View>
+              {!showOutOfStock && (
+                <View style={itemStyles.barTrack}>
+                  <View style={[itemStyles.barFill, { width: `${barPct * 100}%` }]} />
+                </View>
+              )}
             </View>
             <View style={itemStyles.qtyCol}>
-              <Text style={itemStyles.qty}>{qty.toLocaleString()}</Text>
+              <Text style={[itemStyles.qty, showOutOfStock && itemStyles.qtyZero]}>
+                {showOutOfStock ? '0' : qty.toLocaleString()}
+              </Text>
               {item.unit && <Text style={itemStyles.unit}>{item.unit}</Text>}
             </View>
             {onPress && <Feather name="chevron-right" size={14} color={Colors.textMuted} />}
@@ -281,6 +298,7 @@ const itemStyles = StyleSheet.create({
   barFill: { height: '100%', backgroundColor: Colors.text, borderRadius: Radius.full },
   qtyCol: { alignItems: 'flex-end' },
   qty: { fontSize: 14, fontWeight: '700', color: Colors.text },
+  qtyZero: { color: Colors.textMuted },
   unit: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
 });
 
@@ -707,6 +725,17 @@ export default function StockHealthScreen() {
           {/* Stock health overview */}
           <SectionHeader title="Stock Health Overview" subtitle={`Threshold: ${data.threshold} units`} />
           <StockStatusBar data={data} />
+
+          {/* Out-of-stock items */}
+          {data.outOfStockItems > 0 && (
+            <>
+              <SectionHeader
+                title="Out of Stock"
+                subtitle={`${data.outOfStockItems} item${data.outOfStockItems !== 1 ? 's' : ''} with zero stock`}
+              />
+              <RankedItemList items={data.outOfStock} showOutOfStock onPress={setSelectedItem} />
+            </>
+          )}
 
           {/* Low stock items */}
           {data.lowStockItems > 0 && (

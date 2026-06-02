@@ -39,6 +39,7 @@ import { exportARInvoicesCSV } from '@/utils/csvExport';
 import { getDueSoonDays } from '@/utils/settings';
 import WeeklyScheduleCard, { WeekBucket } from '@/components/WeeklyScheduleCard';
 import { getFlaggedIds, toggleFlagged } from '@/utils/flaggedItems';
+import { getReviewedIds, toggleReviewed } from '@/utils/reviewedItems';
 
 type ARNavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
@@ -88,6 +89,8 @@ export default function AccountsReceivableScreen() {
   const [dueSoonDays, setDueSoonDays] = useState(7);
   const [flaggedInvoiceIds, setFlaggedInvoiceIds] = useState<Set<number>>(new Set());
   const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
+  const [reviewedInvoiceIds, setReviewedInvoiceIds] = useState<Set<number>>(new Set());
+  const [showReviewedOnly, setShowReviewedOnly] = useState(false);
 
   const cacheKey = `ar:${companyId ?? 'all'}`;
 
@@ -130,6 +133,7 @@ export default function AccountsReceivableScreen() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { getDueSoonDays().then(setDueSoonDays); }, []);
   useEffect(() => { getFlaggedIds('invoice').then(setFlaggedInvoiceIds); }, []);
+  useEffect(() => { getReviewedIds('invoice').then(setReviewedInvoiceIds); }, []);
 
   if (loading) return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -159,6 +163,7 @@ export default function AccountsReceivableScreen() {
 
   const filteredInvoices = searchedInvoices.filter((inv) => {
     if (showFlaggedOnly && !flaggedInvoiceIds.has(inv.id)) return false;
+    if (showReviewedOnly && !reviewedInvoiceIds.has(inv.id)) return false;
     if (invoiceFilter === 'overdue') return daysOverdue(inv.due_date, inv.status) > 0;
     if (invoiceFilter === 'due-soon') {
       const d = daysDueIn(inv.due_date, inv.status);
@@ -396,6 +401,17 @@ export default function AccountsReceivableScreen() {
                     </Text>
                   )}
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.filterChip, showReviewedOnly && styles.filterChipActive]}
+                  onPress={() => setShowReviewedOnly((v) => !v)}
+                >
+                  <Feather name="check-circle" size={11} color={showReviewedOnly ? '#fff' : Colors.textSecondary} />
+                  {reviewedInvoiceIds.size > 0 && (
+                    <Text style={[styles.filterChipText, showReviewedOnly && styles.filterChipTextActive]}>
+                      {` ${reviewedInvoiceIds.size}`}
+                    </Text>
+                  )}
+                </TouchableOpacity>
               </View>
             </View>
             {/* Collect-by summary row — shown when filter is 'all' and outstanding invoices exist */}
@@ -445,6 +461,12 @@ export default function AccountsReceivableScreen() {
                       await toggleFlagged('invoice', inv.id);
                       const updated = await getFlaggedIds('invoice');
                       setFlaggedInvoiceIds(updated);
+                    }}
+                    reviewed={reviewedInvoiceIds.has(inv.id)}
+                    onToggleReview={async () => {
+                      await toggleReviewed('invoice', inv.id);
+                      const updated = await getReviewedIds('invoice');
+                      setReviewedInvoiceIds(updated);
                     }}
                   />
                 ))}
@@ -509,18 +531,20 @@ function KPICard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function InvoiceCard({ invoice: inv, overdueDays, flagged, onToggleFlag }: {
+function InvoiceCard({ invoice: inv, overdueDays, flagged, onToggleFlag, reviewed, onToggleReview }: {
   invoice: ARInvoice;
   overdueDays: number;
   flagged?: boolean;
   onToggleFlag?: () => void;
+  reviewed?: boolean;
+  onToggleReview?: () => void;
 }) {
   const outstanding = inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0);
   const isOverdue = overdueDays > 0;
   const isPaid = (inv.status ?? '').toUpperCase() === 'PAID';
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, reviewed && styles.cardReviewed]}>
       {isOverdue && (
         <View style={styles.overdueBanner}>
           <Feather name="alert-circle" size={12} color={Colors.text} />
@@ -534,6 +558,9 @@ function InvoiceCard({ invoice: inv, overdueDays, flagged, onToggleFlag }: {
           <Text style={styles.cardTitle}>{inv.invoice_number ?? `INV-${inv.id}`}</Text>
           <Text style={styles.cardSub}>{inv.customer ?? 'Unknown Customer'}</Text>
         </View>
+        <TouchableOpacity onPress={onToggleReview} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginRight: 4 }}>
+          <Feather name="check-circle" size={16} color={reviewed ? Colors.text : Colors.borderLight} />
+        </TouchableOpacity>
         <TouchableOpacity onPress={onToggleFlag} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginRight: 8 }}>
           <Feather name="star" size={16} color={flagged ? Colors.text : Colors.borderLight} />
         </TouchableOpacity>
@@ -737,6 +764,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
   },
+  cardReviewed: { opacity: 0.6 },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   cardInfo: { flex: 1 },
   cardTitle: { ...Typography.h4 },

@@ -39,6 +39,7 @@ import { exportAPBillsCSV } from '@/utils/csvExport';
 import { getDueSoonDays } from '@/utils/settings';
 import WeeklyScheduleCard, { WeekBucket } from '@/components/WeeklyScheduleCard';
 import { getFlaggedIds, toggleFlagged } from '@/utils/flaggedItems';
+import { getReviewedIds, toggleReviewed } from '@/utils/reviewedItems';
 
 type APNavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
@@ -89,6 +90,8 @@ export default function AccountsPayableScreen() {
   const [dueSoonDays, setDueSoonDays] = useState(7);
   const [flaggedBillIds, setFlaggedBillIds] = useState<Set<number>>(new Set());
   const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
+  const [reviewedBillIds, setReviewedBillIds] = useState<Set<number>>(new Set());
+  const [showReviewedOnly, setShowReviewedOnly] = useState(false);
 
   const cacheKey = `ap:${companyId ?? 'all'}`;
 
@@ -131,6 +134,7 @@ export default function AccountsPayableScreen() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { getDueSoonDays().then(setDueSoonDays); }, []);
   useEffect(() => { getFlaggedIds('bill').then(setFlaggedBillIds); }, []);
+  useEffect(() => { getReviewedIds('bill').then(setReviewedBillIds); }, []);
 
   if (loading) return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -160,6 +164,7 @@ export default function AccountsPayableScreen() {
 
   const filteredBills = searchedBills.filter((b) => {
     if (showFlaggedOnly && !flaggedBillIds.has(b.id)) return false;
+    if (showReviewedOnly && !reviewedBillIds.has(b.id)) return false;
     if (billFilter === 'overdue') return daysOverdue(b.due_date, b.status) > 0;
     if (billFilter === 'due-soon') {
       const d = daysDueIn(b.due_date, b.status);
@@ -397,6 +402,17 @@ export default function AccountsPayableScreen() {
                     </Text>
                   )}
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.filterChip, showReviewedOnly && styles.filterChipActive]}
+                  onPress={() => setShowReviewedOnly((v) => !v)}
+                >
+                  <Feather name="check-circle" size={11} color={showReviewedOnly ? '#fff' : Colors.textSecondary} />
+                  {reviewedBillIds.size > 0 && (
+                    <Text style={[styles.filterChipText, showReviewedOnly && styles.filterChipTextActive]}>
+                      {` ${reviewedBillIds.size}`}
+                    </Text>
+                  )}
+                </TouchableOpacity>
               </View>
             </View>
             {/* Pay-by summary row — shown when filter is 'all' and outstanding bills exist */}
@@ -446,6 +462,12 @@ export default function AccountsPayableScreen() {
                       await toggleFlagged('bill', bill.id);
                       const updated = await getFlaggedIds('bill');
                       setFlaggedBillIds(updated);
+                    }}
+                    reviewed={reviewedBillIds.has(bill.id)}
+                    onToggleReview={async () => {
+                      await toggleReviewed('bill', bill.id);
+                      const updated = await getReviewedIds('bill');
+                      setReviewedBillIds(updated);
                     }}
                   />
                 ))}
@@ -510,18 +532,20 @@ function KPICard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function BillCard({ bill, overdueDays, flagged, onToggleFlag }: {
+function BillCard({ bill, overdueDays, flagged, onToggleFlag, reviewed, onToggleReview }: {
   bill: APBill;
   overdueDays: number;
   flagged?: boolean;
   onToggleFlag?: () => void;
+  reviewed?: boolean;
+  onToggleReview?: () => void;
 }) {
   const outstanding = bill.outstanding ?? (bill.amount ?? 0) - (bill.paid ?? 0);
   const isOverdue = overdueDays > 0;
   const isPaid = (bill.status ?? '').toUpperCase() === 'PAID';
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, reviewed && styles.cardReviewed]}>
       {isOverdue && (
         <View style={styles.overdueBanner}>
           <Feather name="alert-circle" size={12} color={Colors.text} />
@@ -535,6 +559,9 @@ function BillCard({ bill, overdueDays, flagged, onToggleFlag }: {
           <Text style={styles.cardTitle}>{bill.bill_number ?? `Bill-${bill.id}`}</Text>
           <Text style={styles.cardSub}>{bill.vendor ?? 'Unknown Vendor'}</Text>
         </View>
+        <TouchableOpacity onPress={onToggleReview} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginRight: 4 }}>
+          <Feather name="check-circle" size={16} color={reviewed ? Colors.text : Colors.borderLight} />
+        </TouchableOpacity>
         <TouchableOpacity onPress={onToggleFlag} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginRight: 8 }}>
           <Feather name="star" size={16} color={flagged ? Colors.text : Colors.borderLight} />
         </TouchableOpacity>
@@ -738,6 +765,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
   },
+  cardReviewed: { opacity: 0.6 },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   cardInfo: { flex: 1 },
   cardTitle: { ...Typography.h4 },

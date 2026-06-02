@@ -27,10 +27,11 @@ import { useCompany } from '@/context/CompanyContext';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { exportCustomerDetailPDF, exportCustomerLedgerPDF, PartnerLedgerEntry } from '@/utils/pdfExport';
 import { addRecentlyViewed } from '@/utils/recentlyViewed';
+import { getNote, saveNote } from '@/utils/partnerNotes';
 
 type Props = NativeStackScreenProps<FinanceStackParamList, 'CustomerDetail'>;
 
-type Tab = 'invoices' | 'payments' | 'ledger';
+type Tab = 'invoices' | 'payments' | 'ledger' | 'notes';
 
 interface LedgerEntry {
   id: string;
@@ -126,6 +127,8 @@ export default function CustomerDetailScreen({ route }: Props) {
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<Tab>('invoices');
   const [partner, setPartner] = useState<Partner | null>(null);
+  const [note, setNote] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -154,6 +157,9 @@ export default function CustomerDetailScreen({ route }: Props) {
       if (match) setPartner(match);
     }).catch(() => {});
   }, [companyId, customerId, customerName]);
+
+  // Load note from AsyncStorage
+  useEffect(() => { getNote('customer', customerId).then(setNote); }, [customerId]);
 
   // Track in recently viewed
   useEffect(() => {
@@ -313,6 +319,14 @@ export default function CustomerDetailScreen({ route }: Props) {
             Ledger ({ledgerEntries.length})
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabItem, tab === 'notes' && styles.tabItemActive]}
+          onPress={() => setTab('notes')}
+        >
+          <Text style={[styles.tabLabel, tab === 'notes' && styles.tabLabelActive]}>
+            Notes{note.trim() ? ' ·' : ''}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {tab === 'invoices' && (
@@ -442,6 +456,48 @@ export default function CustomerDetailScreen({ route }: Props) {
                 closingBalance={ledgerEntries[ledgerEntries.length - 1]?.balance ?? 0}
               />
             </View>
+          )}
+          <View style={{ height: Spacing.xxl }} />
+        </ScrollView>
+      )}
+
+      {tab === 'notes' && (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <SectionHeader title="Customer Notes" meta="Saved locally on this device" />
+          <View style={styles.notesCard}>
+            <TextInput
+              style={styles.notesInput}
+              multiline
+              placeholder={`Add notes for ${customerName ?? `Customer ${customerId}`}…`}
+              placeholderTextColor={Colors.textMuted}
+              value={note}
+              onChangeText={setNote}
+              textAlignVertical="top"
+            />
+          </View>
+          <TouchableOpacity
+            style={[styles.notesSaveBtn, noteSaving && styles.notesSaveBtnDisabled]}
+            onPress={async () => {
+              setNoteSaving(true);
+              await saveNote('customer', customerId, note);
+              setNoteSaving(false);
+            }}
+            disabled={noteSaving}
+          >
+            <Feather name="save" size={14} color={noteSaving ? Colors.textMuted : Colors.surface} />
+            <Text style={[styles.notesSaveBtnText, noteSaving && styles.notesSaveBtnTextDisabled]}>
+              {noteSaving ? 'Saving…' : 'Save Notes'}
+            </Text>
+          </TouchableOpacity>
+          {note.trim() === '' && (
+            <Text style={styles.notesHint}>
+              Notes are stored on this device only. Useful for credit terms, collection preferences, or follow-up reminders.
+            </Text>
           )}
           <View style={{ height: Spacing.xxl }} />
         </ScrollView>
@@ -910,4 +966,41 @@ const styles = StyleSheet.create({
   timelineDate: { ...Typography.bodySmall, color: Colors.textSecondary, flex: 1 },
   timelineAmount: { fontSize: 14, fontWeight: '700', color: Colors.text },
   timelineRef: { ...Typography.label, color: Colors.textMuted },
+
+  notesCard: {
+    marginHorizontal: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    minHeight: 160,
+  },
+  notesInput: {
+    ...Typography.body,
+    color: Colors.text,
+    flex: 1,
+    minHeight: 140,
+  },
+  notesSaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.text,
+  },
+  notesSaveBtnDisabled: { backgroundColor: Colors.borderLight },
+  notesSaveBtnText: { fontSize: 14, fontWeight: '700', color: Colors.surface },
+  notesSaveBtnTextDisabled: { color: Colors.textMuted },
+  notesHint: {
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.md,
+    fontSize: 12,
+    color: Colors.textMuted,
+    lineHeight: 18,
+  },
 });
