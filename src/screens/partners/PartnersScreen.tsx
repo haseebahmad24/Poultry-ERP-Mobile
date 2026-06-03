@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Linking,
+  Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -26,6 +29,7 @@ import OfflineBanner from '@/components/OfflineBanner';
 import { useCompany } from '@/context/CompanyContext';
 import { getCached, setCached } from '@/utils/cache';
 import { exportPartnersListPDF } from '@/utils/pdfExport';
+import { getNote, saveNote } from '@/utils/partnerNotes';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'Partners'>;
@@ -42,6 +46,10 @@ export default function PartnersScreen() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [exporting, setExporting] = useState(false);
+  const [partnerNotesMap, setPartnerNotesMap] = useState<Record<number, string>>({});
+  const [noteModal, setNoteModal] = useState<{ id: number; name: string; noteType: 'vendor' | 'customer' } | null>(null);
+  const [noteText, setNoteText] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
 
   const cacheKey = `partners:${companyId ?? 'all'}`;
 
@@ -72,6 +80,47 @@ export default function PartnersScreen() {
   }, [companyId, cacheKey]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Load notes for all partners (to show dot indicators)
+  useEffect(() => {
+    if (partners.length === 0) return;
+    async function loadAllNotes() {
+      const entries = await Promise.all(
+        partners.map(async (p) => {
+          const noteType = (p.is_vendor || p.type === 'vendor' || p.roles?.includes('vendor')) ? 'vendor' : 'customer';
+          const note = await getNote(noteType, p.id);
+          return [p.id, note] as [number, string];
+        })
+      );
+      const map: Record<number, string> = {};
+      for (const [id, note] of entries) {
+        if (note) map[id] = note;
+      }
+      setPartnerNotesMap(map);
+    }
+    loadAllNotes();
+  }, [partners]);
+
+  const openNoteModal = async (p: Partner) => {
+    const noteType = (p.is_vendor || p.type === 'vendor' || p.roles?.includes('vendor')) ? 'vendor' : 'customer';
+    const existing = await getNote(noteType, p.id);
+    setNoteText(existing);
+    setNoteModal({ id: p.id, name: p.name ?? `Partner ${p.id}`, noteType });
+  };
+
+  const savePartnerNote = async () => {
+    if (!noteModal) return;
+    setNoteSaving(true);
+    await saveNote(noteModal.noteType, noteModal.id, noteText);
+    setPartnerNotesMap((prev) => ({
+      ...prev,
+      ...(noteText.trim() ? { [noteModal.id]: noteText } : Object.fromEntries(
+        Object.entries(prev).filter(([k]) => Number(k) !== noteModal.id)
+      )),
+    }));
+    setNoteSaving(false);
+    setNoteModal(null);
+  };
 
   const filtered = partners.filter((p) => {
     const q = search.toLowerCase();
@@ -191,6 +240,8 @@ export default function PartnersScreen() {
                   <PartnerCard
                     key={p.id}
                     partner={p}
+                    hasNote={!!partnerNotesMap[p.id]}
+                    onNotePress={() => openNoteModal(p)}
                     onPress={() => {
                       const isVendor = !!(p.is_vendor || p.type === 'vendor' || p.roles?.includes('vendor'));
                       const isCustomer = !!(p.is_customer || p.type === 'customer' || p.roles?.includes('customer'));
@@ -210,11 +261,67 @@ export default function PartnersScreen() {
           </ScrollView>
         </>
       )}
+
+      {/* Partner Notes Modal */}
+      <Modal
+        visible={!!noteModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setNoteModal(null)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHandle} />
+              <Text style={styles.modalTitle} numberOfLines={1}>
+                Notes — {noteModal?.name}
+              </Text>
+              <Text style={styles.modalSubtitle}>Stored locally on this device</Text>
+            </View>
+            <TextInput
+              style={styles.modalInput}
+              multiline
+              placeholder="Add notes…"
+              placeholderTextColor={Colors.textMuted}
+              value={noteText}
+              onChangeText={setNoteText}
+              textAlignVertical="top"
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setNoteModal(null)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSaveBtn, noteSaving && styles.modalSaveBtnDisabled]}
+                onPress={savePartnerNote}
+                disabled={noteSaving}
+              >
+                <Feather name="save" size={14} color={noteSaving ? Colors.textMuted : Colors.surface} />
+                <Text style={[styles.modalSaveText, noteSaving && styles.modalSaveTextDisabled]}>
+                  {noteSaving ? 'Saving…' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-function PartnerCard({ partner: p, onPress }: { partner: Partner; onPress: () => void }) {
+function PartnerCard({ partner: p, onPress, hasNote, onNotePress }: {
+  partner: Partner;
+  onPress: () => void;
+  hasNote?: boolean;
+  onNotePress?: () => void;
+}) {
   const roles: string[] = [];
   if (p.is_customer || p.type === 'customer' || p.roles?.includes('customer')) roles.push('Customer');
   if (p.is_vendor || p.type === 'vendor' || p.roles?.includes('vendor')) roles.push('Vendor');
@@ -274,6 +381,16 @@ function PartnerCard({ partner: p, onPress }: { partner: Partner; onPress: () =>
       )}
 
       <View style={styles.cardChevron}>
+        {onNotePress && (
+          <TouchableOpacity
+            onPress={(e) => { e.stopPropagation?.(); onNotePress(); }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={styles.noteBtn}
+          >
+            <Feather name="edit-3" size={13} color={hasNote ? Colors.text : Colors.textMuted} />
+            {hasNote && <View style={styles.noteDot} />}
+          </TouchableOpacity>
+        )}
         <Feather name="chevron-right" size={13} color={Colors.textMuted} />
       </View>
     </TouchableOpacity>
@@ -401,5 +518,85 @@ const styles = StyleSheet.create({
   },
   emptyText: { ...Typography.body, color: Colors.textMuted },
 
-  cardChevron: { alignItems: 'flex-end' },
+  cardChevron: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: Spacing.sm },
+  noteBtn: { position: 'relative', padding: 2 },
+  noteDot: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 5,
+    height: 5,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.text,
+  },
+
+  // Notes modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.lg,
+    borderTopRightRadius: Radius.lg,
+    paddingBottom: Spacing.xl,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    alignItems: 'center',
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    gap: 4,
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.border,
+    marginBottom: Spacing.sm,
+  },
+  modalTitle: { ...Typography.h3, textAlign: 'center' },
+  modalSubtitle: { fontSize: 11, color: Colors.textMuted },
+  modalInput: {
+    margin: Spacing.md,
+    padding: Spacing.md,
+    backgroundColor: Colors.background,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    fontSize: 14,
+    color: Colors.text,
+    minHeight: 120,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.sm,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    alignItems: 'center',
+  },
+  modalCancelText: { fontSize: 14, fontWeight: '500', color: Colors.textSecondary },
+  modalSaveBtn: {
+    flex: 2,
+    flexDirection: 'row',
+    paddingVertical: 12,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.text,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  modalSaveBtnDisabled: { backgroundColor: Colors.surfaceHover },
+  modalSaveText: { fontSize: 14, fontWeight: '600', color: Colors.surface },
+  modalSaveTextDisabled: { color: Colors.textMuted },
 });
