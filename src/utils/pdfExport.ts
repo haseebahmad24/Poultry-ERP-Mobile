@@ -194,7 +194,7 @@ export async function exportTrialBalancePDF(params: {
         </tr>
       </tbody>
     </table>
-    ${isBalanced ? '<div class="warning" style="background:#f0faf0">✓ Balanced</div>' : ''}
+    ${isBalanced ? '<div class="warning">✓ Balanced</div>' : ''}
   `;
 
   await printAndShare(wrapHtml('Trial Balance', body), 'trial-balance.pdf');
@@ -580,7 +580,7 @@ export async function exportCombinedReportPDF(params: {
         </tr>
       </tbody>
     </table>
-    ${isTBBalanced ? '<div class="warning" style="background:#f0faf0">✓ Balanced</div>' : ''}
+    ${isTBBalanced ? '<div class="warning">✓ Balanced</div>' : ''}
 
     <!-- 2. Profit & Loss -->
     <div class="page-break">
@@ -2536,8 +2536,8 @@ export async function exportStockLedgerPDF(params: {
 
   const rows = entries.map((e, idx) => {
     const alt = idx % 2 === 1 ? 'background:#fafafa;' : '';
-    const inQty = e.qty_in != null && e.qty_in !== 0 ? `<span style="color:#16a34a;font-weight:600">+${e.qty_in.toLocaleString()}</span>` : '—';
-    const outQty = e.qty_out != null && e.qty_out !== 0 ? `<span style="color:#dc2626;font-weight:600">-${e.qty_out.toLocaleString()}</span>` : '—';
+    const inQty = e.qty_in != null && e.qty_in !== 0 ? `<span style="font-weight:600">+${e.qty_in.toLocaleString()}</span>` : '—';
+    const outQty = e.qty_out != null && e.qty_out !== 0 ? `<span style="font-weight:600">-${e.qty_out.toLocaleString()}</span>` : '—';
     return `<tr style="${alt}">
       <td>${formatDate(e.dt)}</td>
       <td style="font-weight:600">${e.item_name ?? '—'}</td>
@@ -2562,11 +2562,11 @@ export async function exportStockLedgerPDF(params: {
         <div class="label">Entries</div>
       </div>
       <div class="summary-block">
-        <div class="value" style="color:#16a34a">+${totalIn.toLocaleString()}</div>
+        <div class="value">+${totalIn.toLocaleString()}</div>
         <div class="label">Total In</div>
       </div>
       <div class="summary-block">
-        <div class="value" style="color:#dc2626">-${totalOut.toLocaleString()}</div>
+        <div class="value">-${totalOut.toLocaleString()}</div>
         <div class="label">Total Out</div>
       </div>
     </div>
@@ -3148,7 +3148,7 @@ export async function exportStockHealthPDF(data: StockHealthPDFData): Promise<vo
     <tr>
       <td>${s.item_name}</td>
       <td>${s.warehouse_name ?? '—'}</td>
-      <td class="right" style="color:#c00">0 ${s.unit ?? ''}</td>
+      <td class="right" style="font-weight:700">0 ${s.unit ?? ''}</td>
     </tr>
   `).join('');
 
@@ -3205,7 +3205,7 @@ export async function exportStockHealthPDF(data: StockHealthPDFData): Promise<vo
     </div>
 
     ${outOfStockRows ? `
-    <div class="section-label" style="color:#c00">Out of Stock Items (zero qty)</div>
+    <div class="section-label">Out of Stock Items (zero qty)</div>
     <table>
       <thead>
         <tr><th>Item</th><th>Warehouse</th><th class="right">Qty</th></tr>
@@ -3320,7 +3320,7 @@ export async function exportFinancialAnalyticsPDF(
       <td>${v.name ?? `Vendor #${v.id}`}</td>
       <td class="right">${v.bills_count ?? 0} bills</td>
       <td class="right">${formatCurrency(v.outstanding ?? 0)}</td>
-      <td class="right" style="color:#c00">${formatCurrency(v.overdue ?? 0)}</td>
+      <td class="right" style="${(v.overdue ?? 0) > 0 ? 'font-weight:700' : ''}">${formatCurrency(v.overdue ?? 0)}</td>
     </tr>
   `).join('');
 
@@ -3330,7 +3330,7 @@ export async function exportFinancialAnalyticsPDF(
       <td>${c.name ?? `Customer #${c.id}`}</td>
       <td class="right">${c.invoices_count ?? 0} invoices</td>
       <td class="right">${formatCurrency(c.outstanding ?? 0)}</td>
-      <td class="right" style="color:#c00">${formatCurrency(c.overdue ?? 0)}</td>
+      <td class="right" style="${(c.overdue ?? 0) > 0 ? 'font-weight:700' : ''}">${formatCurrency(c.overdue ?? 0)}</td>
     </tr>
   `).join('');
 
@@ -3471,7 +3471,7 @@ export async function exportUpcomingPaymentsPDF(params: {
         <div class="label">To Collect (AR Invoices)</div>
       </div>
       <div class="summary-block">
-        <div class="value" style="${net >= 0 ? '' : 'color:#c00'}">${net >= 0 ? '+' : ''}${formatCurrency(net)}</div>
+        <div class="value" style="${net < 0 ? 'font-weight:700' : ''}">${net >= 0 ? '+' : ''}${formatCurrency(net)}</div>
         <div class="label">Net Cash Impact</div>
       </div>
     </div>
