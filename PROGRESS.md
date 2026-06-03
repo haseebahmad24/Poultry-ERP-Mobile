@@ -1,5 +1,52 @@
 # Mobile App Progress
 
+## Session 40 — 2026-06-03
+
+### Completed This Session
+
+**StockHealth Out-of-Stock PDF Export** (`src/utils/pdfExport.ts`, `src/screens/analytics/StockHealthScreen.tsx`)
+- `StockHealthPDFData` gains optional `outOfStock?: Array<{...}>` field
+- `exportStockHealthPDF`: new out-of-stock table rendered before the low-stock section — red `color:#c00` section label, qty shown as `0` in red, only rendered when `outOfStockRows` non-empty
+- `StockHealthScreen.tsx`: passes `data.outOfStock` to export call
+
+**AP/AR Flagged Bills/Invoices PDF Export** (`src/utils/pdfExport.ts`, `src/screens/finance/AccountsPayableScreen.tsx`, `src/screens/finance/AccountsReceivableScreen.tsx`)
+- New `exportFlaggedBillsPDF()`: 3-tile summary (count / total outstanding / overdue), full bills table (Bill# / Vendor / Date / Due Date / Status / Amount / Outstanding), overdue rows in `font-weight:600`, totals footer
+- New `exportFlaggedInvoicesPDF()`: identical structure for AR invoices
+- `AccountsPayableScreen` bills tab: PDF button appears alongside CSV when `showFlaggedOnly && flaggedBillIds.size > 0`
+- `AccountsReceivableScreen` invoices tab: same pattern for flagged invoices
+
+**AP/AR Batch Unflag-All + Clear-Reviews** (`src/screens/finance/AccountsPayableScreen.tsx`, `src/screens/finance/AccountsReceivableScreen.tsx`)
+- "Unflag All" button: visible when flagged-only filter is active; calls `clearAllFlagged('bill'/'invoice')`, resets `flaggedIds` state + turns off filter
+- "Clear Reviews" button: visible when reviewed-only filter is active; calls `clearAllReviewed('bill'/'invoice')`, resets `reviewedIds` state + filter
+- Both AP/AR import `clearAllFlagged` and `clearAllReviewed` from respective utils
+- `clearBtn` style (lighter border) visually distinguishes from export buttons
+
+**Mark as Reviewed in VendorDetail/CustomerDetail** (`src/screens/finance/VendorDetailScreen.tsx`, `src/screens/finance/CustomerDetailScreen.tsx`)
+- `VendorDetailScreen`: `reviewedBillIds` state (Set<number>) loaded via `getReviewedIds('bill')` on mount
+  - `BillCard` gains `reviewed` + `onToggleReview` props; check-circle icon (filled = reviewed, `borderLight` = not)
+  - `cardReviewed` style: `opacity: 0.6` on reviewed cards
+  - Toggle writes to AsyncStorage + refreshes full Set for consistency
+- `CustomerDetailScreen`: identical pattern for `InvoiceCard` with `getReviewedIds('invoice')`
+- Review state is shared with AP/AR screens (same AsyncStorage key) — reviewing in detail auto-reflects in list and vice versa
+
+**Partner Notes Modal in PartnersScreen** (`src/screens/partners/PartnersScreen.tsx`)
+- Imports `getNote, saveNote` from `partnerNotes.ts`
+- `partnerNotesMap` state: `Record<number, string>` — loaded in batch via `Promise.all` after partners load (one `AsyncStorage.getItem` per partner)
+- Edit-3 icon on every partner card; filled icon + small dot indicator when note exists
+- `openNoteModal(p)`: determines note type (`vendor`/`customer`) from partner role, loads existing note, opens modal
+- `savePartnerNote()`: writes via `saveNote`, updates `partnerNotesMap` in-place (no reload needed), closes modal
+- Modal: slide-up sheet with `KeyboardAvoidingView`, multiline `TextInput`, Cancel + Save buttons with loading state
+- Note type uses same key as VendorDetailScreen/CustomerDetailScreen — notes are seamlessly shared between screens
+
+### Next Session
+- Consider: StockHealth PDF export for the out-of-stock tab (separate standalone PDF for zero-stock items only)
+- Consider: AP/AR export flagged-only PDF with date range filter (combining date + flagged filter for export)
+- Consider: Global company filter in Dashboard header affecting all screens simultaneously
+- Consider: Partner notes search / bulk notes export
+- Consider: Journal Entry creation form (POST API needed)
+
+---
+
 ## Session 39 — 2026-06-02
 
 ### Completed This Session
