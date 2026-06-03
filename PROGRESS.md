@@ -1175,6 +1175,8 @@
 
 ### UI Polish Log (Monochrome)
 
+**2026-06-03** — `pdfExport.ts` session-41 audit: removed final 7 semantic color values from Cash Flow PDF, Warehouse List PDF, and Companies PDF. Overdue section backgrounds changed from `#fff1f2` (light red) to `#f3f4f6` (gray). Overdue section borders from `#fca5a5` to `#d1d5db`. Section titles and net position values from green/red to `#111` monochrome. Overdue due dates now use `font-weight:700` (bold) instead of `#dc2626` red. Warehouse and company status badges changed from `#dcfce7`/`#166534` (green) to monochrome `#f3f4f6`/`#111` for active, `#9ca3af` for inactive. Full codebase now free of all semantic colors (`#16a34a`, `#166534`, `#991b1b`, `#dc2626`, `#fca5a5`, `#fff1f2`, `#dcfce7`).
+
 **2026-05-29** — `DeliveryCalendarScreen` + `DashboardScreen`: removed all 4 semantic urgency colors (red/amber/blue/green) from DeliveryCalendar. Replaced `URGENCY_COLORS` with `DOT_SHADES` (black→darkGray→midGray→lightGray opacity scale), month-summary badges switched to outline hairline style, order-card urgency badges now monochrome outline with bold weight for overdue. PO/SO type pills unified to same gray. Dashboard: overdue count now uses `fontWeight:'700'` instead of `color:'#dc2626'`.
 
 **2026-05-25** — `BiometricLockOverlay`: replaced hardcoded `borderRadius: 40` on `iconWrap` with `Radius.full` — the only remaining numeric borderRadius literal introduced by the Session 17 build. Full post-build audit confirms all 28 screens and all shared components are clean: no emojis, no semantic hex colors, no hardcoded borderRadius, no shadow spreads; only `'#fff'` (white text on black button/chip — intentional monochrome) remains as a literal.

@@ -1857,13 +1857,13 @@ export async function exportCashFlowPDF(params: {
   );
 
   const netSign = netPosition >= 0 ? '+' : '';
-  const netColor = netPosition >= 0 ? '#166534' : '#991b1b';
+  const netColor = '#111';
 
   const periodsHtml = activePeriods.map((period) => {
     const data = periodMap[period];
     const label = CASHFLOW_PERIOD_LABELS[period];
     const isOverdue = period === 'overdue';
-    const sectionBg = isOverdue ? '#fff1f2' : '#f9fafb';
+    const sectionBg = isOverdue ? '#f3f4f6' : '#f9fafb';
 
     const billsHtml = data.bills.length > 0 ? `
       <div style="margin-bottom:6px">
@@ -1879,7 +1879,7 @@ export async function exportCashFlowPDF(params: {
             <td style="padding:3px 6px;font-size:10px">${b.bill_number ?? `#${b.id}`}</td>
             <td style="padding:3px 6px;font-size:10px">${b.vendor ?? '—'}</td>
             <td style="padding:3px 6px;font-size:10px;text-align:right;font-weight:600">${formatCurrency(b.outstanding ?? 0)}</td>
-            <td style="padding:3px 6px;font-size:10px;text-align:right;color:${isOverdue ? '#dc2626' : '#374151'}">${b.due_date ?? ''}</td>
+            <td style="padding:3px 6px;font-size:10px;text-align:right;color:#374151;font-weight:${isOverdue ? '700' : '400'}">${b.due_date ?? ''}</td>
           </tr>`).join('')}</tbody>
         </table>
       </div>` : '';
@@ -1898,18 +1898,18 @@ export async function exportCashFlowPDF(params: {
             <td style="padding:3px 6px;font-size:10px">${inv.invoice_number ?? `#${inv.id}`}</td>
             <td style="padding:3px 6px;font-size:10px">${inv.customer ?? '—'}</td>
             <td style="padding:3px 6px;font-size:10px;text-align:right;font-weight:600">${formatCurrency(inv.outstanding ?? 0)}</td>
-            <td style="padding:3px 6px;font-size:10px;text-align:right;color:${isOverdue ? '#dc2626' : '#374151'}">${inv.due_date ?? ''}</td>
+            <td style="padding:3px 6px;font-size:10px;text-align:right;color:#374151;font-weight:${isOverdue ? '700' : '400'}">${inv.due_date ?? ''}</td>
           </tr>`).join('')}</tbody>
         </table>
       </div>` : '';
 
     const periodNetSign = data.net >= 0 ? '+' : '';
-    const periodNetColor = data.net >= 0 ? '#166534' : '#991b1b';
+    const periodNetColor = '#111';
 
     return `
-      <div style="margin-bottom:16px;padding:12px;background:${sectionBg};border-radius:6px;border:1px solid ${isOverdue ? '#fca5a5' : '#e5e7eb'}">
+      <div style="margin-bottom:16px;padding:12px;background:${sectionBg};border-radius:6px;border:1px solid ${isOverdue ? '#d1d5db' : '#e5e7eb'}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div style="font-size:12px;font-weight:700;color:${isOverdue ? '#dc2626' : '#111'}">${label}</div>
+          <div style="font-size:12px;font-weight:700;color:#111">${label}</div>
           <div style="font-size:10px;color:#6b7280">In ${formatCurrency(data.totalIn)} &nbsp;·&nbsp; Out ${formatCurrency(data.totalOut)}</div>
         </div>
         ${billsHtml}${invoicesHtml}
@@ -1965,8 +1965,8 @@ export async function exportWarehousesPDF(params: {
 
   const warehouseRows = warehouses.map((wh) => {
     const isActive = wh.is_active !== false;
-    const statusBg = isActive ? '#dcfce7' : '#f3f4f6';
-    const statusColor = isActive ? '#166534' : '#6b7280';
+    const statusBg = '#f3f4f6';
+    const statusColor = isActive ? '#111' : '#9ca3af';
     return `<tr>
       <td>${wh.code ?? '—'}</td>
       <td style="font-weight:600">${wh.name}</td>
@@ -2467,7 +2467,7 @@ export async function exportCompaniesPDF(companies: CompanyDetail[]): Promise<vo
 
   const rows = companies.map((c, idx) => {
     const alt = idx % 2 === 1 ? 'background:#fafafa;' : '';
-    const statusColor = c.is_active !== false ? '#16a34a' : '#dc2626';
+    const statusColor = c.is_active !== false ? '#111' : '#9ca3af';
     const statusLabel = c.is_active !== false ? 'Active' : 'Inactive';
     return `<tr style="${alt}">
       <td style="font-weight:600">${c.name}</td>
