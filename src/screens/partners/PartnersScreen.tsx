@@ -30,6 +30,7 @@ import { useCompany } from '@/context/CompanyContext';
 import { getCached, setCached } from '@/utils/cache';
 import { exportPartnersListPDF } from '@/utils/pdfExport';
 import { getNote, saveNote } from '@/utils/partnerNotes';
+import { exportPartnerNotesCSV } from '@/utils/csvExport';
 import { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'Partners'>;
@@ -46,6 +47,7 @@ export default function PartnersScreen() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [exporting, setExporting] = useState(false);
+  const [exportingNotes, setExportingNotes] = useState(false);
   const [partnerNotesMap, setPartnerNotesMap] = useState<Record<number, string>>({});
   const [noteModal, setNoteModal] = useState<{ id: number; name: string; noteType: 'vendor' | 'customer' } | null>(null);
   const [noteText, setNoteText] = useState('');
@@ -159,6 +161,23 @@ export default function PartnersScreen() {
     }
   };
 
+  const handleExportNotes = async () => {
+    setExportingNotes(true);
+    try {
+      const noteEntries = partners
+        .filter((p) => !!partnerNotesMap[p.id])
+        .map((p) => {
+          const isVendor = !!(p.is_vendor || p.type === 'vendor' || p.roles?.includes('vendor'));
+          const isCustomer = !!(p.is_customer || p.type === 'customer' || p.roles?.includes('customer'));
+          const role = isVendor && isCustomer ? 'Vendor / Customer' : isVendor ? 'Vendor' : 'Customer';
+          return { id: p.id, name: p.name ?? '', code: p.code, role, note: partnerNotesMap[p.id] };
+        });
+      await exportPartnerNotesCSV({ notes: noteEntries, companyName: selectedCompany?.name });
+    } finally {
+      setExportingNotes(false);
+    }
+  };
+
   if (error && partners.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (
@@ -169,6 +188,20 @@ export default function PartnersScreen() {
         <BackButton />
         <Text style={styles.headerTitle}>Business Partners</Text>
         {!loading && <Text style={styles.headerSub}>{filtered.length} records</Text>}
+        {!loading && notesPartnersCount > 0 && (
+          exportingNotes ? (
+            <ActivityIndicator size="small" color={Colors.textMuted} />
+          ) : (
+            <TouchableOpacity
+              onPress={handleExportNotes}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.headerNotesCsvBtn}
+            >
+              <Feather name="download" size={13} color={Colors.textSecondary} />
+              <Text style={styles.headerNotesCsvText}>Notes</Text>
+            </TouchableOpacity>
+          )
+        )}
         {!loading && filtered.length > 0 && (
           exporting ? (
             <ActivityIndicator size="small" color={Colors.textMuted} />
@@ -430,6 +463,17 @@ const styles = StyleSheet.create({
   },
   headerTitle: { ...Typography.h2 },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted },
+  headerNotesCsvBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  headerNotesCsvText: { fontSize: 11, fontWeight: '500', color: Colors.textSecondary },
 
   searchContainer: {
     paddingHorizontal: Spacing.md,

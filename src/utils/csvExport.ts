@@ -117,3 +117,18 @@ export async function exportARInvoicesCSV(opts: {
   ];
   await Share.share({ message: lines.join('\n'), title: 'ar-invoices.csv' });
 }
+
+export async function exportPartnerNotesCSV(opts: {
+  notes: Array<{ id: number; name: string; code?: string | null; role: string; note: string }>;
+  companyName?: string;
+}): Promise<void> {
+  const { notes, companyName } = opts;
+  const lines: string[] = [
+    row('Company', companyName ?? ''),
+    row('Exported', new Date().toISOString().slice(0, 10)),
+    '',
+    row('Partner Name', 'Code', 'Role', 'Note'),
+    ...notes.map((n) => row(n.name, n.code ?? '', n.role, n.note)),
+  ];
+  await Share.share({ message: lines.join('\n'), title: 'partner-notes.csv' });
+}
