@@ -15,9 +15,14 @@ import { Colors, Radius, Spacing } from '@/theme';
 interface Props {
   /** When true, includes an "All Companies" option that sets selectedCompany to null */
   showAll?: boolean;
+  /**
+   * 'row' (default) — full-width bordered row, used below screen headers.
+   * 'compact' — inline pill badge for embedding in a header/top-bar area.
+   */
+  variant?: 'row' | 'compact';
 }
 
-export default function CompanySelector({ showAll = false }: Props) {
+export default function CompanySelector({ showAll = false, variant = 'row' }: Props) {
   const { companies, selectedCompany, setSelectedCompany } = useCompany();
   const [open, setOpen] = useState(false);
 
@@ -43,6 +48,63 @@ export default function CompanySelector({ showAll = false }: Props) {
     }
     setOpen(false);
   };
+
+  if (variant === 'compact') {
+    return (
+      <>
+        <TouchableOpacity
+          style={styles.compactTrigger}
+          onPress={() => setOpen(true)}
+          activeOpacity={0.7}
+        >
+          <Feather name="briefcase" size={11} color={Colors.textMuted} />
+          <Text style={styles.compactText} numberOfLines={1}>
+            {displayName}
+          </Text>
+          <Feather name="chevron-down" size={11} color={Colors.textMuted} />
+        </TouchableOpacity>
+
+        <Modal
+          visible={open}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setOpen(false)}
+        >
+          <Pressable style={styles.overlay} onPress={() => setOpen(false)}>
+            <Pressable style={styles.sheet} onPress={() => {}}>
+              <View style={styles.sheetHandle} />
+              <Text style={styles.sheetTitle}>Select Company</Text>
+              <FlatList
+                data={items}
+                keyExtractor={(item) => item.id ?? '__all__'}
+                ItemSeparatorComponent={() => <View style={styles.separator} />}
+                renderItem={({ item }) => {
+                  const isActive =
+                    item.id === null
+                      ? selectedCompany === null
+                      : selectedCompany?.id === item.id;
+                  return (
+                    <TouchableOpacity
+                      style={styles.option}
+                      onPress={() => handleSelect(item)}
+                      activeOpacity={0.6}
+                    >
+                      <Text style={[styles.optionText, isActive && styles.optionTextActive]}>
+                        {item.label}
+                      </Text>
+                      {isActive && (
+                        <Feather name="check" size={16} color={Colors.text} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            </Pressable>
+          </Pressable>
+        </Modal>
+      </>
+    );
+  }
 
   return (
     <>
@@ -167,5 +229,22 @@ const styles = StyleSheet.create({
   optionTextActive: {
     fontWeight: '700',
     color: Colors.text,
+  },
+  compactTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    alignSelf: 'flex-start',
+  },
+  compactText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+    maxWidth: 120,
   },
 });

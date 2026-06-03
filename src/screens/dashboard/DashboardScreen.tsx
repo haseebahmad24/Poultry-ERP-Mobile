@@ -327,6 +327,7 @@ export default function DashboardScreen() {
               : ''}
             {autoRefreshInterval > 0 ? ` · Refresh ${autoRefreshInterval}m` : ''}
           </Text>
+          <CompanySelector showAll variant="compact" />
         </View>
         <View style={styles.topBarRight}>
           <TouchableOpacity
@@ -365,7 +366,6 @@ export default function DashboardScreen() {
         </View>
       </View>
 
-      <CompanySelector showAll />
       <OfflineBanner visible={isStale} />
 
       <ScrollView
