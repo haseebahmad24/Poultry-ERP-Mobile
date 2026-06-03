@@ -1,5 +1,52 @@
 # Mobile App Progress
 
+## Session 41 — 2026-06-03
+
+### Completed This Session
+
+**Date Range Filter on AP Bills / AR Invoices Tab** (`src/screens/finance/AccountsPayableScreen.tsx`, `src/screens/finance/AccountsReceivableScreen.tsx`, `src/components/DateRangeBar.tsx`)
+- Both screens import `DateRangeBar, DateRangeValue` from `@/components/DateRangeBar`
+- `billDateRange`/`invDateRange` state + `showDateFilter` toggle added to each screen
+- `dateFilteredBills`/`dateFilteredInvoices` pre-filter step: filters by `dt` (document date) against the selected range; all downstream filters (search, overdue/due-soon/flagged/reviewed chips) operate on the date-scoped set
+- `overdueCount` / `dueSoonCount` chip badges now reflect the date-filtered set for accurate in-context counts
+- Calendar icon chip added to filter row: tap to expand DateRangeBar below chips, shows `MM-DD–MM-DD` range when active; tap again to clear and collapse
+- SectionHeader meta includes `· MM-DD–MM-DD` when date range active
+- All exports (CSV, flagged PDF) use `filteredBills`/`filteredInvoices` and automatically respect the date range
+
+**Compact Company Switcher in Dashboard Top Bar** (`src/components/CompanySelector.tsx`, `src/screens/dashboard/DashboardScreen.tsx`)
+- `CompanySelector` gains `variant?: 'row' | 'compact'` prop (default `'row'`)
+- `'compact'` variant: small inline pill (briefcase icon + company name/code + chevron-down) with hairline border, aligned self-start — embeds cleanly in any header area
+- `DashboardScreen`: removed the full-width CompanySelector row below the header; added `<CompanySelector showAll variant="compact" />` inside `topBarLeft`, below the sub-greeting text — saves one row of vertical height
+- Same picker modal works for both variants; company change propagates globally via `CompanyContext`
+
+**Partner Notes Search and Filter** (`src/screens/partners/PartnersScreen.tsx`)
+- `showNotesOnly` state and a "Notes (N)" filter chip added: only visible when `notesPartnersCount > 0`; filters list to note-holders only
+- `filtered` logic extended: when `search` query is non-empty, also matches against `partnerNotesMap[p.id]` (note content) — type any keyword to find partners whose notes contain it
+- `notesPartnersCount` derived from `partnerNotesMap` for chip label badge
+- Search placeholder updated to "Search by name, code, email, notes…"
+- `SectionHeader` meta appends "· has notes" when notes filter is active
+- Empty state message covers the new `showNotesOnly` case
+
+**Partner Notes Bulk CSV Export** (`src/utils/csvExport.ts`, `src/screens/partners/PartnersScreen.tsx`)
+- `exportPartnerNotesCSV()` added to `csvExport.ts`: Company / export date header rows, then Name / Code / Role / Note columns for every partner with a note; uses native Share sheet
+- `handleExportNotes()` in PartnersScreen: builds note entries for all partners with notes (role derived from partner flags), calls `exportPartnerNotesCSV`
+- "Notes" pill button (download icon + "Notes" label) in screen header; visible when `notesPartnersCount > 0`; shows ActivityIndicator during export
+
+**Stock Ledger IN/OUT/NET Summary Bar** (`src/screens/inventory/InventoryScreen.tsx`)
+- `ledgerSummary` computed from `filteredLedger`: `totalIn` (sum of `qty_in`), `totalOut` (sum of `qty_out`), and net = `totalIn - totalOut`
+- 3-tile summary bar (IN | OUT | NET) appears above the Movement Log SectionHeader when `filteredLedger.length > 0`
+- NET tile renders in muted color when negative; bar respects active search and date range filters
+- `ledgerSummaryBar`, `ledgerSummaryTile`, `ledgerSummaryDivider`, `ledgerSummaryLabel`, `ledgerSummaryValue`, `ledgerSummaryNeg` styles added
+
+### Next Session
+- Consider: AP/AR combined PDF export (flagged + date range in one export, with cover stats)
+- Consider: Dashboard "Top Vendors by spend" mini table (top 3 vendors from AP data)
+- Consider: Journal Entry creation form (POST API needed from backend)
+- Consider: Procurement Analytics date range filter
+- Consider: StockHealth standalone out-of-stock PDF (separate from combined health PDF)
+
+---
+
 ## Session 40 — 2026-06-03
 
 ### Completed This Session
