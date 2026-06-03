@@ -40,6 +40,7 @@ import { getDueSoonDays } from '@/utils/settings';
 import WeeklyScheduleCard, { WeekBucket } from '@/components/WeeklyScheduleCard';
 import { getFlaggedIds, toggleFlagged, clearAllFlagged } from '@/utils/flaggedItems';
 import { getReviewedIds, toggleReviewed, clearAllReviewed } from '@/utils/reviewedItems';
+import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 
 type APNavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
@@ -92,6 +93,8 @@ export default function AccountsPayableScreen() {
   const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
   const [reviewedBillIds, setReviewedBillIds] = useState<Set<number>>(new Set());
   const [showReviewedOnly, setShowReviewedOnly] = useState(false);
+  const [billDateRange, setBillDateRange] = useState<DateRangeValue>({ from: '', to: '' });
+  const [showDateFilter, setShowDateFilter] = useState(false);
 
   const cacheKey = `ap:${companyId ?? 'all'}`;
 
@@ -151,8 +154,17 @@ export default function AccountsPayableScreen() {
     return <ErrorView message={error} onRetry={() => load()} />;
   }
 
-  const searchedBills = billSearch.trim()
+  const dateFilteredBills = (billDateRange.from || billDateRange.to)
     ? bills.filter((b) => {
+        const d = b.dt ?? '';
+        if (billDateRange.from && d < billDateRange.from) return false;
+        if (billDateRange.to && d > billDateRange.to) return false;
+        return true;
+      })
+    : bills;
+
+  const searchedBills = billSearch.trim()
+    ? dateFilteredBills.filter((b) => {
         const q = billSearch.toLowerCase();
         return (
           b.bill_number?.toLowerCase().includes(q) ||
@@ -160,7 +172,7 @@ export default function AccountsPayableScreen() {
           b.status?.toLowerCase().includes(q)
         );
       })
-    : bills;
+    : dateFilteredBills;
 
   const filteredBills = searchedBills.filter((b) => {
     if (showFlaggedOnly && !flaggedBillIds.has(b.id)) return false;
@@ -175,8 +187,8 @@ export default function AccountsPayableScreen() {
     return daysOverdue(b.due_date, b.status) - daysOverdue(a.due_date, a.status);
   });
 
-  const overdueCount = bills.filter((b) => daysOverdue(b.due_date, b.status) > 0).length;
-  const dueSoonCount = bills.filter((b) => { const d = daysDueIn(b.due_date, b.status); return d >= 0 && d <= dueSoonDays; }).length;
+  const overdueCount = dateFilteredBills.filter((b) => daysOverdue(b.due_date, b.status) > 0).length;
+  const dueSoonCount = dateFilteredBills.filter((b) => { const d = daysDueIn(b.due_date, b.status); return d >= 0 && d <= dueSoonDays; }).length;
 
   // Pay-by mini bar: bucket unpaid bills by urgency
   const payByStats = (() => {
@@ -433,7 +445,34 @@ export default function AccountsPayableScreen() {
                     </Text>
                   )}
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.filterChip, (showDateFilter || !!(billDateRange.from || billDateRange.to)) && styles.filterChipActive]}
+                  onPress={() => {
+                    if (showDateFilter) {
+                      setShowDateFilter(false);
+                      setBillDateRange({ from: '', to: '' });
+                    } else {
+                      setShowDateFilter(true);
+                    }
+                  }}
+                >
+                  <Feather name="calendar" size={11} color={(showDateFilter || billDateRange.from) ? '#fff' : Colors.textSecondary} />
+                  {(billDateRange.from || billDateRange.to) && (
+                    <Text style={[styles.filterChipText, styles.filterChipTextActive]}>
+                      {billDateRange.from ? billDateRange.from.slice(5) : '?'}–{billDateRange.to ? billDateRange.to.slice(5) : '?'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
               </View>
+              {showDateFilter && (
+                <DateRangeBar
+                  value={billDateRange}
+                  onChange={(v) => {
+                    setBillDateRange(v);
+                    if (!v.from && !v.to) setShowDateFilter(false);
+                  }}
+                />
+              )}
             </View>
             {/* Pay-by summary row — shown when filter is 'all' and outstanding bills exist */}
             {billFilter === 'all' && bills.length > 0 && (payByStats.overdueAmt > 0 || payByStats.weekAmt > 0 || payByStats.laterAmt > 0) && (
@@ -460,7 +499,7 @@ export default function AccountsPayableScreen() {
             )}
             <SectionHeader
               title="Bills"
-              meta={`${filteredBills.length} record${filteredBills.length !== 1 ? 's' : ''}${billFilter !== 'all' ? ` · ${billFilter === 'overdue' ? 'overdue filter' : `due in ${dueSoonDays}d`}` : ''}`}
+              meta={`${filteredBills.length} record${filteredBills.length !== 1 ? 's' : ''}${billFilter !== 'all' ? ` · ${billFilter === 'overdue' ? 'overdue filter' : `due in ${dueSoonDays}d`}` : ''}${billDateRange.from || billDateRange.to ? ` · ${billDateRange.from ? billDateRange.from.slice(5) : '?'}–${billDateRange.to ? billDateRange.to.slice(5) : '?'}` : ''}`}
               action={filteredBills.length > 0 ? (
                 <View style={styles.actionRow}>
                   {showFlaggedOnly && flaggedBillIds.size > 0 && (

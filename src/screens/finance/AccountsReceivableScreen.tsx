@@ -40,6 +40,7 @@ import { getDueSoonDays } from '@/utils/settings';
 import WeeklyScheduleCard, { WeekBucket } from '@/components/WeeklyScheduleCard';
 import { getFlaggedIds, toggleFlagged, clearAllFlagged } from '@/utils/flaggedItems';
 import { getReviewedIds, toggleReviewed, clearAllReviewed } from '@/utils/reviewedItems';
+import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 
 type ARNavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
@@ -91,6 +92,8 @@ export default function AccountsReceivableScreen() {
   const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
   const [reviewedInvoiceIds, setReviewedInvoiceIds] = useState<Set<number>>(new Set());
   const [showReviewedOnly, setShowReviewedOnly] = useState(false);
+  const [invDateRange, setInvDateRange] = useState<DateRangeValue>({ from: '', to: '' });
+  const [showDateFilter, setShowDateFilter] = useState(false);
 
   const cacheKey = `ar:${companyId ?? 'all'}`;
 
@@ -150,8 +153,17 @@ export default function AccountsReceivableScreen() {
     return <ErrorView message={error} onRetry={() => load()} />;
   }
 
-  const searchedInvoices = invoiceSearch.trim()
+  const dateFilteredInvoices = (invDateRange.from || invDateRange.to)
     ? invoices.filter((inv) => {
+        const d = inv.dt ?? '';
+        if (invDateRange.from && d < invDateRange.from) return false;
+        if (invDateRange.to && d > invDateRange.to) return false;
+        return true;
+      })
+    : invoices;
+
+  const searchedInvoices = invoiceSearch.trim()
+    ? dateFilteredInvoices.filter((inv) => {
         const q = invoiceSearch.toLowerCase();
         return (
           inv.invoice_number?.toLowerCase().includes(q) ||
@@ -159,7 +171,7 @@ export default function AccountsReceivableScreen() {
           inv.status?.toLowerCase().includes(q)
         );
       })
-    : invoices;
+    : dateFilteredInvoices;
 
   const filteredInvoices = searchedInvoices.filter((inv) => {
     if (showFlaggedOnly && !flaggedInvoiceIds.has(inv.id)) return false;
@@ -174,8 +186,8 @@ export default function AccountsReceivableScreen() {
     return daysOverdue(b.due_date, b.status) - daysOverdue(a.due_date, a.status);
   });
 
-  const overdueCount = invoices.filter((inv) => daysOverdue(inv.due_date, inv.status) > 0).length;
-  const dueSoonCount = invoices.filter((inv) => { const d = daysDueIn(inv.due_date, inv.status); return d >= 0 && d <= dueSoonDays; }).length;
+  const overdueCount = dateFilteredInvoices.filter((inv) => daysOverdue(inv.due_date, inv.status) > 0).length;
+  const dueSoonCount = dateFilteredInvoices.filter((inv) => { const d = daysDueIn(inv.due_date, inv.status); return d >= 0 && d <= dueSoonDays; }).length;
 
   // Collect-by mini bar: bucket uncollected invoices by urgency
   const collectByStats = (() => {
@@ -432,7 +444,34 @@ export default function AccountsReceivableScreen() {
                     </Text>
                   )}
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.filterChip, (showDateFilter || !!(invDateRange.from || invDateRange.to)) && styles.filterChipActive]}
+                  onPress={() => {
+                    if (showDateFilter) {
+                      setShowDateFilter(false);
+                      setInvDateRange({ from: '', to: '' });
+                    } else {
+                      setShowDateFilter(true);
+                    }
+                  }}
+                >
+                  <Feather name="calendar" size={11} color={(showDateFilter || invDateRange.from) ? '#fff' : Colors.textSecondary} />
+                  {(invDateRange.from || invDateRange.to) && (
+                    <Text style={[styles.filterChipText, styles.filterChipTextActive]}>
+                      {invDateRange.from ? invDateRange.from.slice(5) : '?'}–{invDateRange.to ? invDateRange.to.slice(5) : '?'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
               </View>
+              {showDateFilter && (
+                <DateRangeBar
+                  value={invDateRange}
+                  onChange={(v) => {
+                    setInvDateRange(v);
+                    if (!v.from && !v.to) setShowDateFilter(false);
+                  }}
+                />
+              )}
             </View>
             {/* Collect-by summary row — shown when filter is 'all' and outstanding invoices exist */}
             {invoiceFilter === 'all' && invoices.length > 0 && (collectByStats.overdueAmt > 0 || collectByStats.weekAmt > 0 || collectByStats.laterAmt > 0) && (
@@ -459,7 +498,7 @@ export default function AccountsReceivableScreen() {
             )}
             <SectionHeader
               title="Invoices"
-              meta={`${filteredInvoices.length} record${filteredInvoices.length !== 1 ? 's' : ''}${invoiceFilter !== 'all' ? ` · ${invoiceFilter === 'overdue' ? 'overdue filter' : `due in ${dueSoonDays}d`}` : ''}`}
+              meta={`${filteredInvoices.length} record${filteredInvoices.length !== 1 ? 's' : ''}${invoiceFilter !== 'all' ? ` · ${invoiceFilter === 'overdue' ? 'overdue filter' : `due in ${dueSoonDays}d`}` : ''}${invDateRange.from || invDateRange.to ? ` · ${invDateRange.from ? invDateRange.from.slice(5) : '?'}–${invDateRange.to ? invDateRange.to.slice(5) : '?'}` : ''}`}
               action={filteredInvoices.length > 0 ? (
                 <View style={styles.actionRow}>
                   {showFlaggedOnly && flaggedInvoiceIds.size > 0 && (
