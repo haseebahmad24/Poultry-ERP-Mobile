@@ -38,8 +38,8 @@ import { exportARSummaryPDF, exportFlaggedInvoicesPDF } from '@/utils/pdfExport'
 import { exportARInvoicesCSV } from '@/utils/csvExport';
 import { getDueSoonDays } from '@/utils/settings';
 import WeeklyScheduleCard, { WeekBucket } from '@/components/WeeklyScheduleCard';
-import { getFlaggedIds, toggleFlagged } from '@/utils/flaggedItems';
-import { getReviewedIds, toggleReviewed } from '@/utils/reviewedItems';
+import { getFlaggedIds, toggleFlagged, clearAllFlagged } from '@/utils/flaggedItems';
+import { getReviewedIds, toggleReviewed, clearAllReviewed } from '@/utils/reviewedItems';
 
 type ARNavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
@@ -268,6 +268,18 @@ export default function AccountsReceivableScreen() {
     });
   };
 
+  const handleUnflagAll = async () => {
+    await clearAllFlagged('invoice');
+    setFlaggedInvoiceIds(new Set());
+    setShowFlaggedOnly(false);
+  };
+
+  const handleUnreviewAll = async () => {
+    await clearAllReviewed('invoice');
+    setReviewedInvoiceIds(new Set());
+    setShowReviewedOnly(false);
+  };
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
@@ -451,9 +463,21 @@ export default function AccountsReceivableScreen() {
               action={filteredInvoices.length > 0 ? (
                 <View style={styles.actionRow}>
                   {showFlaggedOnly && flaggedInvoiceIds.size > 0 && (
-                    <TouchableOpacity style={styles.csvBtn} onPress={handleExportFlaggedInvoicesPDF}>
-                      <Feather name="file-text" size={11} color={Colors.textSecondary} />
-                      <Text style={styles.csvBtnText}>PDF</Text>
+                    <>
+                      <TouchableOpacity style={styles.csvBtn} onPress={handleExportFlaggedInvoicesPDF}>
+                        <Feather name="file-text" size={11} color={Colors.textSecondary} />
+                        <Text style={styles.csvBtnText}>PDF</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.csvBtn, styles.clearBtn]} onPress={handleUnflagAll}>
+                        <Feather name="star" size={11} color={Colors.textSecondary} />
+                        <Text style={styles.csvBtnText}>Unflag All</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                  {showReviewedOnly && reviewedInvoiceIds.size > 0 && (
+                    <TouchableOpacity style={[styles.csvBtn, styles.clearBtn]} onPress={handleUnreviewAll}>
+                      <Feather name="check-circle" size={11} color={Colors.textSecondary} />
+                      <Text style={styles.csvBtnText}>Clear Reviews</Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity style={styles.csvBtn} onPress={handleExportInvoicesCSV}>
@@ -688,6 +712,7 @@ const styles = StyleSheet.create({
   },
   csvBtnText: { fontSize: 10, fontWeight: '500', color: Colors.textSecondary },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  clearBtn: { borderColor: Colors.borderLight },
 
   tabBar: {
     flexDirection: 'row',
