@@ -145,6 +145,11 @@ export default function InventoryScreen() {
     e.warehouse_name?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const ledgerSummary = filteredLedger.reduce(
+    (acc, e) => ({ totalIn: acc.totalIn + (e.qty_in ?? 0), totalOut: acc.totalOut + (e.qty_out ?? 0) }),
+    { totalIn: 0, totalOut: 0 }
+  );
+
   const filteredWarehouses = warehouseData.filter((w) =>
     !search || w.name?.toLowerCase().includes(search.toLowerCase()) ||
     w.code?.toLowerCase().includes(search.toLowerCase()) ||
@@ -346,6 +351,30 @@ export default function InventoryScreen() {
 
         {activeTab === 'ledger' && (
           <>
+            {filteredLedger.length > 0 && (
+              <View style={styles.ledgerSummaryBar}>
+                <View style={styles.ledgerSummaryTile}>
+                  <Text style={styles.ledgerSummaryLabel}>IN</Text>
+                  <Text style={styles.ledgerSummaryValue}>{ledgerSummary.totalIn.toLocaleString()}</Text>
+                </View>
+                <View style={styles.ledgerSummaryDivider} />
+                <View style={styles.ledgerSummaryTile}>
+                  <Text style={styles.ledgerSummaryLabel}>OUT</Text>
+                  <Text style={styles.ledgerSummaryValue}>{ledgerSummary.totalOut.toLocaleString()}</Text>
+                </View>
+                <View style={styles.ledgerSummaryDivider} />
+                <View style={styles.ledgerSummaryTile}>
+                  <Text style={styles.ledgerSummaryLabel}>NET</Text>
+                  <Text style={[
+                    styles.ledgerSummaryValue,
+                    (ledgerSummary.totalIn - ledgerSummary.totalOut) < 0 && styles.ledgerSummaryNeg,
+                  ]}>
+                    {(ledgerSummary.totalIn - ledgerSummary.totalOut) >= 0 ? '+' : ''}
+                    {(ledgerSummary.totalIn - ledgerSummary.totalOut).toLocaleString()}
+                  </Text>
+                </View>
+              </View>
+            )}
             <SectionHeader
               title="Movement Log"
               meta={`${filteredLedger.length} entries${(dateRange.from || dateRange.to) ? ' (filtered)' : ''}`}
@@ -697,6 +726,23 @@ const styles = StyleSheet.create({
   whStat: { alignItems: 'flex-end' },
   whStatValue: { fontSize: 16, fontWeight: '700', color: Colors.text },
   whStatLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '500' },
+
+  ledgerSummaryBar: {
+    flexDirection: 'row',
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    marginBottom: 2,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  ledgerSummaryTile: { flex: 1, alignItems: 'center', paddingVertical: Spacing.sm },
+  ledgerSummaryDivider: { width: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
+  ledgerSummaryLabel: { fontSize: 10, fontWeight: '600', color: Colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
+  ledgerSummaryValue: { fontSize: 15, fontWeight: '700', color: Colors.text, marginTop: 2 },
+  ledgerSummaryNeg: { color: Colors.textSecondary },
 
   emptyState: {
     marginHorizontal: Spacing.md,
