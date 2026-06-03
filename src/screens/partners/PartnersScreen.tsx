@@ -50,6 +50,7 @@ export default function PartnersScreen() {
   const [noteModal, setNoteModal] = useState<{ id: number; name: string; noteType: 'vendor' | 'customer' } | null>(null);
   const [noteText, setNoteText] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
+  const [showNotesOnly, setShowNotesOnly] = useState(false);
 
   const cacheKey = `partners:${companyId ?? 'all'}`;
 
@@ -122,19 +123,25 @@ export default function PartnersScreen() {
     setNoteModal(null);
   };
 
+  const notesPartnersCount = partners.filter((p) => !!partnerNotesMap[p.id]).length;
+
   const filtered = partners.filter((p) => {
     const q = search.toLowerCase();
+    const noteContent = (partnerNotesMap[p.id] ?? '').toLowerCase();
     const matchesSearch = !q ||
       p.name?.toLowerCase().includes(q) ||
       p.code?.toLowerCase().includes(q) ||
-      p.email?.toLowerCase().includes(q);
+      p.email?.toLowerCase().includes(q) ||
+      noteContent.includes(q);
 
     const matchesRole =
       roleFilter === 'all' ||
       (roleFilter === 'customer' && (p.is_customer || p.type === 'customer' || p.roles?.includes('customer'))) ||
       (roleFilter === 'vendor' && (p.is_vendor || p.type === 'vendor' || p.roles?.includes('vendor')));
 
-    return matchesSearch && matchesRole;
+    const matchesNotesFilter = !showNotesOnly || !!partnerNotesMap[p.id];
+
+    return matchesSearch && matchesRole && matchesNotesFilter;
   });
 
   const handleExport = async () => {
@@ -188,7 +195,7 @@ export default function PartnersScreen() {
               <Feather name="search" size={15} color={Colors.textMuted} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search by name, code, email…"
+                placeholder="Search by name, code, email, notes…"
                 placeholderTextColor={Colors.textMuted}
                 value={search}
                 onChangeText={setSearch}
@@ -213,6 +220,17 @@ export default function PartnersScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
+            {notesPartnersCount > 0 && (
+              <TouchableOpacity
+                style={[styles.filterChip, showNotesOnly && styles.filterChipActive]}
+                onPress={() => setShowNotesOnly((v) => !v)}
+              >
+                <Feather name="edit-3" size={11} color={showNotesOnly ? '#fff' : Colors.textSecondary} />
+                <Text style={[styles.filterChipText, showNotesOnly && styles.filterChipTextActive]}>
+                  {` Notes (${notesPartnersCount})`}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <ScrollView
@@ -225,13 +243,13 @@ export default function PartnersScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.textMuted} />
             }
           >
-            <SectionHeader title="Partners" meta={`${filtered.length} records`} />
+            <SectionHeader title="Partners" meta={`${filtered.length} records${showNotesOnly ? ' · has notes' : ''}`} />
 
             {filtered.length === 0 ? (
               <View style={styles.emptyState}>
                 <Feather name="users" size={36} color={Colors.textMuted} />
                 <Text style={styles.emptyText}>
-                  {search || roleFilter !== 'all' ? 'No partners match your filter' : 'No partners found'}
+                  {search || roleFilter !== 'all' || showNotesOnly ? 'No partners match your filter' : 'No partners found'}
                 </Text>
               </View>
             ) : (
