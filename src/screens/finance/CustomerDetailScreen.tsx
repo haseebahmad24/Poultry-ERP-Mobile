@@ -28,6 +28,7 @@ import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { exportCustomerDetailPDF, exportCustomerLedgerPDF, PartnerLedgerEntry } from '@/utils/pdfExport';
 import { addRecentlyViewed } from '@/utils/recentlyViewed';
 import { getNote, saveNote } from '@/utils/partnerNotes';
+import { getReviewedIds, toggleReviewed } from '@/utils/reviewedItems';
 
 type Props = NativeStackScreenProps<FinanceStackParamList, 'CustomerDetail'>;
 
@@ -129,6 +130,7 @@ export default function CustomerDetailScreen({ route }: Props) {
   const [partner, setPartner] = useState<Partner | null>(null);
   const [note, setNote] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
+  const [reviewedInvoiceIds, setReviewedInvoiceIds] = useState<Set<number>>(new Set());
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -160,6 +162,7 @@ export default function CustomerDetailScreen({ route }: Props) {
 
   // Load note from AsyncStorage
   useEffect(() => { getNote('customer', customerId).then(setNote); }, [customerId]);
+  useEffect(() => { getReviewedIds('invoice').then(setReviewedInvoiceIds); }, []);
 
   // Track in recently viewed
   useEffect(() => {
@@ -376,6 +379,12 @@ export default function CustomerDetailScreen({ route }: Props) {
                     key={inv.id}
                     invoice={inv}
                     overdueDays={daysOverdue(inv.due_date, inv.status)}
+                    reviewed={reviewedInvoiceIds.has(inv.id)}
+                    onToggleReview={async () => {
+                      await toggleReviewed('invoice', inv.id);
+                      const updated = await getReviewedIds('invoice');
+                      setReviewedInvoiceIds(updated);
+                    }}
                   />
                 ))}
               </View>
@@ -515,13 +524,18 @@ function SummaryTile({ label, value, highlight }: { label: string; value: string
   );
 }
 
-function InvoiceCard({ invoice: inv, overdueDays }: { invoice: ARInvoice; overdueDays: number }) {
+function InvoiceCard({ invoice: inv, overdueDays, reviewed, onToggleReview }: {
+  invoice: ARInvoice;
+  overdueDays: number;
+  reviewed?: boolean;
+  onToggleReview?: () => void;
+}) {
   const outstanding = inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0);
   const isOverdue = overdueDays > 0;
   const isPaid = (inv.status ?? '').toUpperCase() === 'PAID';
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, reviewed && styles.cardReviewed]}>
       {isOverdue && (
         <View style={styles.overdueBanner}>
           <Feather name="alert-circle" size={12} color={Colors.text} />
@@ -534,6 +548,11 @@ function InvoiceCard({ invoice: inv, overdueDays }: { invoice: ARInvoice; overdu
         <View style={styles.cardInfo}>
           <Text style={styles.cardTitle}>{inv.invoice_number ?? `Invoice-${inv.id}`}</Text>
         </View>
+        {onToggleReview && (
+          <TouchableOpacity onPress={onToggleReview} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginRight: 6 }}>
+            <Feather name="check-circle" size={16} color={reviewed ? Colors.text : Colors.borderLight} />
+          </TouchableOpacity>
+        )}
         <View style={[styles.statusBadge, isPaid && styles.statusBadgeMuted]}>
           <Text style={[styles.statusText, isPaid && styles.statusTextMuted]}>{inv.status ?? '—'}</Text>
         </View>
@@ -795,6 +814,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
   },
+  cardReviewed: { opacity: 0.6 },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   cardInfo: { flex: 1 },
   cardTitle: { ...Typography.h4 },

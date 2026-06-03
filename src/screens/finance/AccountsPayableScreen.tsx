@@ -34,7 +34,7 @@ import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import OfflineBanner from '@/components/OfflineBanner';
 import { useOverdue } from '@/context/OverdueContext';
-import { exportAPSummaryPDF } from '@/utils/pdfExport';
+import { exportAPSummaryPDF, exportFlaggedBillsPDF } from '@/utils/pdfExport';
 import { exportAPBillsCSV } from '@/utils/csvExport';
 import { getDueSoonDays } from '@/utils/settings';
 import WeeklyScheduleCard, { WeekBucket } from '@/components/WeeklyScheduleCard';
@@ -261,6 +261,14 @@ export default function AccountsPayableScreen() {
     });
   };
 
+  const handleExportFlaggedBillsPDF = async () => {
+    const flaggedBills = filteredBills.filter((b) => flaggedBillIds.has(b.id));
+    await exportFlaggedBillsPDF({
+      bills: flaggedBills.length > 0 ? flaggedBills : filteredBills,
+      companyName: selectedCompany?.name ?? 'All Companies',
+    });
+  };
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <StatusBar style="dark" />
@@ -442,10 +450,18 @@ export default function AccountsPayableScreen() {
               title="Bills"
               meta={`${filteredBills.length} record${filteredBills.length !== 1 ? 's' : ''}${billFilter !== 'all' ? ` · ${billFilter === 'overdue' ? 'overdue filter' : `due in ${dueSoonDays}d`}` : ''}`}
               action={filteredBills.length > 0 ? (
-                <TouchableOpacity style={styles.csvBtn} onPress={handleExportBillsCSV}>
-                  <Feather name="download" size={11} color={Colors.textSecondary} />
-                  <Text style={styles.csvBtnText}>CSV</Text>
-                </TouchableOpacity>
+                <View style={styles.actionRow}>
+                  {showFlaggedOnly && flaggedBillIds.size > 0 && (
+                    <TouchableOpacity style={styles.csvBtn} onPress={handleExportFlaggedBillsPDF}>
+                      <Feather name="file-text" size={11} color={Colors.textSecondary} />
+                      <Text style={styles.csvBtnText}>PDF</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity style={styles.csvBtn} onPress={handleExportBillsCSV}>
+                    <Feather name="download" size={11} color={Colors.textSecondary} />
+                    <Text style={styles.csvBtnText}>CSV</Text>
+                  </TouchableOpacity>
+                </View>
               ) : undefined}
             />
             {filteredBills.length === 0 ? (
@@ -672,6 +688,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   csvBtnText: { fontSize: 10, fontWeight: '500', color: Colors.textSecondary },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 
   tabBar: {
     flexDirection: 'row',

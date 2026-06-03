@@ -28,6 +28,7 @@ import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { exportVendorDetailPDF, exportVendorLedgerPDF, PartnerLedgerEntry } from '@/utils/pdfExport';
 import { addRecentlyViewed } from '@/utils/recentlyViewed';
 import { getNote, saveNote } from '@/utils/partnerNotes';
+import { getReviewedIds, toggleReviewed } from '@/utils/reviewedItems';
 
 type Props = NativeStackScreenProps<FinanceStackParamList, 'VendorDetail'>;
 
@@ -129,6 +130,7 @@ export default function VendorDetailScreen({ route }: Props) {
   const [partner, setPartner] = useState<Partner | null>(null);
   const [note, setNote] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
+  const [reviewedBillIds, setReviewedBillIds] = useState<Set<number>>(new Set());
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -160,6 +162,7 @@ export default function VendorDetailScreen({ route }: Props) {
 
   // Load note from AsyncStorage
   useEffect(() => { getNote('vendor', vendorId).then(setNote); }, [vendorId]);
+  useEffect(() => { getReviewedIds('bill').then(setReviewedBillIds); }, []);
 
   // Track in recently viewed
   useEffect(() => {
@@ -376,6 +379,12 @@ export default function VendorDetailScreen({ route }: Props) {
                     key={bill.id}
                     bill={bill}
                     overdueDays={daysOverdue(bill.due_date, bill.status)}
+                    reviewed={reviewedBillIds.has(bill.id)}
+                    onToggleReview={async () => {
+                      await toggleReviewed('bill', bill.id);
+                      const updated = await getReviewedIds('bill');
+                      setReviewedBillIds(updated);
+                    }}
                   />
                 ))}
               </View>
@@ -515,13 +524,18 @@ function SummaryTile({ label, value, highlight }: { label: string; value: string
   );
 }
 
-function BillCard({ bill, overdueDays }: { bill: APBill; overdueDays: number }) {
+function BillCard({ bill, overdueDays, reviewed, onToggleReview }: {
+  bill: APBill;
+  overdueDays: number;
+  reviewed?: boolean;
+  onToggleReview?: () => void;
+}) {
   const outstanding = bill.outstanding ?? (bill.amount ?? 0) - (bill.paid ?? 0);
   const isOverdue = overdueDays > 0;
   const isPaid = (bill.status ?? '').toUpperCase() === 'PAID';
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, reviewed && styles.cardReviewed]}>
       {isOverdue && (
         <View style={styles.overdueBanner}>
           <Feather name="alert-circle" size={12} color={Colors.text} />
@@ -534,6 +548,11 @@ function BillCard({ bill, overdueDays }: { bill: APBill; overdueDays: number }) 
         <View style={styles.cardInfo}>
           <Text style={styles.cardTitle}>{bill.bill_number ?? `Bill-${bill.id}`}</Text>
         </View>
+        {onToggleReview && (
+          <TouchableOpacity onPress={onToggleReview} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginRight: 6 }}>
+            <Feather name="check-circle" size={16} color={reviewed ? Colors.text : Colors.borderLight} />
+          </TouchableOpacity>
+        )}
         <View style={[styles.statusBadge, isPaid && styles.statusBadgeMuted]}>
           <Text style={[styles.statusText, isPaid && styles.statusTextMuted]}>{bill.status ?? '—'}</Text>
         </View>
@@ -795,6 +814,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
   },
+  cardReviewed: { opacity: 0.6 },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   cardInfo: { flex: 1 },
   cardTitle: { ...Typography.h4 },

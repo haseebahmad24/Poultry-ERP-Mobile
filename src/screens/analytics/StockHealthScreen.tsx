@@ -681,7 +681,7 @@ export default function StockHealthScreen() {
     if (!data) return;
     setExporting(true);
     try {
-      await exportStockHealthPDF(data);
+      await exportStockHealthPDF({ ...data, outOfStock: data.outOfStock });
     } catch {
       // ignore
     } finally {

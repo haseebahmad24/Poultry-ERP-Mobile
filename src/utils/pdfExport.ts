@@ -3136,12 +3136,21 @@ export interface StockHealthPDFData {
   threshold: number;
   topByQty: Array<{ item_name: string; warehouse_name?: string; qty: number; unit?: string }>;
   lowStock: Array<{ item_name: string; warehouse_name?: string; qty: number; unit?: string }>;
+  outOfStock?: Array<{ item_name: string; warehouse_name?: string; qty: number; unit?: string }>;
   warehouseStats: Array<{ warehouse: string; itemCount: number; totalQty: number }>;
 }
 
 export async function exportStockHealthPDF(data: StockHealthPDFData): Promise<void> {
   const { totalItems, inStockItems, lowStockItems, outOfStockItems, threshold,
-    topByQty, lowStock, warehouseStats } = data;
+    topByQty, lowStock, outOfStock, warehouseStats } = data;
+
+  const outOfStockRows = (outOfStock ?? []).map((s) => `
+    <tr>
+      <td>${s.item_name}</td>
+      <td>${s.warehouse_name ?? '—'}</td>
+      <td class="right" style="color:#c00">0 ${s.unit ?? ''}</td>
+    </tr>
+  `).join('');
 
   const lowStockRows = lowStock.map((s) => `
     <tr>
@@ -3195,8 +3204,20 @@ export async function exportStockHealthPDF(data: StockHealthPDFData): Promise<vo
       </div>
     </div>
 
+    ${outOfStockRows ? `
+    <div class="section-label" style="color:#c00">Out of Stock Items (zero qty)</div>
+    <table>
+      <thead>
+        <tr><th>Item</th><th>Warehouse</th><th class="right">Qty</th></tr>
+      </thead>
+      <tbody>
+        ${outOfStockRows}
+      </tbody>
+    </table>
+    ` : ''}
+
     ${lowStockRows ? `
-    <div class="section-label">Low Stock Items (below ${threshold} units)</div>
+    <div class="section-label" style="margin-top:20px">Low Stock Items (below ${threshold} units)</div>
     <table>
       <thead>
         <tr><th>Item</th><th>Warehouse</th><th class="right">Qty</th></tr>
@@ -3487,4 +3508,156 @@ export async function exportUpcomingPaymentsPDF(params: {
   `;
 
   await printAndShare(wrapHtml('Upcoming Payments', body), 'upcoming-payments.pdf');
+}
+
+// ─── Flagged Bills PDF ─────────────────────────────────────────────────────────
+
+export async function exportFlaggedBillsPDF(opts: {
+  bills: APBill[];
+  companyName?: string;
+}): Promise<void> {
+  const { bills, companyName } = opts;
+  const totalOutstanding = bills.reduce((s, b) => s + (b.outstanding ?? (b.amount ?? 0) - (b.paid ?? 0)), 0);
+  const overdue = bills.filter((b) => {
+    if (!b.due_date) return false;
+    const st = (b.status ?? '').toUpperCase();
+    if (st === 'PAID') return false;
+    return new Date(b.due_date) < new Date();
+  }).length;
+
+  const billRows = bills.map((b) => {
+    const outstanding = b.outstanding ?? (b.amount ?? 0) - (b.paid ?? 0);
+    const isOverdue = !!b.due_date && (b.status ?? '').toUpperCase() !== 'PAID' && new Date(b.due_date) < new Date();
+    return `
+      <tr${isOverdue ? ' style="font-weight:600"' : ''}>
+        <td>${b.bill_number ?? `Bill-${b.id}`}</td>
+        <td>${b.vendor ?? '—'}</td>
+        <td>${b.dt ? new Date(b.dt).toLocaleDateString() : '—'}</td>
+        <td>${b.due_date ? new Date(b.due_date).toLocaleDateString() : '—'}</td>
+        <td class="right">${b.status ?? '—'}</td>
+        <td class="right">${formatCurrency(b.amount ?? 0)}</td>
+        <td class="right">${formatCurrency(outstanding)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Flagged Bills — Follow-up List</div>
+      <div class="report-meta">
+        Generated ${new Date().toLocaleDateString()}
+        ${companyName ? ` · ${companyName}` : ''}
+      </div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${bills.length}</div>
+        <div class="label">Flagged Bills</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalOutstanding)}</div>
+        <div class="label">Total Outstanding</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${overdue}</div>
+        <div class="label">Overdue</div>
+      </div>
+    </div>
+
+    <div class="section-label">Flagged Bills</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Bill #</th><th>Vendor</th><th>Date</th><th>Due Date</th>
+          <th class="right">Status</th><th class="right">Amount</th><th class="right">Outstanding</th>
+        </tr>
+      </thead>
+      <tbody>${billRows}</tbody>
+      <tfoot>
+        <tr style="font-weight:700;border-top:1px solid #000">
+          <td colspan="6">Total Outstanding</td>
+          <td class="right">${formatCurrency(totalOutstanding)}</td>
+        </tr>
+      </tfoot>
+    </table>
+  `;
+
+  await printAndShare(wrapHtml('Flagged Bills', body), 'flagged-bills.pdf');
+}
+
+// ─── Flagged Invoices PDF ──────────────────────────────────────────────────────
+
+export async function exportFlaggedInvoicesPDF(opts: {
+  invoices: ARInvoice[];
+  companyName?: string;
+}): Promise<void> {
+  const { invoices, companyName } = opts;
+  const totalOutstanding = invoices.reduce((s, inv) => s + (inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0)), 0);
+  const overdue = invoices.filter((inv) => {
+    if (!inv.due_date) return false;
+    const st = (inv.status ?? '').toUpperCase();
+    if (st === 'PAID' || st === 'CLOSED' || st === 'CANCELLED') return false;
+    return new Date(inv.due_date) < new Date();
+  }).length;
+
+  const invoiceRows = invoices.map((inv) => {
+    const outstanding = inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0);
+    const isOverdue = !!inv.due_date && !['PAID','CLOSED','CANCELLED'].includes((inv.status ?? '').toUpperCase()) && new Date(inv.due_date) < new Date();
+    return `
+      <tr${isOverdue ? ' style="font-weight:600"' : ''}>
+        <td>${inv.invoice_number ?? `Inv-${inv.id}`}</td>
+        <td>${inv.customer ?? '—'}</td>
+        <td>${inv.dt ? new Date(inv.dt).toLocaleDateString() : '—'}</td>
+        <td>${inv.due_date ? new Date(inv.due_date).toLocaleDateString() : '—'}</td>
+        <td class="right">${inv.status ?? '—'}</td>
+        <td class="right">${formatCurrency(inv.amount ?? 0)}</td>
+        <td class="right">${formatCurrency(outstanding)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Flagged Invoices — Follow-up List</div>
+      <div class="report-meta">
+        Generated ${new Date().toLocaleDateString()}
+        ${companyName ? ` · ${companyName}` : ''}
+      </div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${invoices.length}</div>
+        <div class="label">Flagged Invoices</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(totalOutstanding)}</div>
+        <div class="label">Total Outstanding</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${overdue}</div>
+        <div class="label">Overdue</div>
+      </div>
+    </div>
+
+    <div class="section-label">Flagged Invoices</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Invoice #</th><th>Customer</th><th>Date</th><th>Due Date</th>
+          <th class="right">Status</th><th class="right">Amount</th><th class="right">Outstanding</th>
+        </tr>
+      </thead>
+      <tbody>${invoiceRows}</tbody>
+      <tfoot>
+        <tr style="font-weight:700;border-top:1px solid #000">
+          <td colspan="6">Total Outstanding</td>
+          <td class="right">${formatCurrency(totalOutstanding)}</td>
+        </tr>
+      </tfoot>
+    </table>
+  `;
+
+  await printAndShare(wrapHtml('Flagged Invoices', body), 'flagged-invoices.pdf');
 }
