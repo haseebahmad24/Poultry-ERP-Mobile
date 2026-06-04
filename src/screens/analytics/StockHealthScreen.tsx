@@ -24,7 +24,7 @@ import { useCompany } from '@/context/CompanyContext';
 import { fetchStockBalances, fetchWarehouses, fetchStockLedger, StockBalance, StockLedgerEntry, Warehouse } from '@/api/inventory';
 import { getCached, setCached } from '@/utils/cache';
 import { getLowStockThreshold } from '@/utils/settings';
-import { exportStockHealthPDF, StockHealthPDFData } from '@/utils/pdfExport';
+import { exportStockHealthPDF, exportOutOfStockPDF, StockHealthPDFData } from '@/utils/pdfExport';
 import type { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList>;
@@ -640,6 +640,7 @@ export default function StockHealthScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingOOS, setExportingOOS] = useState(false);
   const [selectedItem, setSelectedItem] = useState<StockBalance | null>(null);
 
   const cacheKey = `stock-health:${companyId ?? 'all'}`;
@@ -689,6 +690,22 @@ export default function StockHealthScreen() {
     }
   }, [data]);
 
+  const handleExportOOS = useCallback(async () => {
+    if (!data || data.outOfStockItems === 0) return;
+    setExportingOOS(true);
+    try {
+      await exportOutOfStockPDF({
+        items: data.outOfStock ?? [],
+        totalItems: data.totalItems,
+        inStockItems: data.inStockItems,
+      });
+    } catch {
+      // ignore
+    } finally {
+      setExportingOOS(false);
+    }
+  }, [data]);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar style="dark" />
@@ -732,6 +749,18 @@ export default function StockHealthScreen() {
               <SectionHeader
                 title="Out of Stock"
                 subtitle={`${data.outOfStockItems} item${data.outOfStockItems !== 1 ? 's' : ''} with zero stock`}
+                action={
+                  <TouchableOpacity
+                    onPress={handleExportOOS}
+                    disabled={exportingOOS}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel="Export out-of-stock reorder list"
+                  >
+                    {exportingOOS
+                      ? <ActivityIndicator size="small" color={Colors.textMuted} />
+                      : <Feather name="file-text" size={14} color={Colors.textMuted} />}
+                  </TouchableOpacity>
+                }
               />
               <RankedItemList items={data.outOfStock} showOutOfStock onPress={setSelectedItem} />
             </>

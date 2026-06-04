@@ -3661,3 +3661,69 @@ export async function exportFlaggedInvoicesPDF(opts: {
 
   await printAndShare(wrapHtml('Flagged Invoices', body), 'flagged-invoices.pdf');
 }
+
+// ─── Out-of-Stock Reorder List PDF ────────────────────────────────────────────
+
+export async function exportOutOfStockPDF(opts: {
+  items: Array<{ item_name: string; warehouse_name?: string; qty: number; unit?: string }>;
+  totalItems: number;
+  inStockItems: number;
+  companyName?: string;
+}): Promise<void> {
+  const { items, totalItems, inStockItems, companyName } = opts;
+
+  const itemRows = items.map((s) => `
+    <tr>
+      <td>${s.item_name}</td>
+      <td>${s.warehouse_name ?? '—'}</td>
+      <td>${s.unit ?? '—'}</td>
+      <td class="right" style="color:#c00;font-weight:700">Out of Stock</td>
+    </tr>
+  `).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Out-of-Stock Reorder List</div>
+      <div class="report-meta">
+        Generated ${new Date().toLocaleDateString()}
+        ${companyName ? ` · ${companyName}` : ''}
+      </div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value" style="color:#c00">${items.length}</div>
+        <div class="label">Out of Stock</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${inStockItems}</div>
+        <div class="label">In Stock</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${totalItems}</div>
+        <div class="label">Total Items</div>
+      </div>
+    </div>
+
+    <div class="section-label">Items Requiring Reorder</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Item Name</th>
+          <th>Warehouse</th>
+          <th>Unit</th>
+          <th class="right">Status</th>
+        </tr>
+      </thead>
+      <tbody>${itemRows}</tbody>
+      <tfoot>
+        <tr style="font-weight:700;border-top:1px solid #000">
+          <td colspan="3">Total Items Requiring Reorder</td>
+          <td class="right">${items.length}</td>
+        </tr>
+      </tfoot>
+    </table>
+  `;
+
+  await printAndShare(wrapHtml('Out-of-Stock Reorder List', body), 'out-of-stock-reorder.pdf');
+}
