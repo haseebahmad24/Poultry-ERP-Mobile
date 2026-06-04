@@ -36,7 +36,7 @@ import { getUnreadCount } from '@/utils/notificationLog';
 import { getBookmarks } from '@/utils/bookmarks';
 import { getRecentlyViewed, RecentItem } from '@/utils/recentlyViewed';
 import { getFlaggedIds } from '@/utils/flaggedItems';
-import { exportDashboardSummaryPDF, exportUpcomingPaymentsPDF } from '@/utils/pdfExport';
+import { exportDashboardSummaryPDF, exportUpcomingPaymentsPDF, exportFlaggedCombinedPDF } from '@/utils/pdfExport';
 import { fetchAPBills, APBill } from '@/api/accountsPayable';
 import { fetchARInvoices, ARInvoice } from '@/api/accountsReceivable';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
@@ -156,6 +156,7 @@ export default function DashboardScreen() {
   const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
   const [exporting, setExporting] = useState(false);
   const [exportingPayments, setExportingPayments] = useState(false);
+  const [exportingCombined, setExportingCombined] = useState(false);
   const [dueSoonBills, setDueSoonBills] = useState<APBill[]>([]);
   const [dueSoonInvoices, setDueSoonInvoices] = useState<ARInvoice[]>([]);
   const [topVendors, setTopVendors] = useState<Array<{ name: string; outstanding: number; billCount: number }>>([]);
@@ -293,6 +294,34 @@ export default function DashboardScreen() {
     if (h < 17) return 'Good afternoon';
     return 'Good evening';
   })();
+
+  const handleExportCombined = useCallback(async () => {
+    setExportingCombined(true);
+    try {
+      const cid = selectedCompany?.id ?? 'all';
+      const [flaggedBillIds, flaggedInvoiceIds, allBills, allInvoices] = await Promise.all([
+        getFlaggedIds('bill'),
+        getFlaggedIds('invoice'),
+        getCached<{ bills: APBill[] }>(`ap:${cid}`).then((c) =>
+          c ? c.data.bills : fetchAPBills(selectedCompany?.id)
+        ),
+        getCached<{ invoices: ARInvoice[] }>(`ar:${cid}`).then((c) =>
+          c ? c.data.invoices : fetchARInvoices(selectedCompany?.id)
+        ),
+      ]);
+      const flaggedBills = (allBills ?? []).filter((b) => flaggedBillIds.has(b.id));
+      const flaggedInvoices = (allInvoices ?? []).filter((inv) => flaggedInvoiceIds.has(inv.id));
+      await exportFlaggedCombinedPDF({
+        bills: flaggedBills,
+        invoices: flaggedInvoices,
+        companyName: selectedCompany?.name,
+      });
+    } catch {
+      // ignore
+    } finally {
+      setExportingCombined(false);
+    }
+  }, [selectedCompany]);
 
   const handleExportPDF = async () => {
     if (!kpis) return;
@@ -726,6 +755,20 @@ export default function DashboardScreen() {
             <SectionHeader
               title="Pending Actions"
               meta={`${flaggedBillCount + flaggedInvoiceCount + inboxUnread} item${flaggedBillCount + flaggedInvoiceCount + inboxUnread !== 1 ? 's' : ''}`}
+              action={
+                flaggedBillCount > 0 && flaggedInvoiceCount > 0 ? (
+                  <TouchableOpacity
+                    onPress={handleExportCombined}
+                    disabled={exportingCombined}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel="Export combined flagged AP/AR report"
+                  >
+                    {exportingCombined
+                      ? <ActivityIndicator size="small" color={Colors.textMuted} />
+                      : <Feather name="file-text" size={14} color={Colors.textMuted} />}
+                  </TouchableOpacity>
+                ) : undefined
+              }
             />
             <View style={styles.pendingCard}>
               {flaggedBillCount > 0 && (

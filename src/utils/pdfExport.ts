@@ -3727,3 +3727,133 @@ export async function exportOutOfStockPDF(opts: {
 
   await printAndShare(wrapHtml('Out-of-Stock Reorder List', body), 'out-of-stock-reorder.pdf');
 }
+
+// ─── AP/AR Combined Flagged Items PDF ─────────────────────────────────────────
+
+export async function exportFlaggedCombinedPDF(opts: {
+  bills: APBill[];
+  invoices: ARInvoice[];
+  companyName?: string;
+  fromISO?: string;
+  toISO?: string;
+}): Promise<void> {
+  const { bills, invoices, companyName, fromISO, toISO } = opts;
+
+  const billOutstanding = bills.reduce((s, b) => s + (b.outstanding ?? (b.amount ?? 0) - (b.paid ?? 0)), 0);
+  const invOutstanding = invoices.reduce((s, inv) => s + (inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0)), 0);
+
+  const isOverdueBill = (b: APBill) =>
+    !!b.due_date && (b.status ?? '').toUpperCase() !== 'PAID' && new Date(b.due_date) < new Date();
+  const isOverdueInv = (inv: ARInvoice) => {
+    if (!inv.due_date) return false;
+    const st = (inv.status ?? '').toUpperCase();
+    if (st === 'PAID' || st === 'CLOSED' || st === 'CANCELLED') return false;
+    return new Date(inv.due_date) < new Date();
+  };
+
+  const overdueBills = bills.filter(isOverdueBill).length;
+  const overdueInvoices = invoices.filter(isOverdueInv).length;
+
+  const dateRangeLabel = fromISO && toISO
+    ? ` · ${fromISO} – ${toISO}`
+    : fromISO ? ` · from ${fromISO}` : toISO ? ` · to ${toISO}` : '';
+
+  const billRows = bills.map((b) => {
+    const outstanding = b.outstanding ?? (b.amount ?? 0) - (b.paid ?? 0);
+    const bold = isOverdueBill(b) ? ' style="font-weight:600"' : '';
+    return `
+      <tr${bold}>
+        <td>${b.bill_number ?? `Bill-${b.id}`}</td>
+        <td>${b.vendor ?? '—'}</td>
+        <td>${b.dt ? new Date(b.dt).toLocaleDateString() : '—'}</td>
+        <td>${b.due_date ? new Date(b.due_date).toLocaleDateString() : '—'}</td>
+        <td class="right">${b.status ?? '—'}</td>
+        <td class="right">${formatCurrency(outstanding)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const invRows = invoices.map((inv) => {
+    const outstanding = inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0);
+    const bold = isOverdueInv(inv) ? ' style="font-weight:600"' : '';
+    return `
+      <tr${bold}>
+        <td>${inv.invoice_number ?? `Inv-${inv.id}`}</td>
+        <td>${inv.customer ?? '—'}</td>
+        <td>${inv.dt ? new Date(inv.dt).toLocaleDateString() : '—'}</td>
+        <td>${inv.due_date ? new Date(inv.due_date).toLocaleDateString() : '—'}</td>
+        <td class="right">${inv.status ?? '—'}</td>
+        <td class="right">${formatCurrency(outstanding)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const body = `
+    <div class="report-header">
+      <div class="report-title">Flagged Items — AP &amp; AR Combined Report</div>
+      <div class="report-meta">
+        Generated ${new Date().toLocaleDateString()}
+        ${companyName ? ` · ${companyName}` : ''}${dateRangeLabel}
+      </div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-block">
+        <div class="value">${bills.length}</div>
+        <div class="label">Flagged Bills (AP)</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${invoices.length}</div>
+        <div class="label">Flagged Invoices (AR)</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(billOutstanding)}</div>
+        <div class="label">AP Outstanding</div>
+      </div>
+      <div class="summary-block">
+        <div class="value">${formatCurrency(invOutstanding)}</div>
+        <div class="label">AR Outstanding</div>
+      </div>
+    </div>
+
+    ${bills.length > 0 ? `
+    <div class="section-label">Flagged Bills (AP) — ${overdueBills} overdue</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Bill #</th><th>Vendor</th><th>Date</th><th>Due Date</th>
+          <th class="right">Status</th><th class="right">Outstanding</th>
+        </tr>
+      </thead>
+      <tbody>${billRows}</tbody>
+      <tfoot>
+        <tr style="font-weight:700;border-top:1px solid #000">
+          <td colspan="5">Total AP Outstanding</td>
+          <td class="right">${formatCurrency(billOutstanding)}</td>
+        </tr>
+      </tfoot>
+    </table>
+    ` : ''}
+
+    ${invoices.length > 0 ? `
+    <div class="section-label" style="margin-top:24px">Flagged Invoices (AR) — ${overdueInvoices} overdue</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Invoice #</th><th>Customer</th><th>Date</th><th>Due Date</th>
+          <th class="right">Status</th><th class="right">Outstanding</th>
+        </tr>
+      </thead>
+      <tbody>${invRows}</tbody>
+      <tfoot>
+        <tr style="font-weight:700;border-top:1px solid #000">
+          <td colspan="5">Total AR Outstanding</td>
+          <td class="right">${formatCurrency(invOutstanding)}</td>
+        </tr>
+      </tfoot>
+    </table>
+    ` : ''}
+  `;
+
+  await printAndShare(wrapHtml('Flagged AP/AR Combined', body), 'flagged-combined.pdf');
+}
