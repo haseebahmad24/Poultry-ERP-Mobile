@@ -3677,7 +3677,7 @@ export async function exportOutOfStockPDF(opts: {
       <td>${s.item_name}</td>
       <td>${s.warehouse_name ?? '—'}</td>
       <td>${s.unit ?? '—'}</td>
-      <td class="right" style="color:#c00;font-weight:700">Out of Stock</td>
+      <td class="right" style="font-weight:700">Out of Stock</td>
     </tr>
   `).join('');
 
@@ -3692,7 +3692,7 @@ export async function exportOutOfStockPDF(opts: {
 
     <div class="summary-grid">
       <div class="summary-block">
-        <div class="value" style="color:#c00">${items.length}</div>
+        <div class="value" style="font-weight:700">${items.length}</div>
         <div class="label">Out of Stock</div>
       </div>
       <div class="summary-block">

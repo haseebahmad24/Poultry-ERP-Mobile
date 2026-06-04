@@ -567,7 +567,7 @@ export default function ProcurementAnalyticsScreen() {
           <Feather
             name="calendar"
             size={16}
-            color={isDateActive ? Colors.primary : Colors.text}
+            color={isDateActive ? '#fff' : Colors.text}
           />
           {isDateActive && (
             <Text style={styles.iconBtnBadge}>
@@ -682,13 +682,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconBtnActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryLight ?? Colors.background,
+    borderColor: Colors.text,
+    backgroundColor: Colors.text,
   },
   iconBtnBadge: {
     fontSize: 10,
     fontWeight: '600',
-    color: Colors.primary,
+    color: '#fff',
   },
   exportBtn: {
     width: 36,
