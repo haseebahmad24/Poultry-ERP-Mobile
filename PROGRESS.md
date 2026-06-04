@@ -1,5 +1,43 @@
 # Mobile App Progress
 
+## Session 42 — 2026-06-04
+
+### Completed This Session
+
+**Procurement Analytics Date Range Filter** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`, `src/components/DateRangeBar.tsx`)
+- Raw PO/SO data stored in `rawData` state; `analytics` derived via `useMemo` — date filtering applied before `computeAnalytics()`
+- Calendar icon button in header: tap to show/hide DateRangeBar; active range shown as `MM-DD–MM-DD` inline badge; tap again to close and clear
+- `getMonthsInRange()` helper: generates month buckets for any custom range (capped at 12 months); `computeAnalytics` accepts optional `fromISO`/`toISO` and selects last-6-months or custom range accordingly
+- All KPIs (PO Value, SO Value, Open POs/SOs), ranked vendor/customer lists, and status grids all reflect the active date filter
+- Monthly Trend subtitle updates to show `from–to` range when active; PDF export uses filtered analytics data
+- SectionHeader gains `subtitle?: string` prop (renders as second line below title) — fixes silent `subtitle` usage in ProcurementAnalyticsScreen and StockHealthScreen
+
+**Dashboard "Top Vendors by Outstanding AP Balance" card** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `topVendors` state (Array of `{name, outstanding, billCount}`) computed in `useFocusEffect` from all unpaid AP bills (already fetched/cached for due-soon section — zero extra API calls)
+- Aggregates `outstanding` by vendor name, excludes PAID/CLOSED/CANCELLED, top 3 by outstanding balance
+- Card (placed after Finance Status, before Upcoming Payments) with rank badge, vendor name, blue progress bar, outstanding amount + bill count
+- Tap any row or "View AP" header link → navigates to AccountsPayable screen
+- Only renders when `topVendors.length > 0`
+
+**Out-of-Stock Standalone PDF Reorder Export** (`src/screens/analytics/StockHealthScreen.tsx`, `src/utils/pdfExport.ts`)
+- `exportOutOfStockPDF()` added to `pdfExport.ts`: 3-tile summary (out-of-stock count / in-stock count / total items), full table (Item Name / Warehouse / Unit / Status in red), footer with count; shares via native Share sheet
+- `exportingOOS` state + `handleExportOOS` callback in `StockHealthScreen`
+- File-text icon (ActivityIndicator while exporting) in the "Out of Stock" `SectionHeader` action slot — only visible when `outOfStockItems > 0`
+
+**AP/AR Combined Flagged Items PDF Export** (`src/screens/dashboard/DashboardScreen.tsx`, `src/utils/pdfExport.ts`)
+- `exportFlaggedCombinedPDF()` added to `pdfExport.ts`: 4-tile summary (flagged bills count / flagged invoices count / AP outstanding / AR outstanding), AP bills section + AR invoices section each with full table and overdue rows in bold, footer totals; optional `fromISO`/`toISO` date range label in header
+- `exportingCombined` state + `handleExportCombined` callback in Dashboard — resolves flagged IDs from AsyncStorage and actual bill/invoice objects from AP/AR cache (no extra API calls when cached)
+- File-text icon button in Pending Actions `SectionHeader` action slot; only shown when `flaggedBillCount > 0 AND flaggedInvoiceCount > 0`
+
+### Next Session
+- Consider: FinancialAnalyticsScreen net position trend (monthly AR vs AP chart)
+- Consider: Procurement Analytics value chart (toggle between order count and order value in monthly trend)
+- Consider: Journal Entry creation form (POST API needed from backend)
+- Consider: AP/AR combined export with date range filter applied (pass dateRange from AP/AR screens)
+- Consider: Dashboard "Top Customers by AR" companion card (symmetric to Top Vendors)
+
+---
+
 ## Session 41 — 2026-06-03
 
 ### Completed This Session
