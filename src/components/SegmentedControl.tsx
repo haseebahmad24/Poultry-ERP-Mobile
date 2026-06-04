@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
   labelActive: {
-    color: Colors.primary,
+    color: Colors.text,
     fontWeight: '600',
   },
 });

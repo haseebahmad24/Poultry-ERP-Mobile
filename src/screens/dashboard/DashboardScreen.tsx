@@ -1190,7 +1190,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: Radius.full,
-    backgroundColor: Colors.danger,
+    backgroundColor: Colors.text,
   },
   pendingInfo: { flex: 1 },
   pendingLabel: { fontSize: 13, fontWeight: '600', color: Colors.text },

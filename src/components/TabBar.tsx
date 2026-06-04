@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     marginBottom: -1,
   },
   tabActive: {
-    borderBottomColor: Colors.primary,
+    borderBottomColor: Colors.text,
   },
   label: {
     fontSize: 13,
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   labelActive: {
-    color: Colors.primary,
+    color: Colors.text,
     fontWeight: '600',
   },
   count: {

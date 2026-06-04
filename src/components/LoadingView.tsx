@@ -9,7 +9,7 @@ type Props = {
 export default function LoadingView({ message }: Props) {
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color={Colors.primary} />
+      <ActivityIndicator size="large" color={Colors.text} />
       {message && <Text style={styles.message}>{message}</Text>}
     </View>
   );

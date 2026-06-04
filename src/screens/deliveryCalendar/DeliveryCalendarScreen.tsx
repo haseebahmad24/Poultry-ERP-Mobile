@@ -294,7 +294,7 @@ export default function DeliveryCalendarScreen() {
       <SafeAreaView style={styles.root} edges={['top']}>
         <StatusBar style="dark" />
         <ScreenHeader title="Delivery Calendar" />
-        <View style={styles.centered}><ActivityIndicator size="large" color={Colors.primary} /></View>
+        <View style={styles.centered}><ActivityIndicator size="large" color={Colors.text} /></View>
       </SafeAreaView>
     );
   }
@@ -547,8 +547,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   typeChipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
   },
   typeChipText: { ...Typography.bodySmall, color: Colors.textSecondary, fontWeight: '500' },
   typeChipTextActive: { color: '#fff' },
@@ -615,7 +615,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   dayCellSelected: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.text,
   },
   dayCellToday: {
     backgroundColor: Colors.background,
