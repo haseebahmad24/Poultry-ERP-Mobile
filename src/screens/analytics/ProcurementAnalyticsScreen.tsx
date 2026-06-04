@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   RefreshControl,
   ScrollView,
@@ -18,6 +18,7 @@ import CompanySelector from '@/components/CompanySelector';
 import SectionHeader from '@/components/SectionHeader';
 import ErrorView from '@/components/ErrorView';
 import ListScreenSkeleton from '@/components/ListScreenSkeleton';
+import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 import { useCompany } from '@/context/CompanyContext';
 import { fetchPurchaseOrders, PurchaseOrder } from '@/api/purchaseOrders';
 import { fetchSalesOrders, SalesOrder } from '@/api/salesOrders';
@@ -80,18 +81,38 @@ function getLast6Months(): string[] {
   return result;
 }
 
+function getMonthsInRange(from: string, to: string): string[] {
+  const result: string[] = [];
+  const start = new Date(from);
+  start.setDate(1);
+  const end = new Date(to);
+  const cur = new Date(start);
+  while (cur <= end && result.length < 12) {
+    result.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`);
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  return result.length > 0 ? result : getLast6Months();
+}
+
 function monthLabel(ym: string): string {
   const parts = ym.split('-');
   const month = parseInt(parts[1], 10);
   return MONTH_NAMES[month - 1] ?? ym;
 }
 
-function computeAnalytics(pos: PurchaseOrder[], sos: SalesOrder[]): Analytics {
-  const last6 = getLast6Months();
+function computeAnalytics(
+  pos: PurchaseOrder[],
+  sos: SalesOrder[],
+  fromISO?: string,
+  toISO?: string,
+): Analytics {
+  const monthYMs = fromISO && toISO
+    ? getMonthsInRange(fromISO, toISO)
+    : getLast6Months();
 
   // Monthly buckets
   const monthMap = new Map<string, MonthBucket>();
-  for (const ym of last6) {
+  for (const ym of monthYMs) {
     monthMap.set(ym, { label: monthLabel(ym), yearMonth: ym, poCount: 0, soCount: 0, poValue: 0, soValue: 0 });
   }
   for (const po of pos) {
@@ -110,7 +131,7 @@ function computeAnalytics(pos: PurchaseOrder[], sos: SalesOrder[]): Analytics {
       b.soValue += so.total ?? 0;
     }
   }
-  const months = last6.map((ym) => monthMap.get(ym)!);
+  const months = monthYMs.map((ym) => monthMap.get(ym)!);
 
   // Top vendors
   const vendorMap = new Map<string, VendorRow>();
@@ -425,16 +446,56 @@ const statusStyles = StyleSheet.create({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
+const EMPTY_RANGE: DateRangeValue = { from: '', to: '' };
+
 export default function ProcurementAnalyticsScreen() {
   const navigation = useNavigation<Nav>();
   const { companyId } = useCompany();
-  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [rawData, setRawData] = useState<{ pos: PurchaseOrder[]; sos: SalesOrder[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRangeValue>(EMPTY_RANGE);
+  const [showDateFilter, setShowDateFilter] = useState(false);
 
   const cacheKey = `procurement-analytics:${companyId ?? 'all'}`;
+
+  const isDateActive = !!(dateRange.from || dateRange.to);
+
+  const analytics = useMemo<Analytics | null>(() => {
+    if (!rawData) return null;
+    let { pos, sos } = rawData;
+    if (isDateActive) {
+      const from = dateRange.from ? new Date(dateRange.from) : null;
+      const toDate = dateRange.to ? new Date(dateRange.to) : null;
+      if (toDate) toDate.setHours(23, 59, 59, 999);
+      pos = pos.filter((p) => {
+        if (!p.dt) return true;
+        const d = new Date(p.dt);
+        if (from && d < from) return false;
+        if (toDate && d > toDate) return false;
+        return true;
+      });
+      sos = sos.filter((s) => {
+        if (!s.dt) return true;
+        const d = new Date(s.dt);
+        if (from && d < from) return false;
+        if (toDate && d > toDate) return false;
+        return true;
+      });
+    }
+    return computeAnalytics(
+      pos,
+      sos,
+      isDateActive ? (dateRange.from || undefined) : undefined,
+      isDateActive ? (dateRange.to || undefined) : undefined,
+    );
+  }, [rawData, dateRange, isDateActive]);
+
+  const trendSubtitle = isDateActive
+    ? `${dateRange.from || '…'} – ${dateRange.to || '…'}`
+    : 'Orders placed in the last 6 months';
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -444,7 +505,7 @@ export default function ProcurementAnalyticsScreen() {
     try {
       const cached = await getCached<{ pos: PurchaseOrder[]; sos: SalesOrder[] }>(cacheKey);
       if (cached && !isRefresh) {
-        setAnalytics(computeAnalytics(cached.data.pos, cached.data.sos));
+        setRawData(cached.data);
         setLoading(false);
         return;
       }
@@ -455,7 +516,7 @@ export default function ProcurementAnalyticsScreen() {
       ]);
 
       await setCached(cacheKey, { pos, sos });
-      setAnalytics(computeAnalytics(pos, sos));
+      setRawData({ pos, sos });
     } catch {
       setError(true);
     } finally {
@@ -478,6 +539,16 @@ export default function ProcurementAnalyticsScreen() {
     }
   }, [analytics]);
 
+  const handleToggleDateFilter = useCallback(() => {
+    setShowDateFilter((v) => {
+      if (v) {
+        // closing: clear the filter
+        setDateRange(EMPTY_RANGE);
+      }
+      return !v;
+    });
+  }, []);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar style="dark" />
@@ -486,6 +557,28 @@ export default function ProcurementAnalyticsScreen() {
       <View style={styles.header}>
         <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.headerTitle}>Procurement Analytics</Text>
+
+        {/* Date filter toggle */}
+        <TouchableOpacity
+          style={[styles.iconBtn, isDateActive && styles.iconBtnActive]}
+          onPress={handleToggleDateFilter}
+          accessibilityLabel="Toggle date filter"
+        >
+          <Feather
+            name="calendar"
+            size={16}
+            color={isDateActive ? Colors.primary : Colors.text}
+          />
+          {isDateActive && (
+            <Text style={styles.iconBtnBadge}>
+              {dateRange.from?.slice(5) ?? ''}
+              {dateRange.from && dateRange.to ? '–' : ''}
+              {dateRange.to?.slice(5) ?? ''}
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Export PDF */}
         <TouchableOpacity
           style={styles.exportBtn}
           onPress={handleExport}
@@ -498,6 +591,13 @@ export default function ProcurementAnalyticsScreen() {
 
       {/* Company selector */}
       <CompanySelector />
+
+      {/* Date range bar — shown when toggled */}
+      {showDateFilter && (
+        <View style={styles.dateBarWrapper}>
+          <DateRangeBar value={dateRange} onChange={setDateRange} />
+        </View>
+      )}
 
       {loading ? (
         <ListScreenSkeleton />
@@ -530,7 +630,7 @@ export default function ProcurementAnalyticsScreen() {
           </View>
 
           {/* Monthly trend */}
-          <SectionHeader title="Monthly Trend" subtitle="Orders placed in the last 6 months" />
+          <SectionHeader title="Monthly Trend" subtitle={trendSubtitle} />
           <MonthlyTrendChart months={analytics.months} />
 
           {/* Top vendors */}
@@ -568,6 +668,28 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   headerTitle: { ...Typography.h2, flex: 1 },
+  iconBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    minWidth: 36,
+    minHeight: 36,
+    justifyContent: 'center',
+  },
+  iconBtnActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryLight ?? Colors.background,
+  },
+  iconBtnBadge: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
   exportBtn: {
     width: 36,
     height: 36,
@@ -576,6 +698,12 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
+  },
+  dateBarWrapper: {
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    paddingVertical: Spacing.sm,
   },
   content: { paddingTop: Spacing.sm },
   kpiRow: {

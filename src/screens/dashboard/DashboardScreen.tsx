@@ -158,6 +158,7 @@ export default function DashboardScreen() {
   const [exportingPayments, setExportingPayments] = useState(false);
   const [dueSoonBills, setDueSoonBills] = useState<APBill[]>([]);
   const [dueSoonInvoices, setDueSoonInvoices] = useState<ARInvoice[]>([]);
+  const [topVendors, setTopVendors] = useState<Array<{ name: string; outstanding: number; billCount: number }>>([]);
   const [dueSoonDays, setDueSoonDays] = useState(7);
   const [flaggedBillCount, setFlaggedBillCount] = useState(0);
   const [flaggedInvoiceCount, setFlaggedInvoiceCount] = useState(0);
@@ -251,6 +252,24 @@ export default function DashboardScreen() {
 
       setDueSoonBills((bills ?? []).filter((b) => filterDueSoon(b.due_date, b.status)));
       setDueSoonInvoices((invoices ?? []).filter((inv) => filterDueSoon(inv.due_date, inv.status)));
+
+      // Top vendors by outstanding balance (across all unpaid bills)
+      const vendorMap = new Map<string, { outstanding: number; billCount: number }>();
+      for (const b of (bills ?? [])) {
+        const st = (b.status ?? '').toUpperCase();
+        if (st === 'PAID' || st === 'CLOSED' || st === 'CANCELLED') continue;
+        const name = b.vendor ?? 'Unknown';
+        const amt = b.outstanding ?? 0;
+        const v = vendorMap.get(name);
+        if (v) { v.outstanding += amt; v.billCount += 1; }
+        else vendorMap.set(name, { outstanding: amt, billCount: 1 });
+      }
+      const vendors = Array.from(vendorMap.entries())
+        .map(([name, v]) => ({ name, ...v }))
+        .filter((v) => v.outstanding > 0)
+        .sort((a, b) => b.outstanding - a.outstanding)
+        .slice(0, 3);
+      setTopVendors(vendors);
     }).catch(() => {});
   }, [selectedCompany]));
 
@@ -608,6 +627,54 @@ export default function DashboardScreen() {
                   <Text style={styles.financeStatusSub}>Tap to view AR</Text>
                 </TouchableOpacity>
               )}
+            </View>
+          </>
+        )}
+
+        {/* Top Vendors by Outstanding AP Balance */}
+        {topVendors.length > 0 && (
+          <>
+            <SectionHeader
+              title="Top Vendors"
+              meta="by outstanding"
+              action={
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Finance', { screen: 'AccountsPayable' } as any)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.topVendorsSeeAll}>View AP</Text>
+                </TouchableOpacity>
+              }
+            />
+            <View style={styles.topVendorsCard}>
+              {topVendors.map((v, i) => {
+                const maxOutstanding = topVendors[0].outstanding;
+                const pct = maxOutstanding > 0 ? v.outstanding / maxOutstanding : 0;
+                return (
+                  <React.Fragment key={v.name}>
+                    {i > 0 && <View style={styles.topVendorDivider} />}
+                    <TouchableOpacity
+                      style={styles.topVendorRow}
+                      activeOpacity={0.7}
+                      onPress={() => navigation.navigate('Finance', { screen: 'AccountsPayable' } as any)}
+                    >
+                      <View style={styles.topVendorRank}>
+                        <Text style={styles.topVendorRankText}>{i + 1}</Text>
+                      </View>
+                      <View style={styles.topVendorInfo}>
+                        <Text style={styles.topVendorName} numberOfLines={1}>{v.name}</Text>
+                        <View style={styles.topVendorBar}>
+                          <View style={[styles.topVendorBarFill, { width: `${pct * 100}%` }]} />
+                        </View>
+                      </View>
+                      <View style={styles.topVendorAmounts}>
+                        <Text style={styles.topVendorAmt}>{formatCurrency(v.outstanding)}</Text>
+                        <Text style={styles.topVendorCount}>{v.billCount} bill{v.billCount !== 1 ? 's' : ''}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </React.Fragment>
+                );
+              })}
             </View>
           </>
         )}
@@ -1152,6 +1219,50 @@ const styles = StyleSheet.create({
     borderColor: Colors.surface,
   },
   inboxBannerText: { flex: 1, fontSize: 12, color: Colors.textSecondary },
+
+  topVendorsCard: {
+    marginHorizontal: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  topVendorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    gap: Spacing.sm,
+  },
+  topVendorDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.border,
+    marginLeft: Spacing.md + 28 + Spacing.sm,
+  },
+  topVendorRank: {
+    width: 28,
+    height: 28,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topVendorRankText: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary },
+  topVendorInfo: { flex: 1, gap: 4 },
+  topVendorName: { fontSize: 13, fontWeight: '600', color: Colors.text },
+  topVendorBar: {
+    height: 3,
+    backgroundColor: Colors.background,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+  },
+  topVendorBarFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: Radius.full },
+  topVendorAmounts: { alignItems: 'flex-end' },
+  topVendorAmt: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  topVendorCount: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
+  topVendorsSeeAll: { fontSize: 12, color: Colors.primary, fontWeight: '500' },
 
   pendingCard: {
     marginHorizontal: Spacing.md,
