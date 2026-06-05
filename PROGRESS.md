@@ -1,5 +1,41 @@
 # Mobile App Progress
 
+## Session 43 — 2026-06-05
+
+### Completed This Session
+
+**Dashboard "Top Customers by AR" Card** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `topCustomers` state (Array of `{name, outstanding, invoiceCount}`) computed alongside `topVendors` in `useFocusEffect` from the AR invoice cache — zero extra API calls
+- Aggregates outstanding by customer name, excludes PAID/RECEIVED/CLOSED/CANCELLED, top 3 by outstanding
+- Card placed after Top Vendors section with rank badge, customer name, muted-gray progress bar (visually distinct from vendor's blue), outstanding amount + invoice count
+- Tap any row or "View AR" header link → navigates to AccountsReceivable screen
+- Only renders when `topCustomers.length > 0`
+
+**Procurement Analytics Monthly Trend Count/Value Toggle** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- `ChartMode` type: `'count' | 'value'`; `chartMode` state (default `'count'`)
+- `MonthlyTrendChart` accepts `mode` prop; selects `poCount/soCount` or `poValue/soValue` for bar heights and totals
+- `fmtBottom()` helper formats column total as raw integer count or K/M-shortened value string
+- Count/Value chip toggle rendered in Monthly Trend `SectionHeader` action slot; active chip has filled dark background + white text
+
+**FinancialAnalytics 6-Month AP vs AR Monthly Trend Chart** (`src/screens/analytics/FinancialAnalyticsScreen.tsx`)
+- `MonthlyNetChart` component: grouped vertical bar chart for last 6 months showing AP billed (muted) vs AR billed (dark)
+- `buildMonthlyBuckets()`: groups `APBill.amount` and `ARInvoice.amount` by `dt` year-month prefix into 6 buckets
+- Net label per month column (AR − AP formatted as compact K/M); positive in textSecondary, negative in text
+- Returns `null` when all buckets are zero — no empty-state noise
+- Placed below `NetPositionCard` with "6-Month Trend · AP vs AR · billed per month" section header
+- Reads from `ap:/ar:` AsyncStorage cache first — zero extra API calls when AP/AR screens have been visited
+
+### Next Session
+- Consider: FinancialAnalyticsScreen net position trend by month (monthly AR vs AP chart) ✅ Done this session
+- Consider: Dashboard "Top Customers by AR" companion card ✅ Done this session
+- Consider: Procurement Analytics value chart toggle ✅ Done this session
+- Consider: Journal Entry creation form (POST API needed from backend)
+- Consider: AP/AR combined export with date range filter applied (pass dateRange from AP/AR screens)
+- Consider: Dashboard "Overdue AP/AR" mini-chart — stacked bar showing current vs 30/60/90+ day buckets
+- Consider: FinancialAnalytics aging buckets trend (month-over-month aging bucket shift chart)
+
+---
+
 ## Session 42 — 2026-06-04
 
 ### Completed This Session
