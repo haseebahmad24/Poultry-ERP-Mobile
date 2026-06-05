@@ -234,10 +234,24 @@ const kpiStyles = StyleSheet.create({
   sub: { ...Typography.bodySmall, marginTop: 2, textAlign: 'center' },
 });
 
+type ChartMode = 'count' | 'value';
+
 /** Vertical grouped bar chart for monthly trend */
-function MonthlyTrendChart({ months }: { months: MonthBucket[] }) {
-  const maxVal = Math.max(...months.flatMap((m) => [m.poCount, m.soCount]), 1);
+function MonthlyTrendChart({ months, mode }: { months: MonthBucket[]; mode: ChartMode }) {
+  const poKey: keyof MonthBucket = mode === 'value' ? 'poValue' : 'poCount';
+  const soKey: keyof MonthBucket = mode === 'value' ? 'soValue' : 'soCount';
+  const maxVal = Math.max(...months.flatMap((m) => [m[poKey] as number, m[soKey] as number]), 1);
   const BAR_HEIGHT = 80;
+
+  function fmtBottom(po: number, so: number): string {
+    if (mode === 'value') {
+      const total = po + so;
+      if (total >= 1_000_000) return `${(total / 1_000_000).toFixed(1)}M`;
+      if (total >= 1_000) return `${(total / 1_000).toFixed(0)}K`;
+      return String(Math.round(total));
+    }
+    return String(po + so);
+  }
 
   return (
     <View style={chartStyles.card}>
@@ -255,8 +269,10 @@ function MonthlyTrendChart({ months }: { months: MonthBucket[] }) {
       {/* Bars */}
       <View style={chartStyles.barsRow}>
         {months.map((m) => {
-          const poH = maxVal > 0 ? (m.poCount / maxVal) * BAR_HEIGHT : 0;
-          const soH = maxVal > 0 ? (m.soCount / maxVal) * BAR_HEIGHT : 0;
+          const poVal = m[poKey] as number;
+          const soVal = m[soKey] as number;
+          const poH = maxVal > 0 ? (poVal / maxVal) * BAR_HEIGHT : 0;
+          const soH = maxVal > 0 ? (soVal / maxVal) * BAR_HEIGHT : 0;
           return (
             <View key={m.yearMonth} style={chartStyles.monthCol}>
               <View style={[chartStyles.barTrack, { height: BAR_HEIGHT }]}>
@@ -266,7 +282,7 @@ function MonthlyTrendChart({ months }: { months: MonthBucket[] }) {
                 </View>
               </View>
               <Text style={chartStyles.monthLabel}>{m.label}</Text>
-              <Text style={chartStyles.monthCount}>{m.poCount + m.soCount}</Text>
+              <Text style={chartStyles.monthCount}>{fmtBottom(poVal, soVal)}</Text>
             </View>
           );
         })}
@@ -458,6 +474,7 @@ export default function ProcurementAnalyticsScreen() {
   const [exporting, setExporting] = useState(false);
   const [dateRange, setDateRange] = useState<DateRangeValue>(EMPTY_RANGE);
   const [showDateFilter, setShowDateFilter] = useState(false);
+  const [chartMode, setChartMode] = useState<ChartMode>('count');
 
   const cacheKey = `procurement-analytics:${companyId ?? 'all'}`;
 
@@ -630,8 +647,27 @@ export default function ProcurementAnalyticsScreen() {
           </View>
 
           {/* Monthly trend */}
-          <SectionHeader title="Monthly Trend" subtitle={trendSubtitle} />
-          <MonthlyTrendChart months={analytics.months} />
+          <SectionHeader
+            title="Monthly Trend"
+            subtitle={trendSubtitle}
+            action={
+              <View style={styles.modeToggle}>
+                <TouchableOpacity
+                  style={[styles.modeChip, chartMode === 'count' && styles.modeChipActive]}
+                  onPress={() => setChartMode('count')}
+                >
+                  <Text style={[styles.modeChipText, chartMode === 'count' && styles.modeChipTextActive]}>Count</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modeChip, chartMode === 'value' && styles.modeChipActive]}
+                  onPress={() => setChartMode('value')}
+                >
+                  <Text style={[styles.modeChipText, chartMode === 'value' && styles.modeChipTextActive]}>Value</Text>
+                </TouchableOpacity>
+              </View>
+            }
+          />
+          <MonthlyTrendChart months={analytics.months} mode={chartMode} />
 
           {/* Top vendors */}
           <SectionHeader title="Top Vendors" subtitle="By purchase order value" />
@@ -706,6 +742,17 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   content: { paddingTop: Spacing.sm },
+  modeToggle: { flexDirection: 'row', gap: 4 },
+  modeChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  modeChipActive: { backgroundColor: Colors.text, borderColor: Colors.text },
+  modeChipText: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary },
+  modeChipTextActive: { color: '#fff' },
   kpiRow: {
     flexDirection: 'row',
     paddingHorizontal: Spacing.md,
