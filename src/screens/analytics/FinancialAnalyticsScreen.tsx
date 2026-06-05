@@ -24,14 +24,18 @@ import { useCompany } from '@/context/CompanyContext';
 import {
   fetchAPSummary,
   fetchAPVendors,
+  fetchAPBills,
   APSummary,
   APVendor,
+  APBill,
 } from '@/api/accountsPayable';
 import {
   fetchARSummary,
   fetchARCustomers,
+  fetchARInvoices,
   ARSummary,
   ARCustomer,
+  ARInvoice,
 } from '@/api/accountsReceivable';
 import { getCached, setCached } from '@/utils/cache';
 import { formatCurrency } from '@/utils/currency';
@@ -50,6 +54,8 @@ interface FinancialData {
   arSummary: ARSummary;
   topVendors: APVendor[];
   topCustomers: ARCustomer[];
+  apBills: APBill[];
+  arInvoices: ARInvoice[];
 }
 
 function buildAgingBuckets(
@@ -319,6 +325,119 @@ const rankStyles = StyleSheet.create({
   sub: { ...Typography.bodySmall, color: Colors.textMuted },
 });
 
+// ─── Monthly Net Position Trend ───────────────────────────────────────────────
+
+const MONTH_NAMES_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+interface MonthBucket {
+  label: string;
+  apAmount: number;
+  arAmount: number;
+}
+
+function buildMonthlyBuckets(bills: APBill[], invoices: ARInvoice[]): MonthBucket[] {
+  const now = new Date();
+  const months: MonthBucket[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    months.push({ label: MONTH_NAMES_SHORT[d.getMonth()], apAmount: 0, arAmount: 0 });
+
+    for (const bill of bills) {
+      if (bill.dt && bill.dt.startsWith(ym)) {
+        months[months.length - 1].apAmount += bill.amount ?? 0;
+      }
+    }
+    for (const inv of invoices) {
+      if (inv.dt && inv.dt.startsWith(ym)) {
+        months[months.length - 1].arAmount += inv.amount ?? 0;
+      }
+    }
+  }
+  return months;
+}
+
+function fmtCompact(val: number): string {
+  if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
+  if (val >= 1_000) return `${(val / 1_000).toFixed(0)}K`;
+  return String(Math.round(val));
+}
+
+function MonthlyNetChart({ bills, invoices }: { bills: APBill[]; invoices: ARInvoice[] }) {
+  const months = buildMonthlyBuckets(bills, invoices);
+  const hasData = months.some((m) => m.apAmount > 0 || m.arAmount > 0);
+  if (!hasData) return null;
+
+  const BAR_HEIGHT = 72;
+  const maxVal = Math.max(...months.flatMap((m) => [m.apAmount, m.arAmount]), 1);
+
+  return (
+    <View style={netChartStyles.card}>
+      {/* Legend */}
+      <View style={netChartStyles.legend}>
+        <View style={netChartStyles.legendItem}>
+          <View style={[netChartStyles.dot, { backgroundColor: Colors.textSecondary }]} />
+          <Text style={netChartStyles.legendLabel}>AP (Payable)</Text>
+        </View>
+        <View style={netChartStyles.legendItem}>
+          <View style={[netChartStyles.dot, { backgroundColor: Colors.text }]} />
+          <Text style={netChartStyles.legendLabel}>AR (Receivable)</Text>
+        </View>
+      </View>
+      {/* Bars */}
+      <View style={netChartStyles.barsRow}>
+        {months.map((m, idx) => {
+          const apH = maxVal > 0 ? (m.apAmount / maxVal) * BAR_HEIGHT : 0;
+          const arH = maxVal > 0 ? (m.arAmount / maxVal) * BAR_HEIGHT : 0;
+          const net = m.arAmount - m.apAmount;
+          return (
+            <View key={idx} style={netChartStyles.monthCol}>
+              <View style={[netChartStyles.barTrack, { height: BAR_HEIGHT }]}>
+                <View style={netChartStyles.barsBottom}>
+                  <View style={[netChartStyles.bar, { height: Math.max(apH, 2), backgroundColor: Colors.textSecondary, marginRight: 2 }]} />
+                  <View style={[netChartStyles.bar, { height: Math.max(arH, 2), backgroundColor: Colors.text }]} />
+                </View>
+              </View>
+              <Text style={netChartStyles.monthLabel}>{m.label}</Text>
+              {(m.apAmount > 0 || m.arAmount > 0) && (
+                <Text style={[netChartStyles.netLabel, net >= 0 ? netChartStyles.netPos : netChartStyles.netNeg]}>
+                  {net >= 0 ? '+' : ''}{fmtCompact(net)}
+                </Text>
+              )}
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const netChartStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  legend: { flexDirection: 'row', gap: Spacing.lg, marginBottom: Spacing.md },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { width: 8, height: 8, borderRadius: Radius.full },
+  legendLabel: { fontSize: 11, color: Colors.textSecondary },
+  barsRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
+  monthCol: { flex: 1, alignItems: 'center', gap: 3 },
+  barTrack: { width: '100%', justifyContent: 'flex-end' },
+  barsBottom: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
+  bar: { width: 8, borderRadius: Radius.sm },
+  monthLabel: { fontSize: 10, color: Colors.textMuted },
+  netLabel: { fontSize: 9, fontWeight: '700' },
+  netPos: { color: Colors.textSecondary },
+  netNeg: { color: Colors.text },
+});
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function FinancialAnalyticsScreen() {
@@ -347,13 +466,20 @@ export default function FinancialAnalyticsScreen() {
     else setLoading(true);
     setError(null);
     try {
-      const [apSummary, arSummary, topVendors, topCustomers] = await Promise.all([
-        fetchAPSummary(companyId),
-        fetchARSummary(companyId),
-        fetchAPVendors(companyId),
-        fetchARCustomers(companyId),
+      const cid = companyId;
+      const [apSummary, arSummary, topVendors, topCustomers, apBills, arInvoices] = await Promise.all([
+        fetchAPSummary(cid),
+        fetchARSummary(cid),
+        fetchAPVendors(cid),
+        fetchARCustomers(cid),
+        getCached<{ bills: APBill[] }>(`ap:${cid ?? 'all'}`).then((c) =>
+          c ? c.data.bills : fetchAPBills(cid)
+        ),
+        getCached<{ invoices: ARInvoice[] }>(`ar:${cid ?? 'all'}`).then((c) =>
+          c ? c.data.invoices : fetchARInvoices(cid)
+        ),
       ]);
-      const fresh: FinancialData = { apSummary, arSummary, topVendors, topCustomers };
+      const fresh: FinancialData = { apSummary, arSummary, topVendors, topCustomers, apBills, arInvoices };
       setData(fresh);
       setError(null);
       await setCached(cacheKey, fresh);
@@ -381,7 +507,7 @@ export default function FinancialAnalyticsScreen() {
 
   const renderContent = () => {
     if (!data) return null;
-    const { apSummary, arSummary, topVendors, topCustomers } = data;
+    const { apSummary, arSummary, topVendors, topCustomers, apBills, arInvoices } = data;
 
     const apTotal = apSummary.total_outstanding ?? 0;
     const arTotal = arSummary.total_outstanding ?? 0;
@@ -408,6 +534,10 @@ export default function FinancialAnalyticsScreen() {
       <>
         {/* Net Position */}
         <NetPositionCard arTotal={arTotal} apTotal={apTotal} />
+
+        {/* Monthly Net Position Trend */}
+        <SectionHeader title="6-Month Trend" meta="AP vs AR · billed per month" />
+        <MonthlyNetChart bills={apBills ?? []} invoices={arInvoices ?? []} />
 
         {/* ── AP Section ── */}
         <TouchableOpacity activeOpacity={0.7} onPress={goToAP}>
