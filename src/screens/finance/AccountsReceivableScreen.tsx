@@ -407,7 +407,12 @@ export default function AccountsReceivableScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-              <View style={styles.filterChips}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.filterChips}
+              >
                 {(['all', 'overdue', 'due-soon'] as InvoiceFilter[]).map((f) => {
                   const label = f === 'all' ? 'All' : f === 'overdue' ? `Overdue${overdueCount > 0 ? ` (${overdueCount})` : ''}` : `Due Soon${dueSoonCount > 0 ? ` (${dueSoonCount})` : ''}`;
                   return (
@@ -462,7 +467,7 @@ export default function AccountsReceivableScreen() {
                     </Text>
                   )}
                 </TouchableOpacity>
-              </View>
+              </ScrollView>
               {showDateFilter && (
                 <DateRangeBar
                   value={invDateRange}
@@ -937,6 +942,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.xs,
     marginTop: Spacing.sm,
+    paddingRight: Spacing.md,
   },
   filterChip: {
     paddingHorizontal: 10,
