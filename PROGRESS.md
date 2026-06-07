@@ -1,5 +1,60 @@
 # Mobile App Progress
 
+## Session 45 — 2026-06-07
+
+### Completed This Session
+
+**Journal Entries Summary Card** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- `JESummaryCard` renders above the voucher list when `filtered.length > 0` — zero extra API calls
+- Header row: total entry count on left, compact Dr / Cr totals on right (K/M formatted via `fmtCompactJE`)
+- Type-breakdown section: groups all filtered entries by `voucher_type`, renders up to 6 types as compact horizontal bars (proportional to count), with count label on right
+- Only the type grid is hidden when there is just one type (single-type filtered view)
+
+**FinancialAnalytics DSO / DPO / CCC Turnover Card** (`src/screens/analytics/FinancialAnalyticsScreen.tsx`)
+- `computeTurnoverMetrics()`: derives Days Sales Outstanding (DSO) and Days Payable Outstanding (DPO) from 6-month average monthly billed amounts vs current outstanding; CCC = DSO − DPO
+- `TurnoverCard`: three-tile card (DSO / DPO / CCC in days) placed directly below the Net Position card
+- CCC positive → hint "Collecting slower than paying"; negative → "Collecting faster than paying — healthy position"
+- Returns `null` when no 6-month billing data available; no extra API calls
+
+**ProcurementAnalytics Order Value Distribution Histogram** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- `VALUE_BUCKETS`: five size bands — <10K / 10-50K / 50-100K / 100-500K / 500K+
+- `computeValueDistribution()`: counts POs and SOs in each bucket from existing raw data — zero extra API calls
+- `ValueDistributionChart`: vertical grouped bar chart (dark = PO, muted gray = SO); bucket total label below each column
+- Hidden when all bucket counts are zero; inserted after SO Status breakdown section
+
+### Next Session
+- Consider: FinancialAnalytics — historical aging trend (multi-day snapshots stored in AsyncStorage, visualise bucket shifts over time)
+- Consider: ProcurementAnalytics — average order value per vendor/customer (value ÷ count column in ranked lists)
+- Consider: Dashboard — "This Week" payment summary: AP bills due this week vs AR expected this week
+- Consider: JournalEntries — debit/credit flow mini-chart (by month) similar to AP/AR monthly trend
+- Consider: StockHealth — stock velocity card: items with highest IN/OUT ledger movement in the period
+
+---
+
+## Session 44 — 2026-06-07
+
+### Completed This Session
+
+**Dashboard AP/AR Aging Mini-Chart** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `computeClientAging()`: builds AP and AR aging buckets from all unpaid bills/invoices already loaded in `useFocusEffect` — zero extra API calls
+- `AgingMiniBar`: compact stacked bar + per-bucket count/amount legend; placed between Finance Status and Top Vendors cards
+- Renders only when both AP and AR data have been cached (screen visited before)
+
+**Flagged PDF Date Range** (`src/utils/pdfExport.ts` + AP/AR screens)
+- `exportFlaggedBillsPDF` and `exportFlaggedInvoicesPDF` accept optional `fromISO`/`toISO` params
+- Date range appears in PDF header meta line when supplied
+- `AccountsPayableScreen` passes its active `billDateRange`; `AccountsReceivableScreen` passes `invDateRange`
+
+**FinancialAnalytics Aging Delta Row** (`src/screens/analytics/FinancialAnalyticsScreen.tsx` + `src/utils/agingSnapshot.ts`)
+- `agingSnapshot.ts`: `saveAgingSnapshot()` saves daily AP+AR aging fields to AsyncStorage; skips overwrite if same calendar day; `loadAgingSnapshot()` retrieves previous snapshot for comparison
+- `AgingDeltaRow`: per-bucket +/− delta vs last snapshot with compact K/M formatting, shown below each aging breakdown card
+- Delta row shows "No change since last snapshot" when all buckets are identical
+
+### Next Session
+- The items above were the "next session" items from Session 43
+
+---
+
 ## Session 43 — 2026-06-05
 
 ### Completed This Session
