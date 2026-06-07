@@ -57,7 +57,7 @@ interface StatusRow {
   count: number;
 }
 
-type Analytics = ProcurementAnalyticsData & { months: MonthBucket[] };
+type Analytics = ProcurementAnalyticsData & { months: MonthBucket[]; valueDist: ValueDistRow[] };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -205,6 +205,7 @@ function computeAnalytics(
     topCustomers,
     poStatuses,
     soStatuses,
+    valueDist: computeValueDistribution(pos, sos),
   };
 }
 
@@ -460,6 +461,108 @@ const statusStyles = StyleSheet.create({
   emptyText: { ...Typography.bodySmall },
 });
 
+// ─── Order Value Distribution ─────────────────────────────────────────────────
+
+const VALUE_BUCKETS = [
+  { label: '<10K', max: 10_000 },
+  { label: '10-50K', max: 50_000 },
+  { label: '50-100K', max: 100_000 },
+  { label: '100-500K', max: 500_000 },
+  { label: '500K+', max: Infinity },
+];
+
+interface ValueDistRow {
+  label: string;
+  poCount: number;
+  soCount: number;
+}
+
+function computeValueDistribution(pos: PurchaseOrder[], sos: SalesOrder[]): ValueDistRow[] {
+  const rows: ValueDistRow[] = VALUE_BUCKETS.map((b) => ({ label: b.label, poCount: 0, soCount: 0 }));
+
+  const bucketIndex = (amount: number) => {
+    for (let i = 0; i < VALUE_BUCKETS.length; i++) {
+      if (amount < VALUE_BUCKETS[i].max) return i;
+    }
+    return VALUE_BUCKETS.length - 1;
+  };
+
+  for (const po of pos) {
+    const idx = bucketIndex(po.total ?? 0);
+    rows[idx].poCount++;
+  }
+  for (const so of sos) {
+    const idx = bucketIndex(so.total ?? 0);
+    rows[idx].soCount++;
+  }
+  return rows;
+}
+
+function ValueDistributionChart({ rows }: { rows: ValueDistRow[] }) {
+  const hasData = rows.some((r) => r.poCount > 0 || r.soCount > 0);
+  if (!hasData) return null;
+
+  const maxCount = Math.max(...rows.flatMap((r) => [r.poCount, r.soCount]), 1);
+  const BAR_HEIGHT = 72;
+
+  return (
+    <View style={distStyles.card}>
+      <View style={distStyles.legend}>
+        <View style={distStyles.legendItem}>
+          <View style={[distStyles.legendDot, { backgroundColor: Colors.text }]} />
+          <Text style={distStyles.legendLabel}>PO</Text>
+        </View>
+        <View style={distStyles.legendItem}>
+          <View style={[distStyles.legendDot, { backgroundColor: Colors.textMuted }]} />
+          <Text style={distStyles.legendLabel}>SO</Text>
+        </View>
+      </View>
+      <View style={distStyles.barsRow}>
+        {rows.map((r) => {
+          const poH = (r.poCount / maxCount) * BAR_HEIGHT;
+          const soH = (r.soCount / maxCount) * BAR_HEIGHT;
+          return (
+            <View key={r.label} style={distStyles.col}>
+              <View style={[distStyles.barTrack, { height: BAR_HEIGHT }]}>
+                <View style={distStyles.barsBottom}>
+                  <View style={[distStyles.bar, { height: Math.max(poH, r.poCount > 0 ? 2 : 0), backgroundColor: Colors.text }]} />
+                  <View style={[distStyles.bar, { height: Math.max(soH, r.soCount > 0 ? 2 : 0), backgroundColor: Colors.textMuted }]} />
+                </View>
+              </View>
+              <Text style={distStyles.bucketLabel}>{r.label}</Text>
+              {(r.poCount > 0 || r.soCount > 0) && (
+                <Text style={distStyles.bucketTotal}>{r.poCount + r.soCount}</Text>
+              )}
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const distStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    marginHorizontal: Spacing.md,
+  },
+  legend: { flexDirection: 'row', gap: Spacing.lg, marginBottom: Spacing.md },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 8, height: 8, borderRadius: Radius.full },
+  legendLabel: { fontSize: 11, color: Colors.textSecondary },
+  barsRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
+  col: { flex: 1, alignItems: 'center', gap: 3 },
+  barTrack: { width: '100%', justifyContent: 'flex-end' },
+  barsBottom: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: 2 },
+  bar: { width: 9, borderRadius: Radius.sm },
+  bucketLabel: { fontSize: 9, color: Colors.textMuted, textAlign: 'center', lineHeight: 12 },
+  bucketTotal: { fontSize: 10, fontWeight: '700', color: Colors.text },
+});
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 const EMPTY_RANGE: DateRangeValue = { from: '', to: '' };
@@ -683,6 +786,10 @@ export default function ProcurementAnalyticsScreen() {
 
           <SectionHeader title="Sales Order Status" />
           <StatusGrid rows={analytics.soStatuses} total={analytics.totalSOs} />
+
+          {/* Order value distribution */}
+          <SectionHeader title="Order Value Distribution" subtitle="PO and SO counts by order size" />
+          <ValueDistributionChart rows={analytics.valueDist} />
 
           <View style={styles.footer} />
         </ScrollView>
