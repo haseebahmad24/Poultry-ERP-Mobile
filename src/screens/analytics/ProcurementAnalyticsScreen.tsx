@@ -559,7 +559,7 @@ const distStyles = StyleSheet.create({
   barTrack: { width: '100%', justifyContent: 'flex-end' },
   barsBottom: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: 2 },
   bar: { width: 9, borderRadius: Radius.sm },
-  bucketLabel: { fontSize: 9, color: Colors.textMuted, textAlign: 'center', lineHeight: 12 },
+  bucketLabel: { fontSize: 10, color: Colors.textMuted, textAlign: 'center', lineHeight: 13 },
   bucketTotal: { fontSize: 10, fontWeight: '700', color: Colors.text },
 });
 
