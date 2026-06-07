@@ -121,8 +121,8 @@ const agingMicroStyles = StyleSheet.create({
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   dot: { width: 6, height: 6, borderRadius: Radius.full },
-  legendLabel: { fontSize: 9, color: Colors.textMuted, fontWeight: '500' },
-  legendAmt: { fontSize: 9, color: Colors.text, fontWeight: '700' },
+  legendLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '500' },
+  legendAmt: { fontSize: 10, color: Colors.text, fontWeight: '700' },
   emptyLabel: { fontSize: 11, color: Colors.textMuted, fontStyle: 'italic' },
 });
 

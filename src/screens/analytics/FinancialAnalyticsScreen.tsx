@@ -434,7 +434,7 @@ const netChartStyles = StyleSheet.create({
   barsBottom: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
   bar: { width: 8, borderRadius: Radius.sm },
   monthLabel: { fontSize: 10, color: Colors.textMuted },
-  netLabel: { fontSize: 9, fontWeight: '700' },
+  netLabel: { fontSize: 10, fontWeight: '700' },
   netPos: { color: Colors.textSecondary },
   netNeg: { color: Colors.text },
 });
@@ -512,7 +512,7 @@ const deltaStyles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   item: { alignItems: 'center', minWidth: 48 },
-  bucketLabel: { fontSize: 9, color: Colors.textMuted, fontWeight: '500', textTransform: 'uppercase' },
+  bucketLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '500', textTransform: 'uppercase' },
   delta: { fontSize: 11, fontWeight: '700' },
   up: { color: Colors.text },
   down: { color: Colors.textSecondary },
