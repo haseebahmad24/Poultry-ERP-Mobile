@@ -3515,8 +3515,10 @@ export async function exportUpcomingPaymentsPDF(params: {
 export async function exportFlaggedBillsPDF(opts: {
   bills: APBill[];
   companyName?: string;
+  fromISO?: string;
+  toISO?: string;
 }): Promise<void> {
-  const { bills, companyName } = opts;
+  const { bills, companyName, fromISO, toISO } = opts;
   const totalOutstanding = bills.reduce((s, b) => s + (b.outstanding ?? (b.amount ?? 0) - (b.paid ?? 0)), 0);
   const overdue = bills.filter((b) => {
     if (!b.due_date) return false;
@@ -3547,6 +3549,7 @@ export async function exportFlaggedBillsPDF(opts: {
       <div class="report-meta">
         Generated ${new Date().toLocaleDateString()}
         ${companyName ? ` · ${companyName}` : ''}
+        ${fromISO && toISO ? ` · ${fromISO} – ${toISO}` : fromISO ? ` · from ${fromISO}` : toISO ? ` · to ${toISO}` : ''}
       </div>
     </div>
 
@@ -3591,8 +3594,10 @@ export async function exportFlaggedBillsPDF(opts: {
 export async function exportFlaggedInvoicesPDF(opts: {
   invoices: ARInvoice[];
   companyName?: string;
+  fromISO?: string;
+  toISO?: string;
 }): Promise<void> {
-  const { invoices, companyName } = opts;
+  const { invoices, companyName, fromISO, toISO } = opts;
   const totalOutstanding = invoices.reduce((s, inv) => s + (inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0)), 0);
   const overdue = invoices.filter((inv) => {
     if (!inv.due_date) return false;
@@ -3623,6 +3628,7 @@ export async function exportFlaggedInvoicesPDF(opts: {
       <div class="report-meta">
         Generated ${new Date().toLocaleDateString()}
         ${companyName ? ` · ${companyName}` : ''}
+        ${fromISO && toISO ? ` · ${fromISO} – ${toISO}` : fromISO ? ` · from ${fromISO}` : toISO ? ` · to ${toISO}` : ''}
       </div>
     </div>
 

@@ -277,6 +277,8 @@ export default function AccountsReceivableScreen() {
     await exportFlaggedInvoicesPDF({
       invoices: flaggedInvoices.length > 0 ? flaggedInvoices : filteredInvoices,
       companyName: selectedCompany?.name ?? 'All Companies',
+      fromISO: invDateRange.from || undefined,
+      toISO: invDateRange.to || undefined,
     });
   };
 

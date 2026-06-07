@@ -40,6 +40,7 @@ import {
 import { getCached, setCached } from '@/utils/cache';
 import { formatCurrency } from '@/utils/currency';
 import { exportFinancialAnalyticsPDF } from '@/utils/pdfExport';
+import { saveAgingSnapshot, loadAgingSnapshot, AgingSnapshot } from '@/utils/agingSnapshot';
 import type { MoreStackParamList } from '@/navigation/MoreNavigator';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
 
@@ -438,6 +439,87 @@ const netChartStyles = StyleSheet.create({
   netNeg: { color: Colors.text },
 });
 
+// ─── Aging Delta Row ─────────────────────────────────────────────────────────
+
+interface AgingFields {
+  current?: number;
+  days_30?: number;
+  days_60?: number;
+  days_90?: number;
+  over_90?: number;
+}
+
+function fmtDelta(d: number | null): string | null {
+  if (d == null) return null;
+  const abs = Math.abs(d);
+  const compact = abs >= 1_000_000
+    ? `${(abs / 1_000_000).toFixed(1)}M`
+    : abs >= 1_000
+      ? `${(abs / 1_000).toFixed(0)}K`
+      : String(Math.round(abs));
+  return (d >= 0 ? '+' : '−') + compact;
+}
+
+function AgingDeltaRow({
+  current,
+  previous,
+}: {
+  current: AgingFields | undefined;
+  previous: AgingFields;
+}) {
+  const buckets: { label: string; cur: number; prev: number }[] = [
+    { label: 'Current', cur: current?.current ?? 0, prev: previous.current },
+    { label: '1-30d', cur: current?.days_30 ?? 0, prev: previous.days_30 },
+    { label: '31-60d', cur: current?.days_60 ?? 0, prev: previous.days_60 },
+    { label: '61-90d', cur: current?.days_90 ?? 0, prev: previous.days_90 },
+    { label: '90+d', cur: current?.over_90 ?? 0, prev: previous.over_90 },
+  ];
+
+  const hasChange = buckets.some((b) => b.cur !== b.prev);
+  if (!hasChange) return (
+    <Text style={deltaStyles.noChange}>No change since last snapshot</Text>
+  );
+
+  return (
+    <View style={deltaStyles.row}>
+      {buckets.map((b) => {
+        const delta = b.cur - b.prev;
+        if (b.cur === 0 && b.prev === 0) return null;
+        const label = fmtDelta(delta);
+        return (
+          <View key={b.label} style={deltaStyles.item}>
+            <Text style={deltaStyles.bucketLabel}>{b.label}</Text>
+            {label != null && delta !== 0 ? (
+              <Text style={[deltaStyles.delta, delta > 0 ? deltaStyles.up : deltaStyles.down]}>{label}</Text>
+            ) : (
+              <Text style={deltaStyles.flat}>—</Text>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+const deltaStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    paddingTop: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+    marginTop: Spacing.sm,
+  },
+  item: { alignItems: 'center', minWidth: 48 },
+  bucketLabel: { fontSize: 9, color: Colors.textMuted, fontWeight: '500', textTransform: 'uppercase' },
+  delta: { fontSize: 11, fontWeight: '700' },
+  up: { color: Colors.text },
+  down: { color: Colors.textSecondary },
+  flat: { fontSize: 11, color: Colors.textMuted },
+  noChange: { fontSize: 11, color: Colors.textMuted, fontStyle: 'italic', paddingTop: Spacing.sm },
+});
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function FinancialAnalyticsScreen() {
@@ -450,6 +532,7 @@ export default function FinancialAnalyticsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [prevSnapshot, setPrevSnapshot] = useState<AgingSnapshot | null>(null);
 
   const cacheKey = `financial-analytics:${companyId ?? 'all'}`;
 
@@ -467,7 +550,9 @@ export default function FinancialAnalyticsScreen() {
     setError(null);
     try {
       const cid = companyId;
-      const [apSummary, arSummary, topVendors, topCustomers, apBills, arInvoices] = await Promise.all([
+      const snapshotKey = String(cid ?? 'all');
+
+      const [apSummary, arSummary, topVendors, topCustomers, apBills, arInvoices, prev] = await Promise.all([
         fetchAPSummary(cid),
         fetchARSummary(cid),
         fetchAPVendors(cid),
@@ -478,11 +563,35 @@ export default function FinancialAnalyticsScreen() {
         getCached<{ invoices: ARInvoice[] }>(`ar:${cid ?? 'all'}`).then((c) =>
           c ? c.data.invoices : fetchARInvoices(cid)
         ),
+        loadAgingSnapshot(snapshotKey),
       ]);
+
+      setPrevSnapshot(prev);
+
       const fresh: FinancialData = { apSummary, arSummary, topVendors, topCustomers, apBills, arInvoices };
       setData(fresh);
       setError(null);
       await setCached(cacheKey, fresh);
+
+      // Save today's snapshot (only updates if different calendar day from prev)
+      await saveAgingSnapshot({
+        ts: new Date().toISOString(),
+        companyId: snapshotKey,
+        apAging: {
+          current: apSummary.aging?.current ?? 0,
+          days_30: apSummary.aging?.days_30 ?? 0,
+          days_60: apSummary.aging?.days_60 ?? 0,
+          days_90: apSummary.aging?.days_90 ?? 0,
+          over_90: apSummary.aging?.over_90 ?? 0,
+        },
+        arAging: {
+          current: arSummary.aging?.current ?? 0,
+          days_30: arSummary.aging?.days_30 ?? 0,
+          days_60: arSummary.aging?.days_60 ?? 0,
+          days_90: arSummary.aging?.days_90 ?? 0,
+          over_90: arSummary.aging?.over_90 ?? 0,
+        },
+      });
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
@@ -564,8 +673,21 @@ export default function FinancialAnalyticsScreen() {
 
         {/* AP Aging */}
         <View style={styles.agingCard}>
-          <Text style={styles.agingTitle}>AP Aging Breakdown</Text>
+          <View style={styles.agingTitleRow}>
+            <Text style={styles.agingTitle}>AP Aging Breakdown</Text>
+            {prevSnapshot && (
+              <Text style={styles.agingSnapshotMeta}>
+                vs {new Date(prevSnapshot.ts).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+              </Text>
+            )}
+          </View>
           <AgingChart buckets={apBuckets} barHeight={14} />
+          {prevSnapshot && (
+            <AgingDeltaRow
+              current={apSummary.aging}
+              previous={prevSnapshot.apAging}
+            />
+          )}
         </View>
 
         {/* Top Vendors */}
@@ -624,8 +746,21 @@ export default function FinancialAnalyticsScreen() {
 
         {/* AR Aging */}
         <View style={styles.agingCard}>
-          <Text style={styles.agingTitle}>AR Aging Breakdown</Text>
+          <View style={styles.agingTitleRow}>
+            <Text style={styles.agingTitle}>AR Aging Breakdown</Text>
+            {prevSnapshot && (
+              <Text style={styles.agingSnapshotMeta}>
+                vs {new Date(prevSnapshot.ts).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+              </Text>
+            )}
+          </View>
           <AgingChart buckets={arBuckets} barHeight={14} />
+          {prevSnapshot && (
+            <AgingDeltaRow
+              current={arSummary.aging}
+              previous={prevSnapshot.arAging}
+            />
+          )}
         </View>
 
         {/* Top Customers */}
@@ -766,5 +901,15 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
+  },
+  agingTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  agingSnapshotMeta: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    fontStyle: 'italic',
   },
 });

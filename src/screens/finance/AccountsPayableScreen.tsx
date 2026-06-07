@@ -278,6 +278,8 @@ export default function AccountsPayableScreen() {
     await exportFlaggedBillsPDF({
       bills: flaggedBills.length > 0 ? flaggedBills : filteredBills,
       companyName: selectedCompany?.name ?? 'All Companies',
+      fromISO: billDateRange.from || undefined,
+      toISO: billDateRange.to || undefined,
     });
   };
 

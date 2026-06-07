@@ -43,6 +43,91 @@ import type { AppTabParamList } from '@/navigation/AppNavigator';
 
 type Nav = BottomTabNavigationProp<AppTabParamList>;
 
+// ─── Aging mini-chart types & helpers ────────────────────────────────────────
+
+interface AgingMicroBucket {
+  label: string;
+  amount: number;
+  fill: string;
+}
+
+const AGING_MICRO_FILLS = ['#d1d5db', '#9ca3af', '#6b7280', '#374151', '#111827'];
+
+function computeClientAging(
+  items: Array<{ outstanding?: number; amount?: number; paid?: number; due_date?: string; status?: string }>,
+): AgingMicroBucket[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let current = 0, d30 = 0, d60 = 0, d90 = 0, over90 = 0;
+  for (const item of items) {
+    const st = (item.status ?? '').toUpperCase();
+    if (['PAID', 'RECEIVED', 'CLOSED', 'CANCELLED'].includes(st)) continue;
+    const amt = item.outstanding ?? Math.max(0, (item.amount ?? 0) - (item.paid ?? 0));
+    if (!item.due_date) { current += amt; continue; }
+    const due = new Date(item.due_date);
+    due.setHours(0, 0, 0, 0);
+    const days = Math.floor((today.getTime() - due.getTime()) / 86_400_000);
+    if (days <= 0) current += amt;
+    else if (days <= 30) d30 += amt;
+    else if (days <= 60) d60 += amt;
+    else if (days <= 90) d90 += amt;
+    else over90 += amt;
+  }
+  return [
+    { label: 'Current', amount: current, fill: AGING_MICRO_FILLS[0] },
+    { label: '1-30d', amount: d30, fill: AGING_MICRO_FILLS[1] },
+    { label: '31-60d', amount: d60, fill: AGING_MICRO_FILLS[2] },
+    { label: '61-90d', amount: d90, fill: AGING_MICRO_FILLS[3] },
+    { label: '90+d', amount: over90, fill: AGING_MICRO_FILLS[4] },
+  ];
+}
+
+function AgingMiniBar({ buckets }: { buckets: AgingMicroBucket[] }) {
+  const total = buckets.reduce((s, b) => s + b.amount, 0);
+  const nonZero = buckets.filter((b) => b.amount > 0);
+  if (total === 0) return (
+    <Text style={agingMicroStyles.emptyLabel}>No outstanding</Text>
+  );
+  return (
+    <View style={agingMicroStyles.row}>
+      <View style={agingMicroStyles.barTrack}>
+        {nonZero.map((b) => (
+          <View key={b.label} style={[agingMicroStyles.barSegment, { flex: b.amount / total, backgroundColor: b.fill }]} />
+        ))}
+      </View>
+      <View style={agingMicroStyles.legend}>
+        {nonZero.map((b) => (
+          <View key={b.label} style={agingMicroStyles.legendItem}>
+            <View style={[agingMicroStyles.dot, { backgroundColor: b.fill }]} />
+            <Text style={agingMicroStyles.legendLabel}>{b.label}</Text>
+            <Text style={agingMicroStyles.legendAmt}>{formatCurrency(b.amount)}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const agingMicroStyles = StyleSheet.create({
+  row: { gap: 6 },
+  barTrack: {
+    flexDirection: 'row',
+    height: 6,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+    backgroundColor: Colors.borderLight,
+  },
+  barSegment: { height: '100%' },
+  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  dot: { width: 6, height: 6, borderRadius: Radius.full },
+  legendLabel: { fontSize: 9, color: Colors.textMuted, fontWeight: '500' },
+  legendAmt: { fontSize: 9, color: Colors.text, fontWeight: '700' },
+  emptyLabel: { fontSize: 11, color: Colors.textMuted, fontStyle: 'italic' },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function formatLastUpdated(date: Date): string {
   const diffMs = Date.now() - date.getTime();
   const diffMin = Math.floor(diffMs / 60000);
@@ -164,6 +249,8 @@ export default function DashboardScreen() {
   const [dueSoonDays, setDueSoonDays] = useState(7);
   const [flaggedBillCount, setFlaggedBillCount] = useState(0);
   const [flaggedInvoiceCount, setFlaggedInvoiceCount] = useState(0);
+  const [apAgingBuckets, setApAgingBuckets] = useState<AgingMicroBucket[]>([]);
+  const [arAgingBuckets, setArAgingBuckets] = useState<AgingMicroBucket[]>([]);
 
   const cacheKey = `dashboard:${selectedCompany?.id ?? 'all'}`;
 
@@ -290,6 +377,10 @@ export default function DashboardScreen() {
         .sort((a, b) => b.outstanding - a.outstanding)
         .slice(0, 3);
       setTopCustomers(customers);
+
+      // Aging buckets computed client-side from all unpaid bills/invoices
+      setApAgingBuckets(computeClientAging(bills ?? []));
+      setArAgingBuckets(computeClientAging(invoices ?? []));
     }).catch(() => {});
   }, [selectedCompany]));
 
@@ -675,6 +766,35 @@ export default function DashboardScreen() {
                   <Text style={styles.financeStatusSub}>Tap to view AR</Text>
                 </TouchableOpacity>
               )}
+            </View>
+          </>
+        )}
+
+        {/* AP / AR Aging Breakdown */}
+        {(apAgingBuckets.some((b) => b.amount > 0) || arAgingBuckets.some((b) => b.amount > 0)) && (
+          <>
+            <SectionHeader
+              title="Aging Breakdown"
+              meta="AP · AR outstanding"
+              action={
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('More', { screen: 'FinancialAnalytics' } as any)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.topVendorsSeeAll}>Analytics ›</Text>
+                </TouchableOpacity>
+              }
+            />
+            <View style={styles.agingMiniCard}>
+              <View style={styles.agingMiniRow}>
+                <Text style={styles.agingMiniRowLabel}>AP · Payable</Text>
+                <AgingMiniBar buckets={apAgingBuckets} />
+              </View>
+              <View style={styles.agingMiniDivider} />
+              <View style={styles.agingMiniRow}>
+                <Text style={styles.agingMiniRowLabel}>AR · Receivable</Text>
+                <AgingMiniBar buckets={arAgingBuckets} />
+              </View>
             </View>
           </>
         )}
@@ -1329,6 +1449,33 @@ const styles = StyleSheet.create({
     borderColor: Colors.surface,
   },
   inboxBannerText: { flex: 1, fontSize: 12, color: Colors.textSecondary },
+
+  agingMiniCard: {
+    marginHorizontal: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  agingMiniRow: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 12,
+    gap: 6,
+  },
+  agingMiniRowLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  agingMiniDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.border,
+    marginHorizontal: Spacing.md,
+  },
 
   topVendorsCard: {
     marginHorizontal: Spacing.md,
