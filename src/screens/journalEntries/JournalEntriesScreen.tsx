@@ -254,6 +254,8 @@ export default function JournalEntriesScreen() {
               />
             }
           >
+            <JESummaryCard entries={filtered} />
+
             <SectionHeader title="Vouchers" meta={`${filtered.length} records`} />
 
             {filtered.length === 0 ? (
@@ -394,6 +396,110 @@ function AccountPickerModal({
     </Modal>
   );
 }
+
+// ─── JE Summary Card ──────────────────────────────────────────────────────────
+
+function fmtCompactJE(val: number): string {
+  if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
+  if (val >= 1_000) return `${(val / 1_000).toFixed(0)}K`;
+  return String(Math.round(val));
+}
+
+function JESummaryCard({ entries }: { entries: JournalEntry[] }) {
+  if (entries.length === 0) return null;
+
+  const totalDebit = entries.reduce((s, e) => s + (e.total_debit ?? 0), 0);
+  const totalCredit = entries.reduce((s, e) => s + (e.total_credit ?? 0), 0);
+
+  const typeMap = new Map<string, { count: number; amount: number }>();
+  for (const e of entries) {
+    const t = e.voucher_type ?? 'JV';
+    const existing = typeMap.get(t);
+    if (existing) {
+      existing.count++;
+      existing.amount += e.total_debit ?? 0;
+    } else {
+      typeMap.set(t, { count: 1, amount: e.total_debit ?? 0 });
+    }
+  }
+
+  const byType = [...typeMap.entries()]
+    .map(([type, stats]) => ({ type, ...stats }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
+
+  const maxCount = byType[0]?.count ?? 1;
+
+  return (
+    <View style={summaryStyles.card}>
+      <View style={summaryStyles.statsRow}>
+        <Text style={summaryStyles.totalLabel}>{entries.length} vouchers</Text>
+        <View style={summaryStyles.amtsRow}>
+          <Text style={summaryStyles.amtLabel}>Dr</Text>
+          <Text style={summaryStyles.amtValue}>{fmtCompactJE(totalDebit)}</Text>
+          <Text style={[summaryStyles.amtLabel, { marginLeft: Spacing.sm }]}>Cr</Text>
+          <Text style={summaryStyles.amtValue}>{fmtCompactJE(totalCredit)}</Text>
+        </View>
+      </View>
+      {byType.length > 1 && (
+        <View style={summaryStyles.typeGrid}>
+          {byType.map((t) => (
+            <View key={t.type} style={summaryStyles.typeRow}>
+              <Text style={summaryStyles.typeBadge}>{t.type}</Text>
+              <View style={summaryStyles.barTrack}>
+                <View
+                  style={[summaryStyles.barFill, { width: `${(t.count / maxCount) * 100}%` as any }]}
+                />
+              </View>
+              <Text style={summaryStyles.typeCount}>{t.count}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const summaryStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    marginTop: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  totalLabel: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  amtsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  amtLabel: { fontSize: 11, fontWeight: '600', color: Colors.textMuted },
+  amtValue: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary },
+  typeGrid: { gap: 5 },
+  typeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  typeBadge: { fontSize: 10, fontWeight: '700', color: Colors.textMuted, width: 32 },
+  barTrack: {
+    flex: 1,
+    height: 5,
+    backgroundColor: Colors.borderLight,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: 5,
+    backgroundColor: Colors.textSecondary,
+    borderRadius: Radius.full,
+  },
+  typeCount: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary, width: 28, textAlign: 'right' },
+});
+
+// ─── JE Card ──────────────────────────────────────────────────────────────────
 
 function JECard({
   entry,

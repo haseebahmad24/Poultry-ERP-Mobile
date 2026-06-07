@@ -520,6 +520,123 @@ const deltaStyles = StyleSheet.create({
   noChange: { fontSize: 11, color: Colors.textMuted, fontStyle: 'italic', paddingTop: Spacing.sm },
 });
 
+// ─── DSO / DPO / CCC Turnover Card ───────────────────────────────────────────
+
+function computeTurnoverMetrics(
+  bills: APBill[],
+  invoices: ARInvoice[],
+  apOutstanding: number,
+  arOutstanding: number,
+): { dso: number | null; dpo: number | null; ccc: number | null } {
+  const now = new Date();
+  let ap6 = 0;
+  let ar6 = 0;
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    for (const b of bills) { if (b.dt?.startsWith(ym)) ap6 += b.amount ?? 0; }
+    for (const inv of invoices) { if (inv.dt?.startsWith(ym)) ar6 += inv.amount ?? 0; }
+  }
+  const apMonthlyAvg = ap6 / 6;
+  const arMonthlyAvg = ar6 / 6;
+  const dso = arMonthlyAvg > 0 ? (arOutstanding / arMonthlyAvg) * 30 : null;
+  const dpo = apMonthlyAvg > 0 ? (apOutstanding / apMonthlyAvg) * 30 : null;
+  const ccc = dso != null && dpo != null ? dso - dpo : null;
+  return { dso, dpo, ccc };
+}
+
+function TurnoverCard({
+  bills,
+  invoices,
+  apOutstanding,
+  arOutstanding,
+}: {
+  bills: APBill[];
+  invoices: ARInvoice[];
+  apOutstanding: number;
+  arOutstanding: number;
+}) {
+  const { dso, dpo, ccc } = computeTurnoverMetrics(bills, invoices, apOutstanding, arOutstanding);
+  if (dso == null && dpo == null) return null;
+
+  const fmtDays = (v: number | null) =>
+    v == null ? '—' : `${Math.round(Math.abs(v))}d`;
+
+  return (
+    <View style={turnoverStyles.card}>
+      <Text style={turnoverStyles.title}>TURNOVER METRICS</Text>
+      <View style={turnoverStyles.tileRow}>
+        <View style={turnoverStyles.tile}>
+          <Text style={turnoverStyles.tileLabel}>DSO</Text>
+          <Text style={turnoverStyles.tileValue}>{fmtDays(dso)}</Text>
+          <Text style={turnoverStyles.tileSub}>Days to collect AR</Text>
+        </View>
+        <View style={[turnoverStyles.tile, turnoverStyles.tileMid]}>
+          <Text style={turnoverStyles.tileLabel}>DPO</Text>
+          <Text style={turnoverStyles.tileValue}>{fmtDays(dpo)}</Text>
+          <Text style={turnoverStyles.tileSub}>Days to pay AP</Text>
+        </View>
+        <View style={turnoverStyles.tile}>
+          <Text style={turnoverStyles.tileLabel}>CCC</Text>
+          <Text style={[
+            turnoverStyles.tileValue,
+            ccc != null && ccc > 0 ? turnoverStyles.cccBad : turnoverStyles.cccGood,
+          ]}>
+            {ccc == null ? '—' : `${ccc > 0 ? '+' : ''}${Math.round(ccc)}d`}
+          </Text>
+          <Text style={turnoverStyles.tileSub}>DSO − DPO</Text>
+        </View>
+      </View>
+      <Text style={turnoverStyles.hint}>
+        {ccc != null && ccc > 0
+          ? 'Collecting slower than paying — watch cash flow'
+          : ccc != null && ccc <= 0
+            ? 'Collecting faster than paying — healthy position'
+            : 'Based on 6-month average billed amounts'}
+      </Text>
+    </View>
+  );
+}
+
+const turnoverStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  title: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  tileRow: { flexDirection: 'row', gap: Spacing.sm },
+  tile: { flex: 1, alignItems: 'center', gap: 3 },
+  tileMid: {
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.borderLight,
+  },
+  tileLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  tileValue: { fontSize: 22, fontWeight: '800', color: Colors.text },
+  cccBad: { color: Colors.text },
+  cccGood: { color: Colors.textSecondary },
+  tileSub: { fontSize: 10, color: Colors.textMuted, textAlign: 'center' },
+  hint: { fontSize: 11, color: Colors.textMuted, fontStyle: 'italic', textAlign: 'center' },
+});
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function FinancialAnalyticsScreen() {
@@ -643,6 +760,14 @@ export default function FinancialAnalyticsScreen() {
       <>
         {/* Net Position */}
         <NetPositionCard arTotal={arTotal} apTotal={apTotal} />
+
+        {/* Turnover Metrics: DSO / DPO / CCC */}
+        <TurnoverCard
+          bills={apBills ?? []}
+          invoices={arInvoices ?? []}
+          apOutstanding={apTotal}
+          arOutstanding={arTotal}
+        />
 
         {/* Monthly Net Position Trend */}
         <SectionHeader title="6-Month Trend" meta="AP vs AR · billed per month" />
