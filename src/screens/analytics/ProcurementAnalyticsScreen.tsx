@@ -44,12 +44,14 @@ interface VendorRow {
   name: string;
   poCount: number;
   total: number;
+  avgValue: number;
 }
 
 interface CustomerRow {
   name: string;
   soCount: number;
   total: number;
+  avgValue: number;
 }
 
 interface StatusRow {
@@ -142,12 +144,13 @@ function computeAnalytics(
       existing.poCount += 1;
       existing.total += po.total ?? 0;
     } else {
-      vendorMap.set(name, { name, poCount: 1, total: po.total ?? 0 });
+      vendorMap.set(name, { name, poCount: 1, total: po.total ?? 0, avgValue: 0 });
     }
   }
   const topVendors = Array.from(vendorMap.values())
     .sort((a, b) => b.total - a.total)
-    .slice(0, 5);
+    .slice(0, 5)
+    .map((v) => ({ ...v, avgValue: v.poCount > 0 ? v.total / v.poCount : 0 }));
 
   // Top customers
   const customerMap = new Map<string, CustomerRow>();
@@ -158,12 +161,13 @@ function computeAnalytics(
       existing.soCount += 1;
       existing.total += so.total ?? 0;
     } else {
-      customerMap.set(name, { name, soCount: 1, total: so.total ?? 0 });
+      customerMap.set(name, { name, soCount: 1, total: so.total ?? 0, avgValue: 0 });
     }
   }
   const topCustomers = Array.from(customerMap.values())
     .sort((a, b) => b.total - a.total)
-    .slice(0, 5);
+    .slice(0, 5)
+    .map((c) => ({ ...c, avgValue: c.soCount > 0 ? c.total / c.soCount : 0 }));
 
   // Status breakdowns
   const poStatusMap = new Map<string, number>();
@@ -313,6 +317,12 @@ const chartStyles = StyleSheet.create({
   monthCount: { fontSize: 11, fontWeight: '700', color: Colors.text },
 });
 
+function fmtAvg(val: number): string {
+  if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M avg`;
+  if (val >= 1_000) return `${(val / 1_000).toFixed(0)}K avg`;
+  return `${Math.round(val)} avg`;
+}
+
 /** Ranked bar list (vendors / customers) */
 function RankedBarList({ rows, valueKey, countKey }: {
   rows: (VendorRow | CustomerRow)[];
@@ -345,6 +355,9 @@ function RankedBarList({ rows, valueKey, countKey }: {
             <View style={rankedStyles.valueCol}>
               <Text style={rankedStyles.amount}>{formatCurrency(row[valueKey])}</Text>
               <Text style={rankedStyles.count}>{row[countKey]} orders</Text>
+              {row.avgValue > 0 && (
+                <Text style={rankedStyles.avg}>{fmtAvg(row.avgValue)}</Text>
+              )}
             </View>
           </View>
         );
@@ -399,6 +412,7 @@ const rankedStyles = StyleSheet.create({
   valueCol: { alignItems: 'flex-end' },
   amount: { fontSize: 13, fontWeight: '700', color: Colors.text },
   count: { fontSize: 10, color: Colors.textMuted, marginTop: 2 },
+  avg: { fontSize: 10, color: Colors.textSecondary, marginTop: 1 },
 });
 
 /** Status chips grid */
