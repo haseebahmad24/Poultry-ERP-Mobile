@@ -474,7 +474,7 @@ const velocityStyles = StyleSheet.create({
     borderBottomColor: Colors.borderLight,
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  legendDot: { width: 6, height: 6, borderRadius: 3 },
+  legendDot: { width: 6, height: 6, borderRadius: Radius.full },
   legendDotIn: { backgroundColor: Colors.text },
   legendDotOut: { backgroundColor: Colors.textMuted },
   legendLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '600' },

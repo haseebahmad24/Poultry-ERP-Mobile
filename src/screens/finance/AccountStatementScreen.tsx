@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginBottom: 2,
   },
-  voucherType: { fontSize: 9, fontWeight: '700', color: Colors.textSecondary },
+  voucherType: { fontSize: 10, fontWeight: '700', color: Colors.textSecondary },
   voucherNo: { fontSize: 11, color: Colors.text, fontWeight: '500' },
   narration: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
   amountText: { fontSize: 11, color: Colors.text },

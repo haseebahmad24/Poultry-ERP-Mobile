@@ -979,7 +979,7 @@ const styles = StyleSheet.create({
   payByTileOverdue: { backgroundColor: Colors.surfaceHover },
   payByTileMuted: { opacity: 0.7 },
   payByLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.6,
     color: Colors.textMuted,

@@ -893,7 +893,7 @@ const styles = StyleSheet.create({
   ledgerColBal: { width: 68, textAlign: 'right' },
 
   ledgerTypeChip: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
     color: Colors.textSecondary,
     backgroundColor: Colors.borderLight,

@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
   lineItemCode: { fontSize: 11, color: Colors.textMuted },
   lineItemQtys: { flexDirection: 'row', gap: 12 },
   qtyLabel: {},
-  qtyLabelText: { fontSize: 9, color: Colors.textMuted, fontWeight: '500', marginBottom: 1 },
+  qtyLabelText: { fontSize: 10, color: Colors.textMuted, fontWeight: '500', marginBottom: 1 },
   qtyLabelValue: { fontSize: 12, fontWeight: '600', color: Colors.text },
   miniProgressTrack: {
     height: 4,

@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.text,
   },
   label: {
-    fontSize: 9,
+    fontSize: 10,
     color: Colors.textMuted,
     fontWeight: '500',
   },
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   count: {
-    fontSize: 9,
+    fontSize: 10,
     color: Colors.textMuted,
     fontWeight: '500',
   },

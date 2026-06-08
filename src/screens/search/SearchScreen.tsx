@@ -784,7 +784,7 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
   },
   badgeText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '600',
     color: Colors.textSecondary,
     letterSpacing: 0.4,

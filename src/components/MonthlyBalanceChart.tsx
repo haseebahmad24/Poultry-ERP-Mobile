@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.text,
   },
   valueLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '600',
     color: Colors.textMuted,
   },
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   monthLabel: {
-    fontSize: 9,
+    fontSize: 10,
     color: Colors.textMuted,
     fontWeight: '500',
   },
