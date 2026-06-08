@@ -126,6 +126,99 @@ const agingMicroStyles = StyleSheet.create({
   emptyLabel: { fontSize: 11, color: Colors.textMuted, fontStyle: 'italic' },
 });
 
+// ─── Month-over-Month Billing Card ───────────────────────────────────────────
+
+function fmtK(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
+  return String(Math.round(v));
+}
+
+function MoMRow({
+  label,
+  thisVal,
+  prevVal,
+  thisLabel,
+  prevLabel,
+  last,
+}: {
+  label: string;
+  thisVal: number;
+  prevVal: number;
+  thisLabel: string;
+  prevLabel: string;
+  last?: boolean;
+}) {
+  const pctChange = prevVal > 0 ? ((thisVal - prevVal) / prevVal) * 100 : null;
+  const isUp = pctChange != null && pctChange > 0;
+  const isDown = pctChange != null && pctChange < 0;
+  return (
+    <View style={[momStyles.row, !last && momStyles.rowBorder]}>
+      <Text style={momStyles.rowLabel}>{label}</Text>
+      <View style={momStyles.rowValues}>
+        <View style={momStyles.monthBlock}>
+          <Text style={momStyles.monthLabel}>{prevLabel}</Text>
+          <Text style={momStyles.monthValue}>{fmtK(prevVal)}</Text>
+        </View>
+        <Feather
+          name={isUp ? 'trending-up' : isDown ? 'trending-down' : 'minus'}
+          size={14}
+          color={isUp ? Colors.textSecondary : isDown ? Colors.text : Colors.textMuted}
+        />
+        <View style={momStyles.monthBlock}>
+          <Text style={momStyles.monthLabel}>{thisLabel}</Text>
+          <Text style={[momStyles.monthValue, momStyles.thisMoValue]}>{fmtK(thisVal)}</Text>
+        </View>
+        {pctChange != null && (
+          <View style={[momStyles.badge, isUp ? momStyles.badgeUp : isDown ? momStyles.badgeDown : momStyles.badgeFlat]}>
+            <Text style={momStyles.badgeText}>
+              {pctChange > 0 ? '+' : ''}{pctChange.toFixed(0)}%
+            </Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+const momStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    overflow: 'hidden',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    gap: Spacing.sm,
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  rowLabel: { width: 24, fontSize: 10, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase' },
+  rowValues: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  monthBlock: { flex: 1, alignItems: 'center' },
+  monthLabel: { fontSize: 9, color: Colors.textMuted, fontWeight: '500', textTransform: 'uppercase' },
+  monthValue: { fontSize: 14, fontWeight: '700', color: Colors.textSecondary, marginTop: 1 },
+  thisMoValue: { color: Colors.text },
+  badge: {
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+  },
+  badgeUp: { backgroundColor: Colors.borderLight },
+  badgeDown: { backgroundColor: Colors.borderLight },
+  badgeFlat: { backgroundColor: Colors.borderLight },
+  badgeText: { fontSize: 10, fontWeight: '700', color: Colors.text },
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 function formatLastUpdated(date: Date): string {
@@ -251,6 +344,10 @@ export default function DashboardScreen() {
   const [flaggedInvoiceCount, setFlaggedInvoiceCount] = useState(0);
   const [apAgingBuckets, setApAgingBuckets] = useState<AgingMicroBucket[]>([]);
   const [arAgingBuckets, setArAgingBuckets] = useState<AgingMicroBucket[]>([]);
+  const [monthComparison, setMonthComparison] = useState<{
+    apThis: number; apPrev: number; arThis: number; arPrev: number;
+    thisLabel: string; prevLabel: string;
+  } | null>(null);
 
   const cacheKey = `dashboard:${selectedCompany?.id ?? 'all'}`;
 
@@ -381,6 +478,25 @@ export default function DashboardScreen() {
       // Aging buckets computed client-side from all unpaid bills/invoices
       setApAgingBuckets(computeClientAging(bills ?? []));
       setArAgingBuckets(computeClientAging(invoices ?? []));
+
+      // Month-over-month billing comparison
+      const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const now2 = new Date();
+      const thisYM = `${now2.getFullYear()}-${String(now2.getMonth() + 1).padStart(2, '0')}`;
+      const prevDate = new Date(now2.getFullYear(), now2.getMonth() - 1, 1);
+      const prevYM = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+      const apThis = (bills ?? []).filter((b) => b.dt?.startsWith(thisYM)).reduce((s, b) => s + (b.amount ?? 0), 0);
+      const apPrev = (bills ?? []).filter((b) => b.dt?.startsWith(prevYM)).reduce((s, b) => s + (b.amount ?? 0), 0);
+      const arThis = (invoices ?? []).filter((inv) => inv.dt?.startsWith(thisYM)).reduce((s, inv) => s + (inv.amount ?? 0), 0);
+      const arPrev = (invoices ?? []).filter((inv) => inv.dt?.startsWith(prevYM)).reduce((s, inv) => s + (inv.amount ?? 0), 0);
+      if (apThis > 0 || apPrev > 0 || arThis > 0 || arPrev > 0) {
+        setMonthComparison({
+          apThis, apPrev, arThis, arPrev,
+          thisLabel: MONTH_SHORT[now2.getMonth()],
+          prevLabel: MONTH_SHORT[prevDate.getMonth()],
+        });
+      }
     }).catch(() => {});
   }, [selectedCompany]));
 
@@ -664,6 +780,33 @@ export default function DashboardScreen() {
           );
         })()}
 
+        {/* Month-over-Month AP/AR Billing Comparison */}
+        {monthComparison != null && (
+          <>
+            <SectionHeader
+              title="Month vs Month"
+              meta="AP & AR billed · current vs prior"
+            />
+            <View style={momStyles.card}>
+              <MoMRow
+                label="AP"
+                thisVal={monthComparison.apThis}
+                prevVal={monthComparison.apPrev}
+                thisLabel={monthComparison.thisLabel}
+                prevLabel={monthComparison.prevLabel}
+              />
+              <MoMRow
+                label="AR"
+                thisVal={monthComparison.arThis}
+                prevVal={monthComparison.arPrev}
+                thisLabel={monthComparison.thisLabel}
+                prevLabel={monthComparison.prevLabel}
+                last
+              />
+            </View>
+          </>
+        )}
+
         {/* Supply Chain Snapshot */}
         {supplyChain !== null && (
           <>
@@ -900,11 +1043,6 @@ export default function DashboardScreen() {
           const apTotal = dueSoonBills.reduce((s, b) => s + (b.outstanding ?? 0), 0);
           const arTotal = dueSoonInvoices.reduce((s, inv) => s + (inv.outstanding ?? 0), 0);
           const net = arTotal - apTotal;
-          const fmtK = (v: number) => {
-            if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-            if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
-            return String(Math.round(v));
-          };
           return (
             <>
               <SectionHeader
