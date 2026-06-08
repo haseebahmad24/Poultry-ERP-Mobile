@@ -1,5 +1,35 @@
 # Mobile App Progress
 
+## Session 46 — 2026-06-08
+
+### Completed This Session
+
+**Journal Entries Dr/Cr Monthly Flow Chart** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- `buildMonthBuckets()`: groups filtered entries by year-month for the last 6 months, sums `total_debit` and `total_credit` per bucket; uses `dt.slice(0,7)` as the month key
+- `DrCrFlowChart`: compact grouped bar chart (dark bar = Dr, muted bar = Cr) with month labels; hidden when no `dt` data present
+- Rendered inside `JESummaryCard` below the voucher type breakdown; zero extra API calls
+
+**StockHealth — Stock Velocity Card** (`src/screens/analytics/StockHealthScreen.tsx`)
+- `computeVelocity()`: aggregates all `StockLedgerEntry` rows by `item_name`, sums `qty_in` + `qty_out`, returns top 8 items by total movement
+- `VelocityCard`: ranked list with stacked proportional bar (dark = IN, muted = OUT), per-item IN/OUT totals on right; hidden when no movement data
+- `fetchStockLedger({ companyId })` called in `load()` alongside stock/warehouses fetch; cached independently under `stock-velocity:*` key (returns immediately from cache on subsequent loads)
+- Placed between "Top Items by Quantity" and "Warehouse Distribution" sections
+
+**Dashboard — Upcoming Cash Flow Summary Card** (`src/screens/dashboard/DashboardScreen.tsx`)
+- 3-tile horizontal card: AP Outflow | Net | AR Inflow — computed from existing `dueSoonBills`/`dueSoonInvoices` state (zero extra API calls)
+- Net tile uses `fmtK()` helper (K/M formatting), shows dark when positive (net inflow), muted when negative (net outflow) with hint text "inflow"/"outflow"
+- AP tile taps → AccountsPayable screen; AR tile taps → AccountsReceivable screen
+- Placed between "Top Customers" section and the per-item "Upcoming Payments" list; only visible when there is at least one due-soon bill or invoice
+
+### Next Session
+- Consider: FinancialAnalytics — historical aging trend (multi-day snapshots stored in AsyncStorage, visualise bucket shifts over time)
+- Consider: ProcurementAnalytics — average order value per vendor/customer (value ÷ count column in ranked lists)
+- Consider: JournalEntries — top accounts by debit volume (bar chart from line items, requires lines data)
+- Consider: StockHealth — filter velocity card by warehouse, or date range for ledger period
+- Consider: Dashboard — "This Month vs Last Month" mini-trend for AP/AR outstanding
+
+---
+
 ## Session 45 — 2026-06-07
 
 ### Completed This Session
