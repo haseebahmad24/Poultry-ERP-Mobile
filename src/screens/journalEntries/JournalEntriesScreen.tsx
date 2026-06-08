@@ -492,7 +492,7 @@ const flowStyles = StyleSheet.create({
   bar: { width: '42%', borderRadius: 2, minHeight: 2 },
   drBar: { backgroundColor: Colors.text },
   crBar: { backgroundColor: Colors.textMuted },
-  monthLabel: { fontSize: 9, color: Colors.textMuted, textAlign: 'center' },
+  monthLabel: { fontSize: 10, color: Colors.textMuted, textAlign: 'center' },
 });
 
 function JESummaryCard({ entries }: { entries: JournalEntry[] }) {

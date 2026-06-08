@@ -411,6 +411,16 @@ function VelocityCard({ items }: { items: VelocityItem[] }) {
 
   return (
     <View style={velocityStyles.card}>
+      <View style={velocityStyles.legend}>
+        <View style={velocityStyles.legendItem}>
+          <View style={[velocityStyles.legendDot, velocityStyles.legendDotIn]} />
+          <Text style={velocityStyles.legendLabel}>IN</Text>
+        </View>
+        <View style={velocityStyles.legendItem}>
+          <View style={[velocityStyles.legendDot, velocityStyles.legendDotOut]} />
+          <Text style={velocityStyles.legendLabel}>OUT</Text>
+        </View>
+      </View>
       {items.map((item, i) => {
         const isLast = i === items.length - 1;
         const inPct = item.totalMovement > 0 ? item.totalIn / item.totalMovement : 0;
@@ -425,7 +435,6 @@ function VelocityCard({ items }: { items: VelocityItem[] }) {
             </View>
             <View style={velocityStyles.nameCol}>
               <Text style={velocityStyles.name} numberOfLines={1}>{item.itemName}</Text>
-              {/* Stacked bar: dark = IN, muted = OUT */}
               <View style={velocityStyles.barTrack}>
                 <View style={[velocityStyles.barFull, { width: `${barPct * 100}%` }]}>
                   <View style={[velocityStyles.barIn, { flex: inPct }]} />
@@ -456,6 +465,19 @@ const velocityStyles = StyleSheet.create({
     marginHorizontal: Spacing.md,
     overflow: 'hidden',
   },
+  legend: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot: { width: 6, height: 6, borderRadius: 3 },
+  legendDotIn: { backgroundColor: Colors.text },
+  legendDotOut: { backgroundColor: Colors.textMuted },
+  legendLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '600' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -920,7 +942,7 @@ export default function StockHealthScreen() {
             <>
               <SectionHeader
                 title="Stock Velocity"
-                subtitle="Highest IN+OUT movement · dark=IN, muted=OUT"
+                subtitle="Top 8 items by combined movement"
               />
               <VelocityCard items={velocityItems} />
             </>
