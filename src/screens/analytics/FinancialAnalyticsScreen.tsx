@@ -212,7 +212,7 @@ const netStyles = StyleSheet.create({
   equals: { flex: 0.5, alignItems: 'center' },
   op: { fontSize: 18, fontWeight: '700', color: Colors.textMuted },
   colLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.5,
     color: Colors.textMuted,
@@ -624,7 +624,7 @@ const historyStyles = StyleSheet.create({
   track: { width: '100%', justifyContent: 'flex-end' },
   barsBottom: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
   bar: { width: 6, borderRadius: Radius.sm },
-  dateLabel: { fontSize: 9, color: Colors.textMuted, textAlign: 'center' },
+  dateLabel: { fontSize: 10, color: Colors.textMuted, textAlign: 'center' },
   over90Row: {
     flexDirection: 'row',
     alignItems: 'center',

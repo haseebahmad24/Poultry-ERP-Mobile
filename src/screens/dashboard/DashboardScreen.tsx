@@ -205,7 +205,7 @@ const momStyles = StyleSheet.create({
   rowLabel: { width: 24, fontSize: 10, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase' },
   rowValues: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   monthBlock: { flex: 1, alignItems: 'center' },
-  monthLabel: { fontSize: 9, color: Colors.textMuted, fontWeight: '500', textTransform: 'uppercase' },
+  monthLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '500', textTransform: 'uppercase' },
   monthValue: { fontSize: 14, fontWeight: '700', color: Colors.textSecondary, marginTop: 1 },
   thisMoValue: { color: Colors.text },
   badge: {
@@ -1451,7 +1451,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
-  alertsDotText: { color: '#fff', fontSize: 9, fontWeight: '700' },
+  alertsDotText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   greeting: { fontSize: 18, fontWeight: '700', color: Colors.text },
   subGreeting: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
   logoutBtn: {
@@ -1545,7 +1545,7 @@ const styles = StyleSheet.create({
   fhDotAR: { backgroundColor: Colors.text },
   fhDotAP: { backgroundColor: Colors.textMuted },
   fhLegendLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.5,
     color: Colors.textMuted,
@@ -1799,7 +1799,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
-  quickBadgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
+  quickBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   quickLabel: {
     fontSize: 11,
     fontWeight: '500',
