@@ -895,6 +895,58 @@ export default function DashboardScreen() {
           </>
         )}
 
+        {/* This Week Cash Flow — compact AP outflow vs AR inflow summary */}
+        {(dueSoonBills.length > 0 || dueSoonInvoices.length > 0) && (() => {
+          const apTotal = dueSoonBills.reduce((s, b) => s + (b.outstanding ?? 0), 0);
+          const arTotal = dueSoonInvoices.reduce((s, inv) => s + (inv.outstanding ?? 0), 0);
+          const net = arTotal - apTotal;
+          const fmtK = (v: number) => {
+            if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+            if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
+            return String(Math.round(v));
+          };
+          return (
+            <>
+              <SectionHeader
+                title="Upcoming Cash"
+                meta={`next ${dueSoonDays}d · outflow vs inflow`}
+              />
+              <View style={styles.weekCashCard}>
+                <TouchableOpacity
+                  style={styles.weekCashTile}
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('Finance', { screen: 'AccountsPayable' } as any)}
+                >
+                  <Text style={styles.weekCashTileValue}>{fmtK(apTotal)}</Text>
+                  <Text style={styles.weekCashTileLabel}>AP Outflow</Text>
+                  <Text style={styles.weekCashTileCount}>{dueSoonBills.length} bill{dueSoonBills.length !== 1 ? 's' : ''}</Text>
+                </TouchableOpacity>
+                <View style={styles.weekCashDivider} />
+                <View style={styles.weekCashNetTile}>
+                  <Text style={[
+                    styles.weekCashNetValue,
+                    net >= 0 ? styles.weekCashNetPos : styles.weekCashNetNeg,
+                  ]}>
+                    {net >= 0 ? '+' : ''}{fmtK(net)}
+                  </Text>
+                  <Text style={styles.weekCashNetLabel}>Net</Text>
+                  <Text style={styles.weekCashNetHint}>{net >= 0 ? 'inflow' : 'outflow'}</Text>
+                </View>
+                <View style={styles.weekCashDivider} />
+                <TouchableOpacity
+                  style={styles.weekCashTile}
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('Finance', { screen: 'AccountsReceivable' } as any)}
+                >
+                  <Text style={styles.weekCashTileValue}>{fmtK(arTotal)}</Text>
+                  <Text style={styles.weekCashTileLabel}>AR Inflow</Text>
+                  <Text style={styles.weekCashTileCount}>{dueSoonInvoices.length} invoice{dueSoonInvoices.length !== 1 ? 's' : ''}</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          );
+        })()}
+
         {/* Due Soon Payments — AP bills + AR invoices due within the configured window */}
         {(dueSoonBills.length > 0 || dueSoonInvoices.length > 0) && (
           <>
@@ -1674,4 +1726,38 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   emptyText: { color: Colors.textMuted, fontSize: 13 },
+
+  weekCashCard: {
+    marginHorizontal: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  weekCashTile: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    gap: 3,
+  },
+  weekCashTileValue: { fontSize: 18, fontWeight: '700', color: Colors.text },
+  weekCashTileLabel: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4 },
+  weekCashTileCount: { fontSize: 11, color: Colors.textMuted },
+  weekCashDivider: { width: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
+  weekCashNetTile: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    gap: 3,
+    backgroundColor: Colors.background,
+  },
+  weekCashNetValue: { fontSize: 17, fontWeight: '700' },
+  weekCashNetPos: { color: Colors.text },
+  weekCashNetNeg: { color: Colors.textSecondary },
+  weekCashNetLabel: { fontSize: 10, fontWeight: '600', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  weekCashNetHint: { fontSize: 11, color: Colors.textMuted },
 });

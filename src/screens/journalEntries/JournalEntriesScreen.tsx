@@ -405,6 +405,96 @@ function fmtCompactJE(val: number): string {
   return String(Math.round(val));
 }
 
+interface MonthBucket {
+  label: string;   // e.g. "Jan"
+  debit: number;
+  credit: number;
+}
+
+function buildMonthBuckets(entries: JournalEntry[]): MonthBucket[] {
+  const now = new Date();
+  const buckets: MonthBucket[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    buckets.push({
+      label: d.toLocaleString('default', { month: 'short' }),
+      debit: 0,
+      credit: 0,
+    });
+    // attach key as a temporary property for filling
+    (buckets[buckets.length - 1] as any)._key = key;
+  }
+  for (const e of entries) {
+    if (!e.dt) continue;
+    const key = e.dt.slice(0, 7);
+    const bucket = buckets.find((b) => (b as any)._key === key);
+    if (!bucket) continue;
+    bucket.debit += e.total_debit ?? 0;
+    bucket.credit += e.total_credit ?? 0;
+  }
+  return buckets;
+}
+
+function DrCrFlowChart({ entries }: { entries: JournalEntry[] }) {
+  const buckets = buildMonthBuckets(entries);
+  const hasData = buckets.some((b) => b.debit > 0 || b.credit > 0);
+  if (!hasData) return null;
+
+  const maxVal = Math.max(...buckets.map((b) => Math.max(b.debit, b.credit)), 1);
+  const BAR_HEIGHT = 48;
+
+  return (
+    <View style={flowStyles.container}>
+      <View style={flowStyles.legendRow}>
+        <View style={flowStyles.legendItem}>
+          <View style={[flowStyles.legendDot, flowStyles.drDot]} />
+          <Text style={flowStyles.legendLabel}>Dr</Text>
+        </View>
+        <View style={flowStyles.legendItem}>
+          <View style={[flowStyles.legendDot, flowStyles.crDot]} />
+          <Text style={flowStyles.legendLabel}>Cr</Text>
+        </View>
+      </View>
+      <View style={flowStyles.chartRow}>
+        {buckets.map((b) => {
+          const drH = Math.round((b.debit / maxVal) * BAR_HEIGHT);
+          const crH = Math.round((b.credit / maxVal) * BAR_HEIGHT);
+          return (
+            <View key={(b as any)._key} style={flowStyles.column}>
+              <View style={[flowStyles.chartArea, { height: BAR_HEIGHT }]}>
+                <View style={flowStyles.barGroup}>
+                  <View style={[flowStyles.bar, flowStyles.drBar, { height: Math.max(drH, 2) }]} />
+                  <View style={[flowStyles.bar, flowStyles.crBar, { height: Math.max(crH, 2) }]} />
+                </View>
+              </View>
+              <Text style={flowStyles.monthLabel}>{b.label}</Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const flowStyles = StyleSheet.create({
+  container: { marginTop: Spacing.sm },
+  legendRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: 6 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot: { width: 6, height: 6, borderRadius: 3 },
+  drDot: { backgroundColor: Colors.text },
+  crDot: { backgroundColor: Colors.textMuted },
+  legendLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '600' },
+  chartRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
+  column: { flex: 1, alignItems: 'center', gap: 3 },
+  chartArea: { justifyContent: 'flex-end', width: '100%', alignItems: 'center' },
+  barGroup: { flexDirection: 'row', alignItems: 'flex-end', gap: 1, width: '100%', justifyContent: 'center' },
+  bar: { width: '42%', borderRadius: 2, minHeight: 2 },
+  drBar: { backgroundColor: Colors.text },
+  crBar: { backgroundColor: Colors.textMuted },
+  monthLabel: { fontSize: 9, color: Colors.textMuted, textAlign: 'center' },
+});
+
 function JESummaryCard({ entries }: { entries: JournalEntry[] }) {
   if (entries.length === 0) return null;
 
@@ -456,6 +546,7 @@ function JESummaryCard({ entries }: { entries: JournalEntry[] }) {
           ))}
         </View>
       )}
+      <DrCrFlowChart entries={entries} />
     </View>
   );
 }

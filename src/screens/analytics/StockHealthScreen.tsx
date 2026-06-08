@@ -37,6 +37,34 @@ type StockHealthData = StockHealthPDFData & {
   outOfStock: StockBalance[];
 };
 
+interface VelocityItem {
+  itemName: string;
+  totalIn: number;
+  totalOut: number;
+  totalMovement: number;
+}
+
+function computeVelocity(ledger: StockLedgerEntry[]): VelocityItem[] {
+  const map = new Map<string, { totalIn: number; totalOut: number }>();
+  for (const e of ledger) {
+    const name = e.item_name ?? 'Unknown';
+    const v = map.get(name) ?? { totalIn: 0, totalOut: 0 };
+    v.totalIn += e.qty_in ?? 0;
+    v.totalOut += e.qty_out ?? 0;
+    map.set(name, v);
+  }
+  return Array.from(map.entries())
+    .map(([itemName, { totalIn, totalOut }]) => ({
+      itemName,
+      totalIn,
+      totalOut,
+      totalMovement: totalIn + totalOut,
+    }))
+    .filter((v) => v.totalMovement > 0)
+    .sort((a, b) => b.totalMovement - a.totalMovement)
+    .slice(0, 8);
+}
+
 function computeStockHealth(stock: StockBalance[], _warehouses: Warehouse[], threshold: number): StockHealthData {
   const allItems = stock;
   const inStock = allItems.filter((s) => (s.qty ?? 0) >= threshold);
@@ -376,6 +404,102 @@ const whStyles = StyleSheet.create({
   qty: { fontSize: 14, fontWeight: '700', color: Colors.text },
 });
 
+/** Stock velocity: items with highest IN + OUT movement */
+function VelocityCard({ items }: { items: VelocityItem[] }) {
+  if (items.length === 0) return null;
+  const maxMovement = items[0]?.totalMovement ?? 1;
+
+  return (
+    <View style={velocityStyles.card}>
+      {items.map((item, i) => {
+        const isLast = i === items.length - 1;
+        const inPct = item.totalMovement > 0 ? item.totalIn / item.totalMovement : 0;
+        const barPct = item.totalMovement / maxMovement;
+        return (
+          <View
+            key={item.itemName}
+            style={[velocityStyles.row, !isLast && velocityStyles.rowBorder]}
+          >
+            <View style={velocityStyles.rankBadge}>
+              <Text style={velocityStyles.rankText}>{i + 1}</Text>
+            </View>
+            <View style={velocityStyles.nameCol}>
+              <Text style={velocityStyles.name} numberOfLines={1}>{item.itemName}</Text>
+              {/* Stacked bar: dark = IN, muted = OUT */}
+              <View style={velocityStyles.barTrack}>
+                <View style={[velocityStyles.barFull, { width: `${barPct * 100}%` }]}>
+                  <View style={[velocityStyles.barIn, { flex: inPct }]} />
+                  <View style={[velocityStyles.barOut, { flex: 1 - inPct }]} />
+                </View>
+              </View>
+            </View>
+            <View style={velocityStyles.statsCol}>
+              <Text style={velocityStyles.total}>{item.totalMovement.toLocaleString()}</Text>
+              <View style={velocityStyles.inOutRow}>
+                <Text style={velocityStyles.inLabel}>+{item.totalIn.toLocaleString()}</Text>
+                <Text style={velocityStyles.outLabel}> −{item.totalOut.toLocaleString()}</Text>
+              </View>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+const velocityStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    marginHorizontal: Spacing.md,
+    overflow: 'hidden',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    gap: Spacing.sm,
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  rankBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankText: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary },
+  nameCol: { flex: 1, gap: 4 },
+  name: { fontSize: 13, fontWeight: '600', color: Colors.text },
+  barTrack: {
+    height: 4,
+    backgroundColor: Colors.background,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+  },
+  barFull: {
+    height: '100%',
+    flexDirection: 'row',
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+  },
+  barIn: { backgroundColor: Colors.text },
+  barOut: { backgroundColor: Colors.textMuted },
+  statsCol: { alignItems: 'flex-end' },
+  total: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  inOutRow: { flexDirection: 'row', marginTop: 1 },
+  inLabel: { fontSize: 10, color: Colors.text, fontWeight: '600' },
+  outLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '600' },
+});
+
 // ─── Item Detail Modal ────────────────────────────────────────────────────────
 
 function ItemDetailModal({
@@ -636,6 +760,7 @@ export default function StockHealthScreen() {
   const { companyId } = useCompany();
   const [data, setData] = useState<StockHealthData | null>(null);
   const [allStock, setAllStock] = useState<StockBalance[]>([]);
+  const [velocityItems, setVelocityItems] = useState<VelocityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
@@ -644,6 +769,7 @@ export default function StockHealthScreen() {
   const [selectedItem, setSelectedItem] = useState<StockBalance | null>(null);
 
   const cacheKey = `stock-health:${companyId ?? 'all'}`;
+  const ledgerCacheKey = `stock-velocity:${companyId ?? 'all'}`;
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -652,29 +778,37 @@ export default function StockHealthScreen() {
 
     try {
       const cached = await getCached<{ stock: StockBalance[]; warehouses: Warehouse[]; threshold: number }>(cacheKey);
-      if (cached && !isRefresh) {
+      const ledgerCached = await getCached<StockLedgerEntry[]>(ledgerCacheKey);
+
+      if (cached && ledgerCached && !isRefresh) {
         setAllStock(cached.data.stock);
         setData(computeStockHealth(cached.data.stock, cached.data.warehouses, cached.data.threshold));
+        setVelocityItems(computeVelocity(ledgerCached.data));
         setLoading(false);
         return;
       }
 
       const threshold = await getLowStockThreshold();
-      const [stock, warehouses] = await Promise.all([
+      const [stock, warehouses, ledger] = await Promise.all([
         fetchStockBalances(companyId ?? undefined),
         fetchWarehouses(companyId ?? undefined),
+        fetchStockLedger({ companyId: companyId ?? undefined }),
       ]);
 
-      await setCached(cacheKey, { stock, warehouses, threshold });
+      await Promise.all([
+        setCached(cacheKey, { stock, warehouses, threshold }),
+        setCached(ledgerCacheKey, ledger),
+      ]);
       setAllStock(stock);
       setData(computeStockHealth(stock, warehouses, threshold));
+      setVelocityItems(computeVelocity(ledger));
     } catch {
       setError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [companyId, cacheKey]);
+  }, [companyId, cacheKey, ledgerCacheKey]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -780,6 +914,17 @@ export default function StockHealthScreen() {
           {/* Top items by quantity */}
           <SectionHeader title="Top Items by Quantity" subtitle="Highest stock levels" />
           <RankedItemList items={data.topByQty} onPress={setSelectedItem} />
+
+          {/* Stock velocity */}
+          {velocityItems.length > 0 && (
+            <>
+              <SectionHeader
+                title="Stock Velocity"
+                subtitle="Highest IN+OUT movement · dark=IN, muted=OUT"
+              />
+              <VelocityCard items={velocityItems} />
+            </>
+          )}
 
           {/* Warehouse breakdown */}
           <SectionHeader title="Warehouse Distribution" subtitle="Total quantity per warehouse" />
