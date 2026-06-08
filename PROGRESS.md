@@ -1,5 +1,37 @@
 # Mobile App Progress
 
+## Session 47 — 2026-06-08
+
+### Completed This Session
+
+**FinancialAnalytics — 30-Day Aging History Trend Chart** (`src/screens/analytics/FinancialAnalyticsScreen.tsx`, `src/utils/agingSnapshot.ts`)
+- `AgingHistoryEntry` type: `{date, companyId, apTotal, arTotal, apOver90, arOver90}`
+- `saveAgingHistory()` + `loadAgingHistory()` — rolling 30-entry array keyed by `aging-history:${companyId}`; skips same-day overwrite; trims oldest when over 30
+- `FinancialAnalyticsScreen`: `agingHistory` state loaded alongside snapshot in `Promise.all`; new entry saved after API fetch; history reloaded to include today's entry
+- `AgingHistoryChart`: grouped daily bars (AP=muted, AR=dark) for last 10 visible entries; `fmtHistoryDate()` formats as "Jun 8"; over-90 summary row shown when any entry has non-zero over_90; hidden when `history.length < 2`
+- Placed below AR Aging section before Top Customers with "AP vs AR History" section header
+
+**ProcurementAnalytics — Average Order Value in Ranked Lists** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- `VendorRow` and `CustomerRow` interfaces gain `avgValue: number` field
+- `computeAnalytics`: topVendors and topCustomers slices `.map()` to add `avgValue = total / count`
+- `fmtAvg()` helper: formats with K/M suffix + "avg" label (e.g., "45K avg")
+- `RankedBarList`: renders avg as 3rd line below order count (`rankedStyles.avg`) when `avgValue > 0`
+
+**Dashboard — Month-over-Month AP/AR Billing Comparison Card** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `monthComparison` state: `{apThis, apPrev, arThis, arPrev, thisLabel, prevLabel}` computed in existing `useFocusEffect` from `bills.dt` and `invoices.dt` — zero extra API calls
+- `fmtK()` helper hoisted to module scope (removed duplicate local function from Upcoming Cash block)
+- `MoMRow` component: prev-month → this-month with trending icon (`trending-up`/`trending-down`/`minus`) and integer % change badge
+- Card placed after Finance Health, before Supply Chain Snapshot; hidden when `monthComparison` is null (all zero billing)
+
+### Next Session
+- Consider: FinancialAnalytics — multi-snapshot trend visualization (line chart over rolling history, currently shown as bars)
+- Consider: JournalEntries — top accounts by debit volume (bar chart from line items, requires lines data)
+- Consider: StockHealth — filter velocity card by warehouse, or date range for ledger period
+- Consider: ProcurementAnalytics — vendor/customer trend comparison (side-by-side monthly bars for top 2 vendors)
+- Consider: Dashboard — "Quick Stats" sparkline card (tiny revenue/expense trendline from last 7 daily KPI snapshots)
+
+---
+
 ## Session 46 — 2026-06-08
 
 ### Completed This Session
