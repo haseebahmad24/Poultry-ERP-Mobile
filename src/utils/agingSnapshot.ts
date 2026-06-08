@@ -7,7 +7,18 @@ export interface AgingSnapshot {
   arAging: { current: number; days_30: number; days_60: number; days_90: number; over_90: number };
 }
 
+export interface AgingHistoryEntry {
+  date: string; // YYYY-MM-DD
+  companyId: string;
+  apTotal: number;
+  arTotal: number;
+  apOver90: number;
+  arOver90: number;
+}
+
 const KEY_PREFIX = 'aging-snapshot:';
+const HISTORY_KEY_PREFIX = 'aging-history:';
+const MAX_HISTORY_DAYS = 30;
 
 /** Save a snapshot, but only overwrite if the previous one is from a different calendar day. */
 export async function saveAgingSnapshot(snapshot: AgingSnapshot): Promise<void> {
@@ -29,6 +40,27 @@ export async function loadAgingSnapshot(companyId: string): Promise<AgingSnapsho
     return JSON.parse(raw) as AgingSnapshot;
   } catch {
     return null;
+  }
+}
+
+/** Append a daily entry to the rolling 30-day history; skips if same date as last entry. */
+export async function saveAgingHistory(entry: AgingHistoryEntry): Promise<void> {
+  const history = await loadAgingHistory(entry.companyId);
+  if (history.length > 0 && history[history.length - 1].date === entry.date) return;
+  history.push(entry);
+  if (history.length > MAX_HISTORY_DAYS) history.splice(0, history.length - MAX_HISTORY_DAYS);
+  const key = HISTORY_KEY_PREFIX + entry.companyId;
+  await AsyncStorage.setItem(key, JSON.stringify(history));
+}
+
+export async function loadAgingHistory(companyId: string): Promise<AgingHistoryEntry[]> {
+  const key = HISTORY_KEY_PREFIX + companyId;
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    if (!raw) return [];
+    return JSON.parse(raw) as AgingHistoryEntry[];
+  } catch {
+    return [];
   }
 }
 

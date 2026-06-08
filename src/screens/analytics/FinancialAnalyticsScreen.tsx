@@ -40,7 +40,14 @@ import {
 import { getCached, setCached } from '@/utils/cache';
 import { formatCurrency } from '@/utils/currency';
 import { exportFinancialAnalyticsPDF } from '@/utils/pdfExport';
-import { saveAgingSnapshot, loadAgingSnapshot, AgingSnapshot } from '@/utils/agingSnapshot';
+import {
+  saveAgingSnapshot,
+  loadAgingSnapshot,
+  AgingSnapshot,
+  saveAgingHistory,
+  loadAgingHistory,
+  AgingHistoryEntry,
+} from '@/utils/agingSnapshot';
 import type { MoreStackParamList } from '@/navigation/MoreNavigator';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
 
@@ -520,6 +527,116 @@ const deltaStyles = StyleSheet.create({
   noChange: { fontSize: 11, color: Colors.textMuted, fontStyle: 'italic', paddingTop: Spacing.sm },
 });
 
+// ─── Aging History Trend Chart ───────────────────────────────────────────────
+
+const HISTORY_MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function fmtHistoryDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${HISTORY_MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+}
+
+function AgingHistoryChart({ history }: { history: AgingHistoryEntry[] }) {
+  if (history.length < 2) return null;
+
+  const BAR_HEIGHT = 64;
+  const maxVal = Math.max(...history.flatMap((e) => [e.apTotal, e.arTotal]), 1);
+
+  // Show last 10 entries to keep chart readable
+  const visible = history.slice(-10);
+
+  return (
+    <View style={historyStyles.card}>
+      <Text style={historyStyles.title}>OUTSTANDING TREND</Text>
+      {/* Legend */}
+      <View style={historyStyles.legend}>
+        <View style={historyStyles.legendItem}>
+          <View style={[historyStyles.dot, { backgroundColor: Colors.textSecondary }]} />
+          <Text style={historyStyles.legendLabel}>AP</Text>
+        </View>
+        <View style={historyStyles.legendItem}>
+          <View style={[historyStyles.dot, { backgroundColor: Colors.text }]} />
+          <Text style={historyStyles.legendLabel}>AR</Text>
+        </View>
+        <Text style={historyStyles.legendMeta}>{history.length} days recorded</Text>
+      </View>
+      {/* Bars */}
+      <View style={historyStyles.barsRow}>
+        {visible.map((entry) => {
+          const apH = maxVal > 0 ? (entry.apTotal / maxVal) * BAR_HEIGHT : 0;
+          const arH = maxVal > 0 ? (entry.arTotal / maxVal) * BAR_HEIGHT : 0;
+          return (
+            <View key={entry.date} style={historyStyles.dayCol}>
+              <View style={[historyStyles.track, { height: BAR_HEIGHT }]}>
+                <View style={historyStyles.barsBottom}>
+                  <View style={[historyStyles.bar, { height: Math.max(apH, 2), backgroundColor: Colors.textSecondary, marginRight: 1 }]} />
+                  <View style={[historyStyles.bar, { height: Math.max(arH, 2), backgroundColor: Colors.text }]} />
+                </View>
+              </View>
+              <Text style={historyStyles.dateLabel}>{fmtHistoryDate(entry.date)}</Text>
+            </View>
+          );
+        })}
+      </View>
+      {/* Over-90 row */}
+      {history.some((e) => e.apOver90 > 0 || e.arOver90 > 0) && (
+        <View style={historyStyles.over90Row}>
+          <Text style={historyStyles.over90Label}>90d+ AP</Text>
+          <Text style={historyStyles.over90Val}>
+            {fmtCompact(visible[visible.length - 1]?.apOver90 ?? 0)}
+          </Text>
+          <Text style={[historyStyles.over90Label, { marginLeft: Spacing.md }]}>90d+ AR</Text>
+          <Text style={historyStyles.over90Val}>
+            {fmtCompact(visible[visible.length - 1]?.arOver90 ?? 0)}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const historyStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  title: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  legend: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  dot: { width: 8, height: 8, borderRadius: Radius.full },
+  legendLabel: { fontSize: 11, color: Colors.textSecondary },
+  legendMeta: { fontSize: 10, color: Colors.textMuted, marginLeft: 'auto' },
+  barsRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
+  dayCol: { flex: 1, alignItems: 'center', gap: 2 },
+  track: { width: '100%', justifyContent: 'flex-end' },
+  barsBottom: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
+  bar: { width: 6, borderRadius: Radius.sm },
+  dateLabel: { fontSize: 9, color: Colors.textMuted, textAlign: 'center' },
+  over90Row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+    gap: 4,
+  },
+  over90Label: { fontSize: 10, color: Colors.textMuted, fontWeight: '500', textTransform: 'uppercase' },
+  over90Val: { fontSize: 11, fontWeight: '700', color: Colors.text },
+});
+
 // ─── DSO / DPO / CCC Turnover Card ───────────────────────────────────────────
 
 function computeTurnoverMetrics(
@@ -650,6 +767,7 @@ export default function FinancialAnalyticsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [prevSnapshot, setPrevSnapshot] = useState<AgingSnapshot | null>(null);
+  const [agingHistory, setAgingHistory] = useState<AgingHistoryEntry[]>([]);
 
   const cacheKey = `financial-analytics:${companyId ?? 'all'}`;
 
@@ -669,7 +787,7 @@ export default function FinancialAnalyticsScreen() {
       const cid = companyId;
       const snapshotKey = String(cid ?? 'all');
 
-      const [apSummary, arSummary, topVendors, topCustomers, apBills, arInvoices, prev] = await Promise.all([
+      const [apSummary, arSummary, topVendors, topCustomers, apBills, arInvoices, prev, history] = await Promise.all([
         fetchAPSummary(cid),
         fetchARSummary(cid),
         fetchAPVendors(cid),
@@ -681,14 +799,18 @@ export default function FinancialAnalyticsScreen() {
           c ? c.data.invoices : fetchARInvoices(cid)
         ),
         loadAgingSnapshot(snapshotKey),
+        loadAgingHistory(snapshotKey),
       ]);
 
       setPrevSnapshot(prev);
+      setAgingHistory(history);
 
       const fresh: FinancialData = { apSummary, arSummary, topVendors, topCustomers, apBills, arInvoices };
       setData(fresh);
       setError(null);
       await setCached(cacheKey, fresh);
+
+      const today = new Date().toISOString().slice(0, 10);
 
       // Save today's snapshot (only updates if different calendar day from prev)
       await saveAgingSnapshot({
@@ -709,6 +831,19 @@ export default function FinancialAnalyticsScreen() {
           over_90: arSummary.aging?.over_90 ?? 0,
         },
       });
+
+      // Save to rolling history (skips if same date as last entry)
+      await saveAgingHistory({
+        date: today,
+        companyId: snapshotKey,
+        apTotal: apSummary.total_outstanding ?? 0,
+        arTotal: arSummary.total_outstanding ?? 0,
+        apOver90: apSummary.aging?.over_90 ?? 0,
+        arOver90: arSummary.aging?.over_90 ?? 0,
+      });
+      // Reload history after saving so the chart reflects today's entry
+      const updatedHistory = await loadAgingHistory(snapshotKey);
+      setAgingHistory(updatedHistory);
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
@@ -887,6 +1022,14 @@ export default function FinancialAnalyticsScreen() {
             />
           )}
         </View>
+
+        {/* Aging History Trend */}
+        {agingHistory.length >= 2 && (
+          <>
+            <SectionHeader title="AP vs AR History" meta="daily outstanding · up to 30 days" />
+            <AgingHistoryChart history={agingHistory} />
+          </>
+        )}
 
         {/* Top Customers */}
         {top5Customers.length > 0 && (
