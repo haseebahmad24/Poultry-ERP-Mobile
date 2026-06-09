@@ -1,5 +1,37 @@
 # Mobile App Progress
 
+## Session 49 — 2026-06-09
+
+### Completed This Session
+
+**JournalEntries — Top Accounts Activity Heat Map** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- `buildAccountActivity(entries)`: flattens `entry.lines` across all filtered entries, groups by `line.account` name, sums `debit` + `credit` per account, returns top 8 by total activity
+- `AccountActivityList`: compact ranked list — each row shows account name, split Dr bar (dark) + Cr bar (muted) scaled to max-total, and total amount
+- `acctStyles`: header with "TOP ACCOUNTS" label + Dr/Cr legend dots; row layout with 110px name column, flex bars column, 38px amount column
+- Rendered inside `JESummaryCard` after `DrCrFlowChart`; hidden when no entries have line data
+
+**ProcurementAnalytics — Supplier Lead Time Analysis** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- `LeadTimeRow` interface: `{ vendor, avgDays, minDays, maxDays, poCount }`
+- `computeLeadTime(pos)`: filters POs with both `dt` and `delivery_date`, computes `delivery_date − dt` in days (skips negative or > 365d outliers), groups by vendor, returns top 8 sorted fastest→slowest
+- `LeadTimeChart`: ranked list with numbered badge, vendor name, proportional bar (scaled to slowest avg), avg days + min–max range + PO count in right column
+- Empty state: "No lead time data — set delivery dates on POs"
+- `leadTime` added to `Analytics` type and `computeAnalytics` return; rendered after Delivery Performance section
+
+**Dashboard — Financial Health Score Card** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `HealthScore` interface: `{ score, grade, apPct, arPct }`
+- `computeHealthScore(apBuckets, arBuckets)`: uses existing `apAgingBuckets`/`arAgingBuckets`; "healthy" = current + 1-30d buckets; `apPct` = healthy/total × 100; score = avg(apPct, arPct); grades A(≥85)/B(≥70)/C(≥55)/D(≥40)/F
+- `FinancialHealthCard`: 36px score number + letter grade dark badge + status label ("Excellent"/"Good"/"Fair"/"At Risk"/"Critical"); AP and AR health bars with % labels; hint text; hidden when no aging data
+- Rendered after "Aging Breakdown" section, before "Top Vendors"
+
+### Next Session
+- Consider: FinancialAnalytics — multi-snapshot line chart (NWC over 30 days from rolling history)
+- Consider: JournalEntries — account detail drill-down (tap account row to filter JEs by that account)
+- Consider: Dashboard — health score tap → navigate to FinancialAnalytics for full breakdown
+- Consider: ProcurementAnalytics — lead time trend (rolling 6-month avg lead time per vendor)
+- Consider: StockHealth — reorder alert threshold per item (user-configurable min qty)
+
+---
+
 ## Session 48 — 2026-06-09
 
 ### Completed This Session
