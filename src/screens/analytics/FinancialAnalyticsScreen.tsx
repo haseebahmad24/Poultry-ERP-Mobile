@@ -637,6 +637,132 @@ const historyStyles = StyleSheet.create({
   over90Val: { fontSize: 11, fontWeight: '700', color: Colors.text },
 });
 
+// ─── Net Working Capital Trend ───────────────────────────────────────────────
+
+function NWCTrendCard({ history }: { history: AgingHistoryEntry[] }) {
+  if (history.length < 2) return null;
+
+  const visible = history.slice(-10);
+  const nwcValues = visible.map((e) => e.arTotal - e.apTotal);
+  const currentNWC = nwcValues[nwcValues.length - 1] ?? 0;
+  const firstNWC = nwcValues[0] ?? 0;
+  const delta = currentNWC - firstNWC;
+  const maxAbs = Math.max(...nwcValues.map((v) => Math.abs(v)), 1);
+
+  const fmtK = (v: number) => {
+    const abs = Math.abs(v);
+    if (abs >= 1_000_000) return `${(abs / 1_000_000).toFixed(1)}M`;
+    if (abs >= 1_000) return `${(abs / 1_000).toFixed(0)}K`;
+    return abs.toFixed(0);
+  };
+
+  const BAR_H = 48;
+
+  return (
+    <View style={nwcStyles.card}>
+      <View style={nwcStyles.headerRow}>
+        <Text style={nwcStyles.title}>NET WORKING CAPITAL TREND</Text>
+        <Text style={nwcStyles.meta}>{visible.length}d · AR − AP</Text>
+      </View>
+
+      {/* Summary tiles */}
+      <View style={nwcStyles.tileRow}>
+        <View style={nwcStyles.tile}>
+          <Text style={[nwcStyles.tileValue, currentNWC < 0 && nwcStyles.negative]}>
+            {currentNWC < 0 ? '−' : ''}{fmtK(currentNWC)}
+          </Text>
+          <Text style={nwcStyles.tileLabel}>{currentNWC >= 0 ? 'Surplus' : 'Deficit'}</Text>
+        </View>
+        <View style={[nwcStyles.tile, nwcStyles.tileMid]}>
+          <Text style={[nwcStyles.tileValue, delta >= 0 ? nwcStyles.positive : nwcStyles.negative]}>
+            {delta >= 0 ? '+' : '−'}{fmtK(delta)}
+          </Text>
+          <Text style={nwcStyles.tileLabel}>Change</Text>
+        </View>
+        <View style={nwcStyles.tile}>
+          <Text style={nwcStyles.tileValue}>{visible.length}</Text>
+          <Text style={nwcStyles.tileLabel}>Days</Text>
+        </View>
+      </View>
+
+      {/* Sparkline — bars above zero line */}
+      <View style={nwcStyles.chartArea}>
+        {nwcValues.map((val, i) => {
+          const pct = Math.abs(val) / maxAbs;
+          const barH = Math.max(3, pct * BAR_H);
+          const isPos = val >= 0;
+          return (
+            <View key={i} style={nwcStyles.col}>
+              <View style={[{ height: BAR_H }, nwcStyles.colInner]}>
+                <View style={[
+                  nwcStyles.bar,
+                  { height: barH },
+                  isPos ? nwcStyles.barPos : nwcStyles.barNeg,
+                ]} />
+              </View>
+            </View>
+          );
+        })}
+      </View>
+
+      {/* Date labels */}
+      <View style={nwcStyles.labelRow}>
+        <Text style={nwcStyles.dateLabel}>{visible[0]?.date.slice(5) ?? ''}</Text>
+        <Text style={nwcStyles.centerLabel}>positive = AR {'>'} AP</Text>
+        <Text style={nwcStyles.dateLabel}>{visible[visible.length - 1]?.date.slice(5) ?? ''}</Text>
+      </View>
+    </View>
+  );
+}
+
+const nwcStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  title: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  meta: { fontSize: 10, color: Colors.textMuted },
+  tileRow: { flexDirection: 'row' },
+  tile: { flex: 1, alignItems: 'center', paddingVertical: Spacing.sm, gap: 2 },
+  tileMid: {
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.borderLight,
+  },
+  tileValue: { fontSize: 18, fontWeight: '800', color: Colors.text },
+  tileLabel: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  positive: { color: Colors.text },
+  negative: { color: Colors.textSecondary },
+  chartArea: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 3,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  col: { flex: 1, alignItems: 'center' },
+  colInner: { justifyContent: 'flex-end', width: '100%', alignItems: 'center' },
+  bar: { width: '80%', borderRadius: Radius.sm },
+  barPos: { backgroundColor: Colors.text },
+  barNeg: { backgroundColor: Colors.textMuted },
+  labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dateLabel: { fontSize: 10, color: Colors.textMuted },
+  centerLabel: { fontSize: 10, color: Colors.textMuted, fontStyle: 'italic' },
+});
+
 // ─── DSO / DPO / CCC Turnover Card ───────────────────────────────────────────
 
 function computeTurnoverMetrics(
@@ -1028,6 +1154,8 @@ export default function FinancialAnalyticsScreen() {
           <>
             <SectionHeader title="AP vs AR History" meta="daily outstanding · up to 30 days" />
             <AgingHistoryChart history={agingHistory} />
+            <SectionHeader title="Net Working Capital" meta="AR − AP daily" />
+            <NWCTrendCard history={agingHistory} />
           </>
         )}
 

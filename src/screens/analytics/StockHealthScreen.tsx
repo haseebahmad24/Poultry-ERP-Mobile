@@ -44,7 +44,23 @@ interface VelocityItem {
   totalMovement: number;
 }
 
-function computeVelocity(ledger: StockLedgerEntry[]): VelocityItem[] {
+function computeLedgerAnalysis(
+  ledger: StockLedgerEntry[],
+  stock: StockBalance[],
+): { velocityItems: VelocityItem[]; dusMap: Map<string, number> } {
+  // Period from first→last ledger date (default 180 days if unknown)
+  let minMs = Infinity;
+  let maxMs = -Infinity;
+  for (const e of ledger) {
+    if (!e.dt) continue;
+    const ms = new Date(e.dt).getTime();
+    if (!isNaN(ms)) { if (ms < minMs) minMs = ms; if (ms > maxMs) maxMs = ms; }
+  }
+  const periodDays = (isFinite(minMs) && isFinite(maxMs))
+    ? Math.max(1, Math.ceil((maxMs - minMs) / 86_400_000))
+    : 180;
+
+  // Aggregate by item name
   const map = new Map<string, { totalIn: number; totalOut: number }>();
   for (const e of ledger) {
     const name = e.item_name ?? 'Unknown';
@@ -53,16 +69,34 @@ function computeVelocity(ledger: StockLedgerEntry[]): VelocityItem[] {
     v.totalOut += e.qty_out ?? 0;
     map.set(name, v);
   }
-  return Array.from(map.entries())
+
+  // Top-8 velocity items (for VelocityCard)
+  const velocityItems = Array.from(map.entries())
     .map(([itemName, { totalIn, totalOut }]) => ({
-      itemName,
-      totalIn,
-      totalOut,
-      totalMovement: totalIn + totalOut,
+      itemName, totalIn, totalOut, totalMovement: totalIn + totalOut,
     }))
     .filter((v) => v.totalMovement > 0)
     .sort((a, b) => b.totalMovement - a.totalMovement)
     .slice(0, 8);
+
+  // Stock qty lookup by item name
+  const stockMap = new Map<string, number>();
+  for (const s of stock) {
+    stockMap.set(s.item_name, (stockMap.get(s.item_name) ?? 0) + (s.qty ?? 0));
+  }
+
+  // Days Until Stockout for all items with outflow
+  const dusMap = new Map<string, number>();
+  for (const [itemName, { totalOut }] of map.entries()) {
+    if (totalOut <= 0) continue;
+    const currentQty = stockMap.get(itemName) ?? 0;
+    if (currentQty <= 0) continue;
+    const dailyOut = totalOut / periodDays;
+    const days = Math.round(currentQty / dailyOut);
+    if (days < 365) dusMap.set(itemName, days);
+  }
+
+  return { velocityItems, dusMap };
 }
 
 function computeStockHealth(stock: StockBalance[], _warehouses: Warehouse[], threshold: number): StockHealthData {
@@ -214,10 +248,11 @@ const barStyles = StyleSheet.create({
 });
 
 /** Ranked item list */
-function RankedItemList({ items, showLowWarning, showOutOfStock, onPress }: {
+function RankedItemList({ items, showLowWarning, showOutOfStock, dusMap, onPress }: {
   items: StockBalance[];
   showLowWarning?: boolean;
   showOutOfStock?: boolean;
+  dusMap?: Map<string, number>;
   onPress?: (item: StockBalance) => void;
 }) {
   if (items.length === 0) {
@@ -235,6 +270,10 @@ function RankedItemList({ items, showLowWarning, showOutOfStock, onPress }: {
         const qty = item.qty ?? 0;
         const barPct = showOutOfStock ? 0 : qty / maxQty;
         const isLast = i === items.length - 1;
+        const dus = showLowWarning && dusMap ? dusMap.get(item.item_name) : undefined;
+        const dusBg = dus != null
+          ? (dus <= 7 ? '#1a1a1a' : dus <= 14 ? '#555' : '#999')
+          : undefined;
         return (
           <TouchableOpacity
             key={`${item.item_name}-${item.warehouse_name ?? ''}-${i}`}
@@ -268,6 +307,11 @@ function RankedItemList({ items, showLowWarning, showOutOfStock, onPress }: {
               </Text>
               {item.unit && <Text style={itemStyles.unit}>{item.unit}</Text>}
             </View>
+            {dus != null && (
+              <View style={[itemStyles.dusBadge, { backgroundColor: dusBg }]}>
+                <Text style={itemStyles.dusText}>~{dus}d</Text>
+              </View>
+            )}
             {onPress && <Feather name="chevron-right" size={14} color={Colors.textMuted} />}
           </TouchableOpacity>
         );
@@ -328,6 +372,14 @@ const itemStyles = StyleSheet.create({
   qty: { fontSize: 14, fontWeight: '700', color: Colors.text },
   qtyZero: { color: Colors.textMuted },
   unit: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
+  dusBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dusText: { fontSize: 10, fontWeight: '700', color: '#fff' },
 });
 
 /** Warehouse utilisation list */
@@ -783,6 +835,7 @@ export default function StockHealthScreen() {
   const [data, setData] = useState<StockHealthData | null>(null);
   const [allStock, setAllStock] = useState<StockBalance[]>([]);
   const [velocityItems, setVelocityItems] = useState<VelocityItem[]>([]);
+  const [dusMap, setDusMap] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
@@ -803,9 +856,12 @@ export default function StockHealthScreen() {
       const ledgerCached = await getCached<StockLedgerEntry[]>(ledgerCacheKey);
 
       if (cached && ledgerCached && !isRefresh) {
-        setAllStock(cached.data.stock);
-        setData(computeStockHealth(cached.data.stock, cached.data.warehouses, cached.data.threshold));
-        setVelocityItems(computeVelocity(ledgerCached.data));
+        const s = cached.data.stock;
+        setAllStock(s);
+        setData(computeStockHealth(s, cached.data.warehouses, cached.data.threshold));
+        const { velocityItems: vi, dusMap: dm } = computeLedgerAnalysis(ledgerCached.data, s);
+        setVelocityItems(vi);
+        setDusMap(dm);
         setLoading(false);
         return;
       }
@@ -823,7 +879,9 @@ export default function StockHealthScreen() {
       ]);
       setAllStock(stock);
       setData(computeStockHealth(stock, warehouses, threshold));
-      setVelocityItems(computeVelocity(ledger));
+      const { velocityItems: vi, dusMap: dm } = computeLedgerAnalysis(ledger, stock);
+      setVelocityItems(vi);
+      setDusMap(dm);
     } catch {
       setError(true);
     } finally {
@@ -929,7 +987,7 @@ export default function StockHealthScreen() {
                 title="Low Stock Items"
                 subtitle={`${data.lowStockItems} item${data.lowStockItems !== 1 ? 's' : ''} below threshold`}
               />
-              <RankedItemList items={data.lowStock} showLowWarning onPress={setSelectedItem} />
+              <RankedItemList items={data.lowStock} showLowWarning dusMap={dusMap} onPress={setSelectedItem} />
             </>
           )}
 

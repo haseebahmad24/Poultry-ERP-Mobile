@@ -59,7 +59,15 @@ interface StatusRow {
   count: number;
 }
 
-type Analytics = ProcurementAnalyticsData & { months: MonthBucket[]; valueDist: ValueDistRow[] };
+interface DeliveryPerf {
+  overdueCount: number;
+  onTrackCount: number;
+  noDateCount: number;
+  avgOverdueDays: number;
+  overdueValue: number;
+}
+
+type Analytics = ProcurementAnalyticsData & { months: MonthBucket[]; valueDist: ValueDistRow[]; deliveryPerf: DeliveryPerf };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -210,6 +218,7 @@ function computeAnalytics(
     poStatuses,
     soStatuses,
     valueDist: computeValueDistribution(pos, sos),
+    deliveryPerf: computeDeliveryPerformance(pos),
   };
 }
 
@@ -491,6 +500,45 @@ interface ValueDistRow {
   soCount: number;
 }
 
+function computeDeliveryPerformance(pos: PurchaseOrder[]): DeliveryPerf {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let overdueCount = 0;
+  let onTrackCount = 0;
+  let noDateCount = 0;
+  let totalOverdueDays = 0;
+  let overdueValue = 0;
+
+  for (const po of pos) {
+    const s = (po.status ?? '').toLowerCase();
+    const isOpen = s === 'open' || s === 'approved' || s === 'pending' || s === '';
+    if (!isOpen) continue;
+
+    if (!po.delivery_date) { noDateCount++; continue; }
+    const dd = new Date(po.delivery_date);
+    if (isNaN(dd.getTime())) { noDateCount++; continue; }
+    dd.setHours(0, 0, 0, 0);
+
+    const diffDays = Math.floor((today.getTime() - dd.getTime()) / 86_400_000);
+    if (diffDays > 0) {
+      overdueCount++;
+      totalOverdueDays += diffDays;
+      overdueValue += po.total ?? 0;
+    } else {
+      onTrackCount++;
+    }
+  }
+
+  return {
+    overdueCount,
+    onTrackCount,
+    noDateCount,
+    avgOverdueDays: overdueCount > 0 ? totalOverdueDays / overdueCount : 0,
+    overdueValue,
+  };
+}
+
 function computeValueDistribution(pos: PurchaseOrder[], sos: SalesOrder[]): ValueDistRow[] {
   const rows: ValueDistRow[] = VALUE_BUCKETS.map((b) => ({ label: b.label, poCount: 0, soCount: 0 }));
 
@@ -575,6 +623,121 @@ const distStyles = StyleSheet.create({
   bar: { width: 9, borderRadius: Radius.sm },
   bucketLabel: { fontSize: 10, color: Colors.textMuted, textAlign: 'center', lineHeight: 13 },
   bucketTotal: { fontSize: 10, fontWeight: '700', color: Colors.text },
+});
+
+// ─── Delivery Performance Card ────────────────────────────────────────────────
+
+function DeliveryPerfCard({ perf }: { perf: DeliveryPerf }) {
+  const { overdueCount, onTrackCount, noDateCount, avgOverdueDays, overdueValue } = perf;
+  const total = overdueCount + onTrackCount + noDateCount;
+  if (total === 0) return null;
+
+  const fmtK = (v: number) => {
+    if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+    if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
+    return v.toFixed(0);
+  };
+
+  return (
+    <View style={delivStyles.card}>
+      <Text style={delivStyles.title}>OPEN PO DELIVERY STATUS</Text>
+
+      {/* Tiles */}
+      <View style={delivStyles.tileRow}>
+        <View style={delivStyles.tile}>
+          <Text style={[delivStyles.tileValue, overdueCount > 0 && delivStyles.danger]}>
+            {overdueCount}
+          </Text>
+          <Text style={delivStyles.tileLabel}>Overdue</Text>
+        </View>
+        <View style={[delivStyles.tile, delivStyles.tileMid]}>
+          <Text style={delivStyles.tileValue}>{onTrackCount}</Text>
+          <Text style={delivStyles.tileLabel}>On Track</Text>
+        </View>
+        <View style={delivStyles.tile}>
+          <Text style={[delivStyles.tileValue, overdueCount > 0 && delivStyles.warn]}>
+            {avgOverdueDays > 0 ? `${Math.round(avgOverdueDays)}d` : '—'}
+          </Text>
+          <Text style={delivStyles.tileLabel}>Avg Late</Text>
+        </View>
+      </View>
+
+      {/* Stacked bar */}
+      {total > 0 && (
+        <View style={delivStyles.bar}>
+          {overdueCount > 0 && <View style={[delivStyles.seg, delivStyles.segOverdue, { flex: overdueCount }]} />}
+          {onTrackCount > 0 && <View style={[delivStyles.seg, delivStyles.segOnTrack, { flex: onTrackCount }]} />}
+          {noDateCount > 0 && <View style={[delivStyles.seg, delivStyles.segNoDate, { flex: noDateCount }]} />}
+        </View>
+      )}
+
+      {/* Legend */}
+      <View style={delivStyles.legend}>
+        <View style={delivStyles.legendItem}>
+          <View style={[delivStyles.dot, delivStyles.segOverdue]} />
+          <Text style={delivStyles.legendLabel}>
+            {overdueCount} overdue{overdueValue > 0 ? ` · ${fmtK(overdueValue)}` : ''}
+          </Text>
+        </View>
+        <View style={delivStyles.legendItem}>
+          <View style={[delivStyles.dot, delivStyles.segOnTrack]} />
+          <Text style={delivStyles.legendLabel}>{onTrackCount} on track</Text>
+        </View>
+        {noDateCount > 0 && (
+          <View style={delivStyles.legendItem}>
+            <View style={[delivStyles.dot, delivStyles.segNoDate]} />
+            <Text style={delivStyles.legendLabel}>{noDateCount} no date set</Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+const delivStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  title: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  tileRow: { flexDirection: 'row' },
+  tile: { flex: 1, alignItems: 'center', paddingVertical: Spacing.sm, gap: 2 },
+  tileMid: {
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.borderLight,
+  },
+  tileValue: { fontSize: 20, fontWeight: '800', color: Colors.text },
+  tileLabel: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  danger: { color: Colors.text },
+  warn: { color: Colors.textSecondary },
+  bar: {
+    flexDirection: 'row',
+    height: 8,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+    backgroundColor: Colors.borderLight,
+  },
+  seg: { height: '100%' },
+  segOverdue: { backgroundColor: Colors.text },
+  segOnTrack: { backgroundColor: Colors.textSecondary },
+  segNoDate: { backgroundColor: Colors.borderLight },
+  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  dot: { width: 8, height: 8, borderRadius: Radius.full },
+  legendLabel: { fontSize: 11, color: Colors.textSecondary },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -804,6 +967,10 @@ export default function ProcurementAnalyticsScreen() {
           {/* Order value distribution */}
           <SectionHeader title="Order Value Distribution" subtitle="PO and SO counts by order size" />
           <ValueDistributionChart rows={analytics.valueDist} />
+
+          {/* Delivery performance */}
+          <SectionHeader title="Delivery Performance" subtitle="Open PO deadline status" />
+          <DeliveryPerfCard perf={analytics.deliveryPerf} />
 
           <View style={styles.footer} />
         </ScrollView>
