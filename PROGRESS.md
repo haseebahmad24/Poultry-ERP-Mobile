@@ -1,5 +1,38 @@
 # Mobile App Progress
 
+## Session 48 — 2026-06-09
+
+### Completed This Session
+
+**ProcurementAnalytics — Delivery Performance Card** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- `computeDeliveryPerformance(pos)`: iterates open POs, classifies by `delivery_date` vs today
+- Counts: `overdueCount` (delivery_date < today), `onTrackCount` (delivery_date >= today), `noDateCount` (no date set)
+- `avgOverdueDays`: mean days past deadline for overdue POs; `overdueValue`: combined total of overdue POs
+- `DeliveryPerfCard`: 3-tile summary row (Overdue / On Track / Avg Late) + stacked progress bar + legend with value annotation
+- Added to `Analytics` type and `computeAnalytics` return; renders after Order Value Distribution section
+
+**StockHealth — Days Until Stockout (DUS) Badges** (`src/screens/analytics/StockHealthScreen.tsx`)
+- `computeLedgerAnalysis(ledger, stock)` replaces `computeVelocity`: computes ledger date range for accurate period, aggregates all items (not just top 8) into outflow map, produces `dusMap: Map<itemName, days>` where DUS = currentQty / dailyOutflow
+- Period auto-detected from ledger entry dates; defaults to 180 days if ledger is empty
+- Items with DUS >= 365 days excluded (not meaningful for low-stock alerting)
+- `RankedItemList` gains `dusMap?: Map<string, number>` prop: renders `~Xd` badge per item when `showLowWarning` is true; badge color: dark ≤7d (critical), mid 8–14d (caution), gray 15+d
+- Added `dusMap` state to `StockHealthScreen`; both cache and fresh-load paths populate it
+
+**FinancialAnalytics — Net Working Capital Trend Card** (`src/screens/analytics/FinancialAnalyticsScreen.tsx`)
+- `NWCTrendCard({ history })`: uses rolling `AgingHistoryEntry[]` already saved by the screen
+- Computes NWC = `arTotal − apTotal` per day for last 10 visible entries
+- 3-tile header: Current NWC (labeled Surplus/Deficit), Change vs earliest entry, Days recorded
+- Sparkline bar chart: bar height ∝ |NWC| / max; dark fill for positive (AR > AP), muted for negative (AP > AR)
+- Baseline axis + date range labels; hidden when < 2 history entries
+- Placed immediately after `AgingHistoryChart` under "Net Working Capital" section header
+
+### Next Session
+- Consider: Journal Entries account heat map (top debit/credit accounts by activity)
+- Consider: Dashboard financial health score (composite metric from NWC, overdue %, DSO)
+- Consider: Procurement Analytics supplier lead time analysis (PO order date → receipt date)
+
+---
+
 ## Session 47 — 2026-06-08
 
 ### Completed This Session
