@@ -67,7 +67,15 @@ interface DeliveryPerf {
   overdueValue: number;
 }
 
-type Analytics = ProcurementAnalyticsData & { months: MonthBucket[]; valueDist: ValueDistRow[]; deliveryPerf: DeliveryPerf };
+interface LeadTimeRow {
+  vendor: string;
+  avgDays: number;
+  minDays: number;
+  maxDays: number;
+  poCount: number;
+}
+
+type Analytics = ProcurementAnalyticsData & { months: MonthBucket[]; valueDist: ValueDistRow[]; deliveryPerf: DeliveryPerf; leadTime: LeadTimeRow[] };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -219,6 +227,7 @@ function computeAnalytics(
     soStatuses,
     valueDist: computeValueDistribution(pos, sos),
     deliveryPerf: computeDeliveryPerformance(pos),
+    leadTime: computeLeadTime(pos),
   };
 }
 
@@ -539,6 +548,37 @@ function computeDeliveryPerformance(pos: PurchaseOrder[]): DeliveryPerf {
   };
 }
 
+function computeLeadTime(pos: PurchaseOrder[]): LeadTimeRow[] {
+  const vendorMap = new Map<string, { days: number[]; total: number }>();
+  for (const po of pos) {
+    if (!po.dt || !po.delivery_date) continue;
+    const orderDate = new Date(po.dt);
+    const delivDate = new Date(po.delivery_date);
+    if (isNaN(orderDate.getTime()) || isNaN(delivDate.getTime())) continue;
+    const days = Math.round((delivDate.getTime() - orderDate.getTime()) / 86_400_000);
+    if (days < 0 || days > 365) continue;
+    const name = po.vendor ?? 'Unknown';
+    const existing = vendorMap.get(name);
+    if (existing) {
+      existing.days.push(days);
+      existing.total += po.total ?? 0;
+    } else {
+      vendorMap.set(name, { days: [days], total: po.total ?? 0 });
+    }
+  }
+  return Array.from(vendorMap.entries())
+    .filter(([, v]) => v.days.length >= 1)
+    .map(([vendor, v]) => ({
+      vendor,
+      avgDays: Math.round(v.days.reduce((s, d) => s + d, 0) / v.days.length),
+      minDays: Math.min(...v.days),
+      maxDays: Math.max(...v.days),
+      poCount: v.days.length,
+    }))
+    .sort((a, b) => a.avgDays - b.avgDays)
+    .slice(0, 8);
+}
+
 function computeValueDistribution(pos: PurchaseOrder[], sos: SalesOrder[]): ValueDistRow[] {
   const rows: ValueDistRow[] = VALUE_BUCKETS.map((b) => ({ label: b.label, poCount: 0, soCount: 0 }));
 
@@ -738,6 +778,108 @@ const delivStyles = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   dot: { width: 8, height: 8, borderRadius: Radius.full },
   legendLabel: { fontSize: 11, color: Colors.textSecondary },
+});
+
+// ─── Lead Time Chart ──────────────────────────────────────────────────────────
+
+function LeadTimeChart({ rows }: { rows: LeadTimeRow[] }) {
+  if (rows.length === 0) {
+    return (
+      <View style={ltStyles.empty}>
+        <Text style={ltStyles.emptyText}>No lead time data — set delivery dates on POs</Text>
+      </View>
+    );
+  }
+  const maxDays = Math.max(...rows.map((r) => r.avgDays), 1);
+
+  return (
+    <View style={ltStyles.card}>
+      <View style={ltStyles.legendRow}>
+        <View style={ltStyles.legendItem}>
+          <View style={[ltStyles.dot, { backgroundColor: Colors.text }]} />
+          <Text style={ltStyles.legendLabel}>Fastest → Slowest avg lead time</Text>
+        </View>
+      </View>
+      {rows.map((row, i) => {
+        const barPct = (row.avgDays / maxDays) * 100;
+        return (
+          <View key={row.vendor} style={ltStyles.row}>
+            <View style={ltStyles.rankBadge}>
+              <Text style={ltStyles.rankText}>{i + 1}</Text>
+            </View>
+            <View style={ltStyles.nameCol}>
+              <Text style={ltStyles.vendorName} numberOfLines={1}>{row.vendor}</Text>
+              <View style={ltStyles.barTrack}>
+                <View style={[ltStyles.barFill, { width: `${barPct}%` as any }]} />
+              </View>
+            </View>
+            <View style={ltStyles.statsCol}>
+              <Text style={ltStyles.avgDays}>{row.avgDays}d avg</Text>
+              <Text style={ltStyles.range}>{row.minDays}–{row.maxDays}d · {row.poCount} PO{row.poCount !== 1 ? 's' : ''}</Text>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+const ltStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    marginHorizontal: Spacing.md,
+    overflow: 'hidden',
+  },
+  empty: {
+    marginHorizontal: Spacing.md,
+    paddingVertical: Spacing.lg,
+    alignItems: 'center',
+  },
+  emptyText: { ...Typography.bodySmall, textAlign: 'center' },
+  legendRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: 4,
+  },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { width: 8, height: 8, borderRadius: Radius.full },
+  legendLabel: { fontSize: 11, color: Colors.textSecondary },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+    gap: Spacing.sm,
+  },
+  rankBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankText: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary },
+  nameCol: { flex: 1, gap: 4 },
+  vendorName: { ...Typography.body, fontWeight: '600' },
+  barTrack: {
+    height: 4,
+    backgroundColor: Colors.background,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.borderLight,
+  },
+  barFill: { height: '100%', backgroundColor: Colors.text, borderRadius: Radius.full },
+  statsCol: { alignItems: 'flex-end' },
+  avgDays: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  range: { fontSize: 10, color: Colors.textMuted, marginTop: 2 },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -971,6 +1113,10 @@ export default function ProcurementAnalyticsScreen() {
           {/* Delivery performance */}
           <SectionHeader title="Delivery Performance" subtitle="Open PO deadline status" />
           <DeliveryPerfCard perf={analytics.deliveryPerf} />
+
+          {/* Supplier Lead Time */}
+          <SectionHeader title="Supplier Lead Time" subtitle="Order-to-delivery days per vendor" />
+          <LeadTimeChart rows={analytics.leadTime} />
 
           <View style={styles.footer} />
         </ScrollView>

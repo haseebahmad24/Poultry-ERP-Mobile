@@ -219,6 +219,129 @@ const momStyles = StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: '700', color: Colors.text },
 });
 
+// ─── Financial Health Score ───────────────────────────────────────────────────
+
+interface HealthScore {
+  score: number;
+  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  apPct: number;
+  arPct: number;
+}
+
+function computeHealthScore(
+  apBuckets: AgingMicroBucket[],
+  arBuckets: AgingMicroBucket[],
+): HealthScore | null {
+  const apTotal = apBuckets.reduce((s, b) => s + b.amount, 0);
+  const arTotal = arBuckets.reduce((s, b) => s + b.amount, 0);
+  if (apTotal === 0 && arTotal === 0) return null;
+
+  // Healthy = current (bucket 0) + at-risk 1-30d (bucket 1)
+  const apHealthy = (apBuckets[0]?.amount ?? 0) + (apBuckets[1]?.amount ?? 0);
+  const arHealthy = (arBuckets[0]?.amount ?? 0) + (arBuckets[1]?.amount ?? 0);
+  const apPct = apTotal > 0 ? Math.round((apHealthy / apTotal) * 100) : 100;
+  const arPct = arTotal > 0 ? Math.round((arHealthy / arTotal) * 100) : 100;
+
+  // Weight equally; if one side has no data default to 100%
+  const score = Math.round((apPct + arPct) / 2);
+  const grade: HealthScore['grade'] =
+    score >= 85 ? 'A' :
+    score >= 70 ? 'B' :
+    score >= 55 ? 'C' :
+    score >= 40 ? 'D' : 'F';
+
+  return { score, grade, apPct, arPct };
+}
+
+function FinancialHealthCard({ apBuckets, arBuckets }: {
+  apBuckets: AgingMicroBucket[];
+  arBuckets: AgingMicroBucket[];
+}) {
+  const hs = computeHealthScore(apBuckets, arBuckets);
+  if (!hs) return null;
+
+  const gradeLabel: Record<string, string> = {
+    A: 'Excellent', B: 'Good', C: 'Fair', D: 'At Risk', F: 'Critical',
+  };
+
+  return (
+    <View style={healthStyles.card}>
+      <View style={healthStyles.topRow}>
+        <View style={healthStyles.scoreBlock}>
+          <Text style={healthStyles.scoreNum}>{hs.score}</Text>
+          <Text style={healthStyles.scoreLabel}>/ 100</Text>
+        </View>
+        <View style={healthStyles.gradeBadge}>
+          <Text style={healthStyles.gradeText}>{hs.grade}</Text>
+        </View>
+        <View style={healthStyles.statusBlock}>
+          <Text style={healthStyles.statusLabel}>Financial Health</Text>
+          <Text style={healthStyles.statusDesc}>{gradeLabel[hs.grade]}</Text>
+        </View>
+      </View>
+      <View style={healthStyles.barsSection}>
+        <View style={healthStyles.barRow}>
+          <Text style={healthStyles.barLabel}>AP</Text>
+          <View style={healthStyles.barTrack}>
+            <View style={[healthStyles.barFill, { width: `${hs.apPct}%` as any }]} />
+          </View>
+          <Text style={healthStyles.barPct}>{hs.apPct}%</Text>
+        </View>
+        <View style={healthStyles.barRow}>
+          <Text style={healthStyles.barLabel}>AR</Text>
+          <View style={healthStyles.barTrack}>
+            <View style={[healthStyles.barFill, { width: `${hs.arPct}%` as any }]} />
+          </View>
+          <Text style={healthStyles.barPct}>{hs.arPct}%</Text>
+        </View>
+      </View>
+      <Text style={healthStyles.hint}>% of outstanding not yet overdue 30+ days</Text>
+    </View>
+  );
+}
+
+const healthStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  scoreBlock: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
+  scoreNum: { fontSize: 36, fontWeight: '800', color: Colors.text, lineHeight: 40 },
+  scoreLabel: { fontSize: 13, color: Colors.textMuted, fontWeight: '500' },
+  gradeBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.text,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gradeText: { fontSize: 20, fontWeight: '900', color: '#fff' },
+  statusBlock: { flex: 1 },
+  statusLabel: { fontSize: 11, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  statusDesc: { fontSize: 15, fontWeight: '700', color: Colors.text, marginTop: 2 },
+  barsSection: { gap: 6 },
+  barRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  barLabel: { fontSize: 11, fontWeight: '700', color: Colors.textMuted, width: 20 },
+  barTrack: {
+    flex: 1,
+    height: 6,
+    backgroundColor: Colors.borderLight,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+  },
+  barFill: { height: '100%', backgroundColor: Colors.text, borderRadius: Radius.full },
+  barPct: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary, width: 32, textAlign: 'right' },
+  hint: { fontSize: 10, color: Colors.textMuted },
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 function formatLastUpdated(date: Date): string {
@@ -939,6 +1062,14 @@ export default function DashboardScreen() {
                 <AgingMiniBar buckets={arAgingBuckets} />
               </View>
             </View>
+          </>
+        )}
+
+        {/* Financial Health Score */}
+        {(apAgingBuckets.some((b) => b.amount > 0) || arAgingBuckets.some((b) => b.amount > 0)) && (
+          <>
+            <SectionHeader title="Financial Health Score" />
+            <FinancialHealthCard apBuckets={apAgingBuckets} arBuckets={arAgingBuckets} />
           </>
         )}
 

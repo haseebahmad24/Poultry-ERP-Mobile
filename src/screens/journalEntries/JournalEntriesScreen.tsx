@@ -405,6 +405,97 @@ function fmtCompactJE(val: number): string {
   return String(Math.round(val));
 }
 
+interface AccountActivity {
+  account: string;
+  debit: number;
+  credit: number;
+  total: number;
+}
+
+function buildAccountActivity(entries: JournalEntry[]): AccountActivity[] {
+  const map = new Map<string, AccountActivity>();
+  for (const e of entries) {
+    for (const line of (e.lines ?? [])) {
+      if (!line.account) continue;
+      const dr = line.debit ?? 0;
+      const cr = line.credit ?? 0;
+      const existing = map.get(line.account);
+      if (existing) {
+        existing.debit += dr;
+        existing.credit += cr;
+        existing.total += dr + cr;
+      } else {
+        map.set(line.account, { account: line.account, debit: dr, credit: cr, total: dr + cr });
+      }
+    }
+  }
+  return Array.from(map.values())
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 8);
+}
+
+function AccountActivityList({ entries }: { entries: JournalEntry[] }) {
+  const items = buildAccountActivity(entries);
+  if (items.length === 0) return null;
+
+  const maxTotal = items[0]?.total ?? 1;
+
+  return (
+    <View style={acctStyles.container}>
+      <View style={acctStyles.header}>
+        <Text style={acctStyles.headerLabel}>TOP ACCOUNTS</Text>
+        <View style={acctStyles.legendRow}>
+          <View style={[acctStyles.dot, acctStyles.dotDr]} />
+          <Text style={acctStyles.legendLabel}>Dr</Text>
+          <View style={[acctStyles.dot, acctStyles.dotCr]} />
+          <Text style={acctStyles.legendLabel}>Cr</Text>
+        </View>
+      </View>
+      {items.map((item) => {
+        const drPct = maxTotal > 0 ? (item.debit / maxTotal) * 100 : 0;
+        const crPct = maxTotal > 0 ? (item.credit / maxTotal) * 100 : 0;
+        return (
+          <View key={item.account} style={acctStyles.row}>
+            <Text style={acctStyles.accountName} numberOfLines={1}>{item.account}</Text>
+            <View style={acctStyles.barsCol}>
+              <View style={acctStyles.barTrack}>
+                <View style={[acctStyles.barFillDr, { width: `${drPct}%` as any }]} />
+              </View>
+              <View style={acctStyles.barTrack}>
+                <View style={[acctStyles.barFillCr, { width: `${crPct}%` as any }]} />
+              </View>
+            </View>
+            <Text style={acctStyles.amount}>{fmtCompactJE(item.total)}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+const acctStyles = StyleSheet.create({
+  container: { marginTop: Spacing.sm, gap: 6 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerLabel: { fontSize: 10, fontWeight: '700', color: Colors.textMuted, letterSpacing: 0.5 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  dot: { width: 6, height: 6, borderRadius: Radius.full },
+  dotDr: { backgroundColor: Colors.text },
+  dotCr: { backgroundColor: Colors.textMuted },
+  legendLabel: { fontSize: 10, color: Colors.textMuted, marginRight: 4 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  accountName: { fontSize: 11, fontWeight: '500', color: Colors.textSecondary, width: 110 },
+  barsCol: { flex: 1, gap: 2 },
+  barTrack: {
+    height: 4,
+    backgroundColor: Colors.borderLight,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+  },
+  barFillDr: { height: '100%', backgroundColor: Colors.text, borderRadius: Radius.full },
+  barFillCr: { height: '100%', backgroundColor: Colors.textMuted, borderRadius: Radius.full },
+  amount: { fontSize: 11, fontWeight: '700', color: Colors.text, width: 38, textAlign: 'right' },
+});
+
 interface MonthBucket {
   label: string;   // e.g. "Jan"
   debit: number;
@@ -547,6 +638,7 @@ function JESummaryCard({ entries }: { entries: JournalEntry[] }) {
         </View>
       )}
       <DrCrFlowChart entries={entries} />
+      <AccountActivityList entries={entries} />
     </View>
   );
 }
