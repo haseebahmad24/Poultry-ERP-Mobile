@@ -1867,7 +1867,7 @@ export async function exportCashFlowPDF(params: {
 
     const billsHtml = data.bills.length > 0 ? `
       <div style="margin-bottom:6px">
-        <div style="font-size:9px;font-weight:700;color:#6b7280;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:3px">TO PAY · ${data.bills.length} bill${data.bills.length !== 1 ? 's' : ''}</div>
+        <div style="font-size:10px;font-weight:700;color:#6b7280;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:3px">TO PAY · ${data.bills.length} bill${data.bills.length !== 1 ? 's' : ''}</div>
         <table style="width:100%;border-collapse:collapse">
           <thead><tr style="background:#f3f4f6">
             <th style="text-align:left;padding:4px 6px;font-size:10px">Ref</th>
@@ -1886,7 +1886,7 @@ export async function exportCashFlowPDF(params: {
 
     const invoicesHtml = data.invoices.length > 0 ? `
       <div style="margin-bottom:6px">
-        <div style="font-size:9px;font-weight:700;color:#6b7280;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:3px">TO COLLECT · ${data.invoices.length} invoice${data.invoices.length !== 1 ? 's' : ''}</div>
+        <div style="font-size:10px;font-weight:700;color:#6b7280;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:3px">TO COLLECT · ${data.invoices.length} invoice${data.invoices.length !== 1 ? 's' : ''}</div>
         <table style="width:100%;border-collapse:collapse">
           <thead><tr style="background:#f3f4f6">
             <th style="text-align:left;padding:4px 6px;font-size:10px">Ref</th>
@@ -1972,7 +1972,7 @@ export async function exportWarehousesPDF(params: {
       <td style="font-weight:600">${wh.name}</td>
       <td>${wh.type ?? '—'}</td>
       <td>${wh.address ?? '—'}</td>
-      <td><span style="background:${statusBg};color:${statusColor};padding:2px 6px;border-radius:9px;font-size:9px;font-weight:600">${isActive ? 'Active' : 'Inactive'}</span></td>
+      <td><span style="background:${statusBg};color:${statusColor};padding:2px 6px;border-radius:9px;font-size:10px;font-weight:600">${isActive ? 'Active' : 'Inactive'}</span></td>
       <td class="right">${wh.total_items != null ? wh.total_items.toLocaleString() : '—'}</td>
       <td class="right">${wh.total_qty != null ? wh.total_qty.toLocaleString() : '—'}</td>
     </tr>`;
@@ -2173,7 +2173,7 @@ export async function exportMaterialsListPDF(params: {
       <td>${m.type ?? '—'}</td>
       <td>${m.category ?? '—'}</td>
       <td>${m.unit ?? '—'}</td>
-      <td><span style="background:${statusBg};color:${statusColor};border:1px solid #e5e7eb;padding:2px 6px;border-radius:9px;font-size:9px;font-weight:600">${m.status ?? 'Active'}</span></td>
+      <td><span style="background:${statusBg};color:${statusColor};border:1px solid #e5e7eb;padding:2px 6px;border-radius:9px;font-size:10px;font-weight:600">${m.status ?? 'Active'}</span></td>
     </tr>`;
   }).join('');
 
@@ -2325,7 +2325,7 @@ export async function exportPOListPDF(params: {
       <td>${po.vendor ?? '—'}</td>
       <td>${po.dt ? formatDate(po.dt) : '—'}</td>
       <td>${po.delivery_date ? formatDate(po.delivery_date) : '—'}</td>
-      <td><span style="border:1px solid #e5e7eb;padding:2px 6px;border-radius:9px;font-size:9px;font-weight:600">${po.status ?? '—'}</span></td>
+      <td><span style="border:1px solid #e5e7eb;padding:2px 6px;border-radius:9px;font-size:10px;font-weight:600">${po.status ?? '—'}</span></td>
       <td class="right">${po.total != null ? formatCurrency(po.total) : '—'}</td>
     </tr>`;
   }).join('');
@@ -2406,7 +2406,7 @@ export async function exportSOListPDF(params: {
       <td>${so.customer ?? '—'}</td>
       <td>${so.dt ? formatDate(so.dt) : '—'}</td>
       <td>${so.delivery_date ? formatDate(so.delivery_date) : '—'}</td>
-      <td><span style="border:1px solid #e5e7eb;padding:2px 6px;border-radius:9px;font-size:9px;font-weight:600">${so.status ?? '—'}</span></td>
+      <td><span style="border:1px solid #e5e7eb;padding:2px 6px;border-radius:9px;font-size:10px;font-weight:600">${so.status ?? '—'}</span></td>
       <td class="right">${so.total != null ? formatCurrency(so.total) : '—'}</td>
     </tr>`;
   }).join('');
@@ -2630,7 +2630,7 @@ export async function exportAccountStatementPDF(params: {
   const tableRows = lines.map((l, i) => `
     <tr style="${i % 2 === 1 ? 'background:#fafafa;' : ''}">
       <td>${l.date}</td>
-      <td><span style="font-size:9px;font-weight:700;border:1px solid #e8e8e8;border-radius:3px;padding:1px 4px;">${l.voucherType}</span> ${l.voucherNo}${l.narration ? `<br/><span style="color:#888;font-size:10px;">${l.narration}</span>` : ''}</td>
+      <td><span style="font-size:10px;font-weight:700;border:1px solid #e8e8e8;border-radius:3px;padding:1px 4px;">${l.voucherType}</span> ${l.voucherNo}${l.narration ? `<br/><span style="color:#888;font-size:10px;">${l.narration}</span>` : ''}</td>
       <td class="right">${l.debit > 0 ? formatCurrency(l.debit) : '—'}</td>
       <td class="right">${l.credit > 0 ? formatCurrency(l.credit) : '—'}</td>
       <td class="right" style="${l.balance < 0 ? 'color:#666;' : ''}">${formatCurrency(Math.abs(l.balance))}${l.balance < 0 ? ' Cr' : ''}</td>
@@ -2739,7 +2739,7 @@ export async function exportDashboardSummaryPDF(params: {
     if (voucherTypeStats.length === 0) return '';
     const rows = voucherTypeStats.slice(0, 8).map((s) => `
       <tr>
-        <td><span style="font-size:9px;font-weight:700;border:1px solid #e8e8e8;border-radius:3px;padding:1px 4px;">${s.type}</span></td>
+        <td><span style="font-size:10px;font-weight:700;border:1px solid #e8e8e8;border-radius:3px;padding:1px 4px;">${s.type}</span></td>
         <td class="right">${s.count}</td>
         <td class="right">${formatCurrency(s.amount)}</td>
       </tr>`).join('');
@@ -2756,7 +2756,7 @@ export async function exportDashboardSummaryPDF(params: {
     const rows = recentVouchers.map((v) => `
       <tr>
         <td>${v.dt}</td>
-        <td><span style="font-size:9px;font-weight:700;border:1px solid #e8e8e8;border-radius:3px;padding:1px 4px;">${v.type}</span> ${v.number ?? v.id}</td>
+        <td><span style="font-size:10px;font-weight:700;border:1px solid #e8e8e8;border-radius:3px;padding:1px 4px;">${v.type}</span> ${v.number ?? v.id}</td>
         <td class="right">${formatCurrency(v.amount)}</td>
         <td>${v.status ?? '—'}</td>
       </tr>`).join('');
