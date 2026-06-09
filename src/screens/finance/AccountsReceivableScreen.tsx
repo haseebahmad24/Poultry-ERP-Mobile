@@ -14,7 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FinanceStackParamList } from '@/navigation/FinanceNavigator';
-import { Colors, Radius, Spacing, Typography } from '@/theme';
+import { AgingFills, Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
 import {
   fetchARSummary,
@@ -46,7 +46,7 @@ type ARNavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
 type Tab = 'summary' | 'invoices' | 'customers';
 
-const AGING_FILLS = ['#d1d5db', '#9ca3af', '#6b7280', '#374151', '#111827'];
+const AGING_FILLS = AgingFills;
 
 function daysOverdue(dueDate: string | undefined, status: string | undefined): number {
   if (!dueDate) return 0;

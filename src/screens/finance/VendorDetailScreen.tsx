@@ -14,7 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FinanceStackParamList } from '@/navigation/FinanceNavigator';
-import { Colors, Radius, Spacing, Typography } from '@/theme';
+import { AgingFills, Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
 import { fetchAPBills, APBill } from '@/api/accountsPayable';
 import { fetchPartners, Partner } from '@/api/partners';
@@ -94,7 +94,7 @@ function buildLedger(bills: APBill[]): LedgerEntry[] {
   });
 }
 
-const AGING_FILLS = ['#d1d5db', '#9ca3af', '#6b7280', '#374151', '#111827'];
+const AGING_FILLS = AgingFills;
 
 function buildAgingBuckets(bills: APBill[]): AgingBucket[] {
   const buckets = [

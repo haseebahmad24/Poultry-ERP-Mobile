@@ -69,6 +69,15 @@ export const Shadow = {
   },
 };
 
+// 5-step grayscale for aging bucket charts: Current (lightest) → 90+ days (darkest)
+export const AgingFills = [
+  '#d1d5db', // Current
+  '#9ca3af', // 1-30d
+  '#6b7280', // 31-60d
+  '#374151', // 61-90d
+  '#111827', // 90+d
+] as const;
+
 export const Typography = {
   h1: { fontSize: 22, fontWeight: '700' as const, color: Colors.text },
   h2: { fontSize: 20, fontWeight: '700' as const, color: Colors.text },

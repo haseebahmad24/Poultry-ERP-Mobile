@@ -28,7 +28,7 @@ import VoucherSparkline from '@/components/VoucherSparkline';
 import RecentlyViewedSection from '@/components/RecentlyViewedSection';
 import UpcomingDeliveriesSection from '@/components/UpcomingDeliveriesSection';
 import DueSoonPaymentsSection from '@/components/DueSoonPaymentsSection';
-import { Colors, Radius, Spacing, Typography } from '@/theme';
+import { AgingFills, Colors, Radius, Spacing, Typography } from '@/theme';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import { getAutoRefreshInterval, getDueSoonDays } from '@/utils/settings';
@@ -51,7 +51,7 @@ interface AgingMicroBucket {
   fill: string;
 }
 
-const AGING_MICRO_FILLS = ['#d1d5db', '#9ca3af', '#6b7280', '#374151', '#111827'];
+const AGING_MICRO_FILLS = AgingFills;
 
 function computeClientAging(
   items: Array<{ outstanding?: number; amount?: number; paid?: number; due_date?: string; status?: string }>,

@@ -1,5 +1,11 @@
 # Mobile App Progress
 
+### UI Polish Log (Monochrome)
+
+**2026-06-09 — Session 50 UI Polish** — Centralized `AgingFills` gray-scale array into `src/theme/index.ts` as a new exported constant; removed 6 identical hardcoded arrays from AccountsPayableScreen, AccountsReceivableScreen, VendorDetailScreen, CustomerDetailScreen, DashboardScreen, and FinancialAnalyticsScreen.
+
+---
+
 ## Session 49 — 2026-06-09
 
 ### Completed This Session

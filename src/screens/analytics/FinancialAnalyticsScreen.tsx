@@ -13,7 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { Colors, Radius, Spacing, Typography } from '@/theme';
+import { AgingFills, Colors, Radius, Spacing, Typography } from '@/theme';
 import BackButton from '@/components/BackButton';
 import CompanySelector from '@/components/CompanySelector';
 import SectionHeader from '@/components/SectionHeader';
@@ -55,7 +55,7 @@ type Nav = NativeStackNavigationProp<MoreStackParamList>;
 type TabNav = BottomTabNavigationProp<AppTabParamList>;
 
 // Grayscale fills: lightest (current) → darkest (most overdue)
-const AGING_FILLS = ['#d1d5db', '#9ca3af', '#6b7280', '#374151', '#111827'];
+const AGING_FILLS = AgingFills;
 
 interface FinancialData {
   apSummary: APSummary;
