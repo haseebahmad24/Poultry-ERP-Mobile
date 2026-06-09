@@ -272,7 +272,7 @@ function RankedItemList({ items, showLowWarning, showOutOfStock, dusMap, onPress
         const isLast = i === items.length - 1;
         const dus = showLowWarning && dusMap ? dusMap.get(item.item_name) : undefined;
         const dusBg = dus != null
-          ? (dus <= 7 ? '#1a1a1a' : dus <= 14 ? '#555' : '#999')
+          ? (dus <= 7 ? Colors.text : dus <= 14 ? Colors.textSecondary : Colors.textMuted)
           : undefined;
         return (
           <TouchableOpacity
