@@ -34,9 +34,9 @@ export default function FinanceNavigator() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: Colors.primary },
-        headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+        headerStyle: { backgroundColor: Colors.surface },
+        headerTintColor: Colors.text,
+        headerTitleStyle: { fontWeight: '700', fontSize: 17, color: Colors.text },
         headerBackTitleVisible: false,
       }}
     >

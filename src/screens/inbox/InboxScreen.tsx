@@ -98,7 +98,7 @@ function SwipeableEntryRow({ entry, onDelete }: EntryRowProps) {
       {/* Delete action behind the card */}
       <View style={styles.deleteAction}>
         <TouchableOpacity style={styles.deleteActionBtn} onPress={handleDelete}>
-          <Feather name="trash-2" size={18} color="#fff" />
+          <Feather name="trash-2" size={18} color={Colors.surface} />
           <Text style={styles.deleteActionText}>Delete</Text>
         </TouchableOpacity>
       </View>

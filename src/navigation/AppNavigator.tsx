@@ -42,7 +42,7 @@ const TAB_ICONS: Record<string, string> = {
 
 const BADGE_STYLE = {
   backgroundColor: Colors.text,
-  color: '#fff',
+  color: Colors.surface,
   fontSize: 10,
   minWidth: 16,
   height: 16,

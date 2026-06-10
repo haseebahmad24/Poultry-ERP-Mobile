@@ -258,7 +258,7 @@ export default function PartnersScreen() {
                 style={[styles.filterChip, showNotesOnly && styles.filterChipActive]}
                 onPress={() => setShowNotesOnly((v) => !v)}
               >
-                <Feather name="edit-3" size={11} color={showNotesOnly ? '#fff' : Colors.textSecondary} />
+                <Feather name="edit-3" size={11} color={showNotesOnly ? Colors.surface : Colors.textSecondary} />
                 <Text style={[styles.filterChipText, showNotesOnly && styles.filterChipTextActive]}>
                   {` Notes (${notesPartnersCount})`}
                 </Text>

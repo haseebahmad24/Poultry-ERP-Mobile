@@ -410,7 +410,7 @@ export default function SettingsScreen() {
               activeOpacity={0.8}
             >
               {thresholdSaved ? (
-                <Feather name="check" size={14} color="#fff" />
+                <Feather name="check" size={14} color={Colors.surface} />
               ) : (
                 <Text style={styles.saveBtnText}>Save</Text>
               )}
