@@ -8,6 +8,43 @@
 
 ---
 
+## Session 54 — 2026-06-10
+
+### Completed This Session
+
+**StockHealth — Velocity Card Date-Range Filter** (`src/screens/analytics/StockHealthScreen.tsx`)
+- Added `VelocityPeriod` type (`'7d' | '30d' | '90d' | 'all'`) and `VELOCITY_PERIODS` array
+- `filterLedgerByPeriod(ledger, period)`: filters entries by date cutoff (7/30/90 days from now)
+- `rawLedger` state stores full unfiltered ledger; `velocityPeriod` state defaults to `'all'`
+- `velocityItems` and `dusMap` are now a `useMemo` derived from `filterLedgerByPeriod(rawLedger, velocityPeriod)` — recomputes instantly on period change, no extra API calls
+- Period chips (7d / 30d / 90d / All) rendered in the velocity `SectionHeader` action slot; active chip = filled dark pill; inactive = outline pill
+- Empty state shown when no movement exists in the selected period: "No movement in this period"
+- DUS (Days Until Stockout) badges on Low Stock items also reflect the selected period's outflow rate
+
+**Dashboard — "This Week's Activity" Mini-Card** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `WeekActivity` interface: `{ thisCount, thisAmount, lastCount, lastAmount }`
+- `computeWeekActivity(vouchers)`: computes Monday-anchored week boundaries; counts vouchers + sums amounts for current and prior week from existing `vouchers` state — zero extra API calls; returns `null` when both weeks are empty
+- `weekActivity` derived via `useMemo([vouchers])` — recomputes whenever recent-vouchers data changes
+- `WeekActivityCard`: 3-column tile card — This Week count + amount | center trend icon + % badge + "vs last week" | Last Week count (muted) + amount; trending-up/down/minus Feather icon with matching text colour
+- Tapping card navigates to JournalEntries screen
+- Rendered in "Vouchers" section between the Month/Today KPI row and the 7-day sparkline
+
+**ProcurementAnalytics — Per-Vendor Lead Time Drill-Down Modal** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- `computeVendorMonthlyTrend(pos, vendorName)`: same bucket logic as `computeLeadTimeTrend` but filtered to `po.vendor === vendorName`; returns `MonthLeadTime[]` for last 6 months
+- `LeadTimeChart` gains `onPress?: (vendor: string) => void` prop; rows become `TouchableOpacity` + chevron when `onPress` provided; legend hint updated to "tap for monthly trend"
+- `VendorLeadTimeModal` component: bottom-sheet style modal — handle + header (vendor name + subtitle) + summary tiles (Avg Lead Time / Total POs) + 6-bar monthly chart (reuses `ltTrendStyles` pattern) + empty state when no delivery dates
+- `selectedLeadTimeVendor` + `vendorLeadTrend` state in main screen
+- `handleLeadTimeVendorPress(vendor)` callback: calls `computeVendorMonthlyTrend(rawData.pos, vendor)`, sets state to open modal — zero extra API calls
+
+### Next Session
+- Consider: JournalEntries — account picker modal also navigates to AccountStatement (currently only opens the JE filter)
+- Consider: FinancialAnalytics — NWC trend line chart (upgrade bar sparkline to SVG-style polyline using View transforms)
+- Consider: StockHealth — warehouse-specific velocity view (filter velocity card by warehouse)
+- Consider: Dashboard — "Quick Stats" sparkline (tiny revenue/expense trendline from last 7 daily KPI snapshots stored in AsyncStorage)
+- Consider: ProcurementAnalytics — vendor comparison modal (side-by-side monthly bars for top 2 vendors)
+
+---
+
 ## Session 53 — 2026-06-10
 
 ### Completed This Session
