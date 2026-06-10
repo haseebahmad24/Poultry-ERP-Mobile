@@ -8,6 +8,41 @@
 
 ---
 
+## Session 53 — 2026-06-10
+
+### Completed This Session
+
+**JournalEntries — Account Row → AccountStatement Navigation** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- `handleSelectAccount` changed from in-place JE filter to `navigation.navigate('AccountStatement', { accountCode: account, accountName: account })`
+- Tapping any account row in the `AccountActivityList` heat map now opens the full running ledger for that account (AccountStatementScreen) — shows date-range picker, per-voucher debit/credit/balance rows, PDF export
+- Tap hint in AccountActivityList legend updated from "tap to filter" → "tap for ledger"
+- Existing route-param account filter (`pickedAccount`) and the account picker modal remain for API-level JE filtering
+
+**Settings — Per-Item Threshold List** (`src/screens/settings/SettingsScreen.tsx`, `src/utils/settings.ts`)
+- New "PER-ITEM THRESHOLDS" section in SettingsScreen between INVENTORY and DASHBOARD sections
+- Loads all per-item thresholds via `loadAllItemThresholds()` on mount; sorted A–Z by item name
+- Each row: package icon, item name, current threshold value + "units" label (tap value to edit inline)
+- Inline edit mode: compact TextInput + green check save button + cancel X
+- Trash icon per row clears the custom threshold (reverts item to global setting)
+- Empty state: sliders icon + "No custom thresholds set" italic hint with note to long-press items in Stock Health
+- State reloads after every save/clear via `reloadItemThresholds()`
+
+**Dashboard — Financial Health Grade Badge Animation** (`src/screens/dashboard/DashboardScreen.tsx`)
+- Added `Animated` and `useRef` imports
+- `FinancialHealthCard` gains `gradeAnim` ref (`Animated.Value(0)`)
+- `useEffect` on `hs?.grade`: resets to 0 then runs `Animated.spring` (tension 120, friction 6) → scale 0.3→1.0 using native driver
+- Grade badge wrapped in `Animated.View` with `transform: [{ scale: gradeScale }]`
+- Animation re-triggers whenever computed grade changes (e.g., different company selected or data refreshed)
+
+### Next Session
+- Consider: JournalEntries — account picker modal also navigates to AccountStatement (currently only opens the JE filter)
+- Consider: FinancialAnalytics — NWC trend line chart (upgrade bar sparkline to SVG-style polyline using View transforms)
+- Consider: ProcurementAnalytics — lead time trend per top vendor (drill into specific vendor's monthly trend)
+- Consider: StockHealth — velocity card date-range filter (custom period for IN/OUT movement analysis)
+- Consider: Dashboard — "This Week's Activity" mini-card (voucher count + value for current week vs last week)
+
+---
+
 ## Session 51 — 2026-06-10
 
 ### Completed This Session
