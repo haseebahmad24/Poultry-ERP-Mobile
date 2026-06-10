@@ -1324,7 +1324,7 @@ const styles = StyleSheet.create({
   iconBtnBadge: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#fff',
+    color: Colors.surface,
   },
   exportBtn: {
     width: 36,
@@ -1352,7 +1352,7 @@ const styles = StyleSheet.create({
   },
   modeChipActive: { backgroundColor: Colors.text, borderColor: Colors.text },
   modeChipText: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary },
-  modeChipTextActive: { color: '#fff' },
+  modeChipTextActive: { color: Colors.surface },
   kpiRow: {
     flexDirection: 'row',
     paddingHorizontal: Spacing.md,

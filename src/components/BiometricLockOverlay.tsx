@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     marginTop: Spacing.sm,
   },
-  unlockBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  unlockBtnText: { color: Colors.surface, fontSize: 15, fontWeight: '600' },
   failedText: {
     ...Typography.bodySmall,
     color: Colors.textMuted,

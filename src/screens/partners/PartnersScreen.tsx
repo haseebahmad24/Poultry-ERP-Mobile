@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
   },
   filterChipActive: { backgroundColor: Colors.text, borderColor: Colors.text },
   filterChipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
-  filterChipTextActive: { color: '#fff', fontWeight: '600' },
+  filterChipTextActive: { color: Colors.surface, fontWeight: '600' },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },

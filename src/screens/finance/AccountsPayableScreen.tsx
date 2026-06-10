@@ -789,7 +789,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     backgroundColor: Colors.text,
   },
-  overdueTabBadgeText: { fontSize: 10, fontWeight: '700', color: '#fff' },
+  overdueTabBadgeText: { fontSize: 10, fontWeight: '700', color: Colors.surface },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },
@@ -960,7 +960,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.text,
   },
   filterChipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
-  filterChipTextActive: { color: '#fff', fontWeight: '600' },
+  filterChipTextActive: { color: Colors.surface, fontWeight: '600' },
 
   // Pay-by summary bar
   payByBar: {

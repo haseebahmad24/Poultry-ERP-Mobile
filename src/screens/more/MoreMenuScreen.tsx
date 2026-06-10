@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
-  bellBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  bellBadgeText: { color: Colors.surface, fontSize: 10, fontWeight: '700' },
   alertBannerBody: { flex: 1 },
   alertBannerTitle: { fontSize: 13, fontWeight: '700', color: Colors.text },
   alertBannerSub: { fontSize: 11, color: Colors.textMuted, marginTop: 1 },
@@ -493,5 +493,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  menuBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  menuBadgeText: { color: Colors.surface, fontSize: 10, fontWeight: '700' },
 });

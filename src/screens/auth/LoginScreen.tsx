@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: Radius.md,
   },
-  retryBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  retryBtnText: { color: Colors.surface, fontWeight: '600', fontSize: 14 },
 
   sectionTitle: {
     fontSize: 12,

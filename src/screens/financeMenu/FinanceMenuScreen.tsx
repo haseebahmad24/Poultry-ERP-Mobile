@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     marginRight: 6,
   },
-  alertBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  alertBadgeText: { color: Colors.surface, fontSize: 11, fontWeight: '700' },
   dueSoonBadge: {
     borderRadius: Radius.full,
     borderWidth: StyleSheet.hairlineWidth,

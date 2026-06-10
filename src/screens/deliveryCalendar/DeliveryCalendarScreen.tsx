@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.text,
   },
   typeChipText: { ...Typography.bodySmall, color: Colors.textSecondary, fontWeight: '500' },
-  typeChipTextActive: { color: '#fff' },
+  typeChipTextActive: { color: Colors.surface },
 
   monthNav: {
     flexDirection: 'row',
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
   dayNumber: { ...Typography.body, fontWeight: '500' },
   dayNumberFaded: { color: Colors.textMuted, opacity: 0.4 },
   dayNumberToday: { fontWeight: '700' },
-  dayNumberSelected: { color: '#fff', fontWeight: '700' },
+  dayNumberSelected: { color: Colors.surface, fontWeight: '700' },
   dotRow: { flexDirection: 'row', gap: 2, height: 6, alignItems: 'center' },
   dot: { width: 5, height: 5, borderRadius: Radius.full },
 

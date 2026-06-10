@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
   },
-  deleteActionText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+  deleteActionText: { color: Colors.surface, fontSize: 11, fontWeight: '600' },
 
   entryCard: {
     backgroundColor: Colors.surface,

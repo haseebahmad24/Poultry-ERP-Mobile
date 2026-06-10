@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   },
   chipActive: { backgroundColor: Colors.text, borderColor: Colors.text },
   chipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
-  chipTextActive: { color: '#fff' },
+  chipTextActive: { color: Colors.surface },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },

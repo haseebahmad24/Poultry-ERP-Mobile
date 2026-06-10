@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
   },
   statusBadgeComplete: { backgroundColor: Colors.text, borderColor: Colors.text },
   statusText: { fontSize: 11, fontWeight: '700', color: Colors.text },
-  statusTextComplete: { color: '#fff' },
+  statusTextComplete: { color: Colors.surface },
 
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   cardDate: { ...Typography.bodySmall, color: Colors.textSecondary },

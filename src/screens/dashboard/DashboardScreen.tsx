@@ -336,7 +336,7 @@ const healthStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  gradeText: { fontSize: 20, fontWeight: '900', color: '#fff' },
+  gradeText: { fontSize: 20, fontWeight: '900', color: Colors.surface },
   statusBlock: { flex: 1 },
   statusLabel: { fontSize: 11, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
   statusDesc: { fontSize: 15, fontWeight: '700', color: Colors.text, marginTop: 2 },
@@ -1061,7 +1061,10 @@ export default function DashboardScreen() {
                   onPress={() => navigation.navigate('More', { screen: 'FinancialAnalytics' } as any)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Text style={styles.topVendorsSeeAll}>Analytics ›</Text>
+                  <View style={styles.topVendorsSeeAllRow}>
+                    <Text style={styles.topVendorsSeeAll}>Analytics</Text>
+                    <Feather name="chevron-right" size={12} color={Colors.text} />
+                  </View>
                 </TouchableOpacity>
               }
             />
@@ -1629,7 +1632,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
-  alertsDotText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  alertsDotText: { color: Colors.surface, fontSize: 10, fontWeight: '700' },
   greeting: { fontSize: 18, fontWeight: '700', color: Colors.text },
   subGreeting: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
   logoutBtn: {
@@ -1883,12 +1886,13 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
     overflow: 'hidden',
   },
-  topVendorBarFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: Radius.full },
+  topVendorBarFill: { height: '100%', backgroundColor: Colors.text, borderRadius: Radius.full },
   topCustomerBarFill: { height: '100%', backgroundColor: Colors.textSecondary, borderRadius: Radius.full },
   topVendorAmounts: { alignItems: 'flex-end' },
   topVendorAmt: { fontSize: 13, fontWeight: '700', color: Colors.text },
   topVendorCount: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
-  topVendorsSeeAll: { fontSize: 12, color: Colors.primary, fontWeight: '500' },
+  topVendorsSeeAll: { fontSize: 12, color: Colors.text, fontWeight: '500' },
+  topVendorsSeeAllRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
 
   pendingCard: {
     marginHorizontal: Spacing.md,
@@ -1977,7 +1981,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
-  quickBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  quickBadgeText: { color: Colors.surface, fontSize: 10, fontWeight: '700' },
   quickLabel: {
     fontSize: 11,
     fontWeight: '500',

@@ -41,6 +41,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   labelActive: {
-    color: '#fff',
+    color: Colors.surface,
   },
 });

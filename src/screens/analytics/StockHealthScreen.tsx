@@ -421,7 +421,7 @@ const itemStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dusText: { fontSize: 10, fontWeight: '700', color: '#fff' },
+  dusText: { fontSize: 10, fontWeight: '700', color: Colors.surface },
 });
 
 /** Warehouse utilisation list */
@@ -1007,7 +1007,7 @@ const thmStyles = StyleSheet.create({
   },
   btnCancelText: { fontSize: 13, color: Colors.textMuted },
   btnSave: { backgroundColor: Colors.text, minWidth: 72 },
-  btnSaveText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  btnSaveText: { fontSize: 13, fontWeight: '700', color: Colors.surface },
   btnDisabled: { opacity: 0.4 },
 });
 

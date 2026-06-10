@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
   dueSoonBadge: {
     backgroundColor: Colors.textSecondary,
   },
-  totalBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  totalBadgeText: { color: Colors.surface, fontSize: 11, fontWeight: '700' },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },

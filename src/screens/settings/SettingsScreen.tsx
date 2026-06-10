@@ -741,7 +741,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveBtnSuccess: { backgroundColor: Colors.textSecondary },
-  saveBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  saveBtnText: { fontSize: 13, fontWeight: '700', color: Colors.surface },
 
   refreshOptionsRow: {
     flexDirection: 'row',
@@ -769,7 +769,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   refreshChipTextActive: {
-    color: '#fff',
+    color: Colors.surface,
     fontWeight: '700',
   },
 
