@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -58,6 +58,19 @@ export default function JournalEntriesScreen() {
   const [pickedAccount, setPickedAccount] = useState<string | undefined>(route.params?.account);
   const [pickedAccountName, setPickedAccountName] = useState<string | undefined>(route.params?.accountName);
   const [showAccountPicker, setShowAccountPicker] = useState(false);
+
+  const scrollRef = useRef<ScrollView>(null);
+
+  const handleSelectAccount = useCallback((account: string) => {
+    setPickedAccount(account);
+    setPickedAccountName(account);
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, []);
+
+  const handleSelectType = useCallback((type: string) => {
+    setSelectedType(type);
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, []);
 
   const validFrom = DATE_RE.test(dateRange.from) ? dateRange.from : undefined;
   const validTo = DATE_RE.test(dateRange.to) ? dateRange.to : undefined;
@@ -241,6 +254,7 @@ export default function JournalEntriesScreen() {
           </ScrollView>
 
           <ScrollView
+            ref={scrollRef}
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
@@ -254,7 +268,11 @@ export default function JournalEntriesScreen() {
               />
             }
           >
-            <JESummaryCard entries={filtered} />
+            <JESummaryCard
+              entries={filtered}
+              onSelectAccount={handleSelectAccount}
+              onSelectType={handleSelectType}
+            />
 
             <SectionHeader title="Vouchers" meta={`${filtered.length} records`} />
 
@@ -434,7 +452,13 @@ function buildAccountActivity(entries: JournalEntry[]): AccountActivity[] {
     .slice(0, 8);
 }
 
-function AccountActivityList({ entries }: { entries: JournalEntry[] }) {
+function AccountActivityList({
+  entries,
+  onSelectAccount,
+}: {
+  entries: JournalEntry[];
+  onSelectAccount?: (account: string) => void;
+}) {
   const items = buildAccountActivity(entries);
   if (items.length === 0) return null;
 
@@ -449,13 +473,16 @@ function AccountActivityList({ entries }: { entries: JournalEntry[] }) {
           <Text style={acctStyles.legendLabel}>Dr</Text>
           <View style={[acctStyles.dot, acctStyles.dotCr]} />
           <Text style={acctStyles.legendLabel}>Cr</Text>
+          {onSelectAccount && (
+            <Text style={acctStyles.tapHint}>tap to filter</Text>
+          )}
         </View>
       </View>
       {items.map((item) => {
         const drPct = maxTotal > 0 ? (item.debit / maxTotal) * 100 : 0;
         const crPct = maxTotal > 0 ? (item.credit / maxTotal) * 100 : 0;
-        return (
-          <View key={item.account} style={acctStyles.row}>
+        const rowContent = (
+          <>
             <Text style={acctStyles.accountName} numberOfLines={1}>{item.account}</Text>
             <View style={acctStyles.barsCol}>
               <View style={acctStyles.barTrack}>
@@ -466,6 +493,27 @@ function AccountActivityList({ entries }: { entries: JournalEntry[] }) {
               </View>
             </View>
             <Text style={acctStyles.amount}>{fmtCompactJE(item.total)}</Text>
+            {onSelectAccount && (
+              <Feather name="chevron-right" size={10} color={Colors.textMuted} />
+            )}
+          </>
+        );
+        if (onSelectAccount) {
+          return (
+            <TouchableOpacity
+              key={item.account}
+              style={acctStyles.row}
+              onPress={() => onSelectAccount(item.account)}
+              activeOpacity={0.6}
+              hitSlop={{ top: 4, bottom: 4 }}
+            >
+              {rowContent}
+            </TouchableOpacity>
+          );
+        }
+        return (
+          <View key={item.account} style={acctStyles.row}>
+            {rowContent}
           </View>
         );
       })}
@@ -482,6 +530,7 @@ const acctStyles = StyleSheet.create({
   dotDr: { backgroundColor: Colors.text },
   dotCr: { backgroundColor: Colors.textMuted },
   legendLabel: { fontSize: 10, color: Colors.textMuted, marginRight: 4 },
+  tapHint: { fontSize: 10, color: Colors.textMuted, fontStyle: 'italic', marginLeft: 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   accountName: { fontSize: 11, fontWeight: '500', color: Colors.textSecondary, width: 110 },
   barsCol: { flex: 1, gap: 2 },
@@ -586,7 +635,15 @@ const flowStyles = StyleSheet.create({
   monthLabel: { fontSize: 10, color: Colors.textMuted, textAlign: 'center' },
 });
 
-function JESummaryCard({ entries }: { entries: JournalEntry[] }) {
+function JESummaryCard({
+  entries,
+  onSelectAccount,
+  onSelectType,
+}: {
+  entries: JournalEntry[];
+  onSelectAccount?: (account: string) => void;
+  onSelectType?: (type: string) => void;
+}) {
   if (entries.length === 0) return null;
 
   const totalDebit = entries.reduce((s, e) => s + (e.total_debit ?? 0), 0);
@@ -624,21 +681,44 @@ function JESummaryCard({ entries }: { entries: JournalEntry[] }) {
       </View>
       {byType.length > 1 && (
         <View style={summaryStyles.typeGrid}>
-          {byType.map((t) => (
-            <View key={t.type} style={summaryStyles.typeRow}>
-              <Text style={summaryStyles.typeBadge}>{t.type}</Text>
-              <View style={summaryStyles.barTrack}>
-                <View
-                  style={[summaryStyles.barFill, { width: `${(t.count / maxCount) * 100}%` as any }]}
-                />
+          {byType.map((t) => {
+            const rowInner = (
+              <>
+                <Text style={summaryStyles.typeBadge}>{t.type}</Text>
+                <View style={summaryStyles.barTrack}>
+                  <View
+                    style={[summaryStyles.barFill, { width: `${(t.count / maxCount) * 100}%` as any }]}
+                  />
+                </View>
+                <Text style={summaryStyles.typeCount}>{t.count}</Text>
+                {onSelectType && (
+                  <Feather name="chevron-right" size={10} color={Colors.textMuted} />
+                )}
+              </>
+            );
+            if (onSelectType) {
+              return (
+                <TouchableOpacity
+                  key={t.type}
+                  style={summaryStyles.typeRow}
+                  onPress={() => onSelectType(t.type)}
+                  activeOpacity={0.6}
+                  hitSlop={{ top: 4, bottom: 4 }}
+                >
+                  {rowInner}
+                </TouchableOpacity>
+              );
+            }
+            return (
+              <View key={t.type} style={summaryStyles.typeRow}>
+                {rowInner}
               </View>
-              <Text style={summaryStyles.typeCount}>{t.count}</Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
       <DrCrFlowChart entries={entries} />
-      <AccountActivityList entries={entries} />
+      <AccountActivityList entries={entries} onSelectAccount={onSelectAccount} />
     </View>
   );
 }

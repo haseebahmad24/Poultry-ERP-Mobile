@@ -3,6 +3,13 @@ import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, Typography } from '@/theme';
 
+type MiniChart = {
+  prev: number;
+  curr: number;
+  prevLabel?: string;
+  currLabel?: string;
+};
+
 type Props = {
   label: string;
   value: string;
@@ -13,9 +20,58 @@ type Props = {
   trendPct?: number | null;
   /** When true, a positive trend is bad (e.g. Expenses going up). */
   trendInverted?: boolean;
+  /** Optional 2-bar mini chart comparing prev vs current period. */
+  miniChart?: MiniChart;
 };
 
-export default function KPICard({ label, value, subtext, valueColor, onPress, trendPct, trendInverted }: Props) {
+function MiniBarChart({ prev, curr, prevLabel = 'Last', currLabel = 'This' }: MiniChart & { prevLabel?: string; currLabel?: string }) {
+  const max = Math.max(Math.abs(prev), Math.abs(curr), 1);
+  const prevH = Math.max(3, Math.round((Math.abs(prev) / max) * 28));
+  const currH = Math.max(3, Math.round((Math.abs(curr) / max) * 28));
+  return (
+    <View style={miniStyles.container}>
+      <View style={miniStyles.col}>
+        <View style={miniStyles.barWrap}>
+          <View style={[miniStyles.bar, miniStyles.barPrev, { height: prevH }]} />
+        </View>
+        <Text style={miniStyles.barLabel}>{prevLabel}</Text>
+      </View>
+      <View style={miniStyles.col}>
+        <View style={miniStyles.barWrap}>
+          <View style={[miniStyles.bar, miniStyles.barCurr, { height: currH }]} />
+        </View>
+        <Text style={[miniStyles.barLabel, miniStyles.barLabelCurr]}>{currLabel}</Text>
+      </View>
+    </View>
+  );
+}
+
+const miniStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 4,
+    marginTop: 4,
+  },
+  col: { alignItems: 'center', gap: 2 },
+  barWrap: { height: 28, justifyContent: 'flex-end' },
+  bar: { width: 14, borderRadius: Radius.sm },
+  barPrev: { backgroundColor: Colors.borderLight },
+  barCurr: { backgroundColor: Colors.textSecondary },
+  barLabel: { fontSize: 9, color: Colors.textMuted, fontWeight: '500' },
+  barLabelCurr: { color: Colors.textSecondary, fontWeight: '700' },
+});
+
+export default function KPICard({
+  label,
+  value,
+  subtext,
+  valueColor,
+  onPress,
+  trendPct,
+  trendInverted,
+  miniChart,
+}: Props) {
   let trendNode: React.ReactNode = null;
   if (trendPct != null && isFinite(trendPct)) {
     const up = trendPct >= 0;
@@ -38,6 +94,9 @@ export default function KPICard({ label, value, subtext, valueColor, onPress, tr
       </View>
       <Text style={[styles.value, valueColor ? { color: valueColor } : null]}>{value}</Text>
       {trendNode}
+      {miniChart && (
+        <MiniBarChart {...miniChart} />
+      )}
       {subtext ? <Text style={styles.subtext}>{subtext}</Text> : null}
     </>
   );

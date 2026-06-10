@@ -253,9 +253,10 @@ function computeHealthScore(
   return { score, grade, apPct, arPct };
 }
 
-function FinancialHealthCard({ apBuckets, arBuckets }: {
+function FinancialHealthCard({ apBuckets, arBuckets, onPress }: {
   apBuckets: AgingMicroBucket[];
   arBuckets: AgingMicroBucket[];
+  onPress?: () => void;
 }) {
   const hs = computeHealthScore(apBuckets, arBuckets);
   if (!hs) return null;
@@ -264,8 +265,8 @@ function FinancialHealthCard({ apBuckets, arBuckets }: {
     A: 'Excellent', B: 'Good', C: 'Fair', D: 'At Risk', F: 'Critical',
   };
 
-  return (
-    <View style={healthStyles.card}>
+  const cardInner = (
+    <>
       <View style={healthStyles.topRow}>
         <View style={healthStyles.scoreBlock}>
           <Text style={healthStyles.scoreNum}>{hs.score}</Text>
@@ -278,6 +279,7 @@ function FinancialHealthCard({ apBuckets, arBuckets }: {
           <Text style={healthStyles.statusLabel}>Financial Health</Text>
           <Text style={healthStyles.statusDesc}>{gradeLabel[hs.grade]}</Text>
         </View>
+        {onPress && <Feather name="chevron-right" size={16} color={Colors.textMuted} />}
       </View>
       <View style={healthStyles.barsSection}>
         <View style={healthStyles.barRow}>
@@ -295,9 +297,20 @@ function FinancialHealthCard({ apBuckets, arBuckets }: {
           <Text style={healthStyles.barPct}>{hs.arPct}%</Text>
         </View>
       </View>
-      <Text style={healthStyles.hint}>% of outstanding not yet overdue 30+ days</Text>
-    </View>
+      <Text style={healthStyles.hint}>
+        % of outstanding not yet overdue 30+ days{onPress ? ' · tap for full breakdown' : ''}
+      </Text>
+    </>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity style={healthStyles.card} onPress={onPress} activeOpacity={0.75}>
+        {cardInner}
+      </TouchableOpacity>
+    );
+  }
+  return <View style={healthStyles.card}>{cardInner}</View>;
 }
 
 const healthStyles = StyleSheet.create({
@@ -822,6 +835,7 @@ export default function DashboardScreen() {
               value={formatCurrency(netIncome)}
               subtext={(netIncome >= 0 ? 'Profit' : 'Loss') + ' · tap'}
               trendPct={netIncomeTrend}
+              miniChart={prevNetIncome != null ? { prev: prevNetIncome, curr: netIncome } : undefined}
               onPress={() => navigation.navigate('Finance', { screen: 'FinancialReports' } as any)}
             />
             <KPICard
@@ -1069,7 +1083,11 @@ export default function DashboardScreen() {
         {(apAgingBuckets.some((b) => b.amount > 0) || arAgingBuckets.some((b) => b.amount > 0)) && (
           <>
             <SectionHeader title="Financial Health Score" />
-            <FinancialHealthCard apBuckets={apAgingBuckets} arBuckets={arAgingBuckets} />
+            <FinancialHealthCard
+              apBuckets={apAgingBuckets}
+              arBuckets={arAgingBuckets}
+              onPress={() => navigation.navigate('More', { screen: 'FinancialAnalytics' } as any)}
+            />
           </>
         )}
 
@@ -1443,6 +1461,35 @@ export default function DashboardScreen() {
             );
           })}
         </View>
+
+        {/* Voucher count KPI with month comparison */}
+        {kpis != null && (
+          <>
+            <SectionHeader title="Vouchers" meta="activity" />
+            <View style={[styles.kpiGrid, { paddingBottom: 0 }]}>
+              <View style={styles.kpiRow}>
+                <KPICard
+                  label="This Month"
+                  value={String(kpis.vouchersMonth)}
+                  subtext="vouchers posted"
+                  trendPct={vouchersTrend}
+                  miniChart={
+                    kpis.vouchersPrevMonth != null
+                      ? { prev: kpis.vouchersPrevMonth, curr: kpis.vouchersMonth }
+                      : undefined
+                  }
+                  onPress={() => navigation.navigate('Finance', { screen: 'JournalEntries' } as any)}
+                />
+                <KPICard
+                  label="Today"
+                  value={String(kpis.vouchersToday)}
+                  subtext={kpis.vouchersToday === 1 ? 'voucher today' : 'vouchers today'}
+                  onPress={() => navigation.navigate('Finance', { screen: 'JournalEntries' } as any)}
+                />
+              </View>
+            </View>
+          </>
+        )}
 
         {/* 7-day sparkline */}
         {(kpis?.dailyVouchers?.length ?? 0) > 0 && (
