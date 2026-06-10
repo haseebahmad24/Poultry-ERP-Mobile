@@ -1041,7 +1041,7 @@ const ltTrendStyles = StyleSheet.create({
   barEmpty: { width: 20, height: 2, backgroundColor: Colors.borderLight, borderRadius: Radius.full },
   monthLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '500' },
   monthLabelActive: { color: Colors.text, fontWeight: '700' },
-  poCount: { fontSize: 9, color: Colors.textMuted },
+  poCount: { fontSize: 10, color: Colors.textMuted },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────

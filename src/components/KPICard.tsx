@@ -58,7 +58,7 @@ const miniStyles = StyleSheet.create({
   bar: { width: 14, borderRadius: Radius.sm },
   barPrev: { backgroundColor: Colors.borderLight },
   barCurr: { backgroundColor: Colors.textSecondary },
-  barLabel: { fontSize: 9, color: Colors.textMuted, fontWeight: '500' },
+  barLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '500' },
   barLabelCurr: { color: Colors.textSecondary, fontWeight: '700' },
 });
 
