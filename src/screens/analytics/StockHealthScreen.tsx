@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -98,6 +98,24 @@ function computeLedgerAnalysis(
   }
 
   return { velocityItems, dusMap };
+}
+
+type VelocityPeriod = '7d' | '30d' | '90d' | 'all';
+const VELOCITY_PERIODS: { label: string; value: VelocityPeriod }[] = [
+  { label: '7d', value: '7d' },
+  { label: '30d', value: '30d' },
+  { label: '90d', value: '90d' },
+  { label: 'All', value: 'all' },
+];
+
+function filterLedgerByPeriod(ledger: StockLedgerEntry[], period: VelocityPeriod): StockLedgerEntry[] {
+  if (period === 'all') return ledger;
+  const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
+  const cutoff = Date.now() - days * 86_400_000;
+  return ledger.filter((e) => {
+    if (!e.dt) return false;
+    return new Date(e.dt).getTime() >= cutoff;
+  });
 }
 
 function computeStockHealth(
@@ -1021,8 +1039,8 @@ export default function StockHealthScreen() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [globalThreshold, setGlobalThreshold] = useState(10);
   const [perItemThresholds, setPerItemThresholds] = useState<Map<string, number>>(new Map());
-  const [velocityItems, setVelocityItems] = useState<VelocityItem[]>([]);
-  const [dusMap, setDusMap] = useState<Map<string, number>>(new Map());
+  const [rawLedger, setRawLedger] = useState<StockLedgerEntry[]>([]);
+  const [velocityPeriod, setVelocityPeriod] = useState<VelocityPeriod>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
@@ -1033,6 +1051,11 @@ export default function StockHealthScreen() {
 
   const cacheKey = `stock-health:${companyId ?? 'all'}`;
   const ledgerCacheKey = `stock-velocity:${companyId ?? 'all'}`;
+
+  const { velocityItems, dusMap } = useMemo(() => {
+    const filtered = filterLedgerByPeriod(rawLedger, velocityPeriod);
+    return computeLedgerAnalysis(filtered, allStock);
+  }, [rawLedger, velocityPeriod, allStock]);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -1053,9 +1076,7 @@ export default function StockHealthScreen() {
         setWarehouses(cached.data.warehouses);
         setGlobalThreshold(cached.data.threshold);
         setData(computeStockHealth(s, cached.data.warehouses, cached.data.threshold, itemThresholds));
-        const { velocityItems: vi, dusMap: dm } = computeLedgerAnalysis(ledgerCached.data, s);
-        setVelocityItems(vi);
-        setDusMap(dm);
+        setRawLedger(ledgerCached.data);
         setLoading(false);
         return;
       }
@@ -1075,9 +1096,7 @@ export default function StockHealthScreen() {
       setWarehouses(warehouseList);
       setGlobalThreshold(threshold);
       setData(computeStockHealth(stock, warehouseList, threshold, itemThresholds));
-      const { velocityItems: vi, dusMap: dm } = computeLedgerAnalysis(ledger, stock);
-      setVelocityItems(vi);
-      setDusMap(dm);
+      setRawLedger(ledger);
     } catch {
       setError(true);
     } finally {
@@ -1213,13 +1232,31 @@ export default function StockHealthScreen() {
           <RankedItemList items={data.topByQty} onPress={setSelectedItem} />
 
           {/* Stock velocity */}
-          {velocityItems.length > 0 && (
+          {rawLedger.length > 0 && (
             <>
               <SectionHeader
                 title="Stock Velocity"
-                subtitle="Top 8 items by combined movement"
+                subtitle={velocityPeriod === 'all' ? 'Top items by combined movement' : `Movement in last ${velocityPeriod}`}
+                action={
+                  <View style={styles.periodChips}>
+                    {VELOCITY_PERIODS.map((p) => (
+                      <TouchableOpacity
+                        key={p.value}
+                        style={[styles.periodChip, velocityPeriod === p.value && styles.periodChipActive]}
+                        onPress={() => setVelocityPeriod(p.value)}
+                      >
+                        <Text style={[styles.periodChipText, velocityPeriod === p.value && styles.periodChipTextActive]}>
+                          {p.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                }
               />
-              <VelocityCard items={velocityItems} />
+              {velocityItems.length > 0
+                ? <VelocityCard items={velocityItems} />
+                : <View style={styles.emptyVelocity}><Text style={styles.emptyVelocityText}>No movement in this period</Text></View>
+              }
             </>
           )}
 
@@ -1277,4 +1314,22 @@ const styles = StyleSheet.create({
   },
   content: { paddingTop: Spacing.sm },
   footer: { height: Spacing.xxl },
+  periodChips: { flexDirection: 'row', gap: 4 },
+  periodChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  periodChipActive: { backgroundColor: Colors.text, borderColor: Colors.text },
+  periodChipText: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary },
+  periodChipTextActive: { color: Colors.surface },
+  emptyVelocity: {
+    marginHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+  },
+  emptyVelocityText: { ...Typography.bodySmall, color: Colors.textMuted },
 });

@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -625,6 +626,38 @@ function computeLeadTimeTrend(pos: PurchaseOrder[]): MonthLeadTime[] {
   }));
 }
 
+function computeVendorMonthlyTrend(pos: PurchaseOrder[], vendorName: string): MonthLeadTime[] {
+  const now = new Date();
+  const buckets: { key: string; monthLabel: string; isCurrent: boolean; days: number[] }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    buckets.push({
+      key,
+      monthLabel: d.toLocaleString('default', { month: 'short' }),
+      isCurrent: i === 0,
+      days: [],
+    });
+  }
+  for (const po of pos) {
+    if (!po.dt || !po.delivery_date || po.vendor !== vendorName) continue;
+    const orderDate = new Date(po.dt);
+    const delivDate = new Date(po.delivery_date);
+    if (isNaN(orderDate.getTime()) || isNaN(delivDate.getTime())) continue;
+    const days = Math.round((delivDate.getTime() - orderDate.getTime()) / 86_400_000);
+    if (days < 0 || days > 365) continue;
+    const monthKey = po.dt.slice(0, 7);
+    const bucket = buckets.find((b) => b.key === monthKey);
+    if (bucket) bucket.days.push(days);
+  }
+  return buckets.map((b) => ({
+    monthLabel: b.monthLabel,
+    avgDays: b.days.length > 0 ? Math.round(b.days.reduce((s, d) => s + d, 0) / b.days.length) : 0,
+    poCount: b.days.length,
+    isCurrent: b.isCurrent,
+  }));
+}
+
 function computeValueDistribution(pos: PurchaseOrder[], sos: SalesOrder[]): ValueDistRow[] {
   const rows: ValueDistRow[] = VALUE_BUCKETS.map((b) => ({ label: b.label, poCount: 0, soCount: 0 }));
 
@@ -828,7 +861,7 @@ const delivStyles = StyleSheet.create({
 
 // ─── Lead Time Chart ──────────────────────────────────────────────────────────
 
-function LeadTimeChart({ rows }: { rows: LeadTimeRow[] }) {
+function LeadTimeChart({ rows, onPress }: { rows: LeadTimeRow[]; onPress?: (vendor: string) => void }) {
   if (rows.length === 0) {
     return (
       <View style={ltStyles.empty}>
@@ -843,13 +876,18 @@ function LeadTimeChart({ rows }: { rows: LeadTimeRow[] }) {
       <View style={ltStyles.legendRow}>
         <View style={ltStyles.legendItem}>
           <View style={[ltStyles.dot, { backgroundColor: Colors.text }]} />
-          <Text style={ltStyles.legendLabel}>Fastest → Slowest avg lead time</Text>
+          <Text style={ltStyles.legendLabel}>Fastest → Slowest · tap for monthly trend</Text>
         </View>
       </View>
       {rows.map((row, i) => {
         const barPct = (row.avgDays / maxDays) * 100;
         return (
-          <View key={row.vendor} style={ltStyles.row}>
+          <TouchableOpacity
+            key={row.vendor}
+            style={ltStyles.row}
+            activeOpacity={onPress ? 0.6 : 1}
+            onPress={onPress ? () => onPress(row.vendor) : undefined}
+          >
             <View style={ltStyles.rankBadge}>
               <Text style={ltStyles.rankText}>{i + 1}</Text>
             </View>
@@ -863,12 +901,163 @@ function LeadTimeChart({ rows }: { rows: LeadTimeRow[] }) {
               <Text style={ltStyles.avgDays}>{row.avgDays}d avg</Text>
               <Text style={ltStyles.range}>{row.minDays}–{row.maxDays}d · {row.poCount} PO{row.poCount !== 1 ? 's' : ''}</Text>
             </View>
-          </View>
+            {onPress && <Feather name="chevron-right" size={14} color={Colors.textMuted} />}
+          </TouchableOpacity>
         );
       })}
     </View>
   );
 }
+
+function VendorLeadTimeModal({
+  vendor,
+  trend,
+  onClose,
+}: {
+  vendor: string;
+  trend: MonthLeadTime[];
+  onClose: () => void;
+}) {
+  const hasAny = trend.some((m) => m.poCount > 0);
+  const BAR_H = 72;
+  const maxDays = Math.max(...trend.map((m) => m.avgDays), 1);
+  const overallAvg = (() => {
+    const withData = trend.filter((m) => m.poCount > 0);
+    if (withData.length === 0) return 0;
+    return Math.round(withData.reduce((s, m) => s + m.avgDays, 0) / withData.length);
+  })();
+  const totalPOs = trend.reduce((s, m) => s + m.poCount, 0);
+
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+      <View style={vltModalStyles.backdrop}>
+        <TouchableOpacity style={vltModalStyles.backdropTap} activeOpacity={1} onPress={onClose} />
+        <View style={vltModalStyles.sheet}>
+          <View style={vltModalStyles.handle} />
+          <View style={vltModalStyles.header}>
+            <View style={{ flex: 1 }}>
+              <Text style={vltModalStyles.title} numberOfLines={1}>{vendor}</Text>
+              <Text style={vltModalStyles.subtitle}>6-month lead time trend</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Feather name="x" size={18} color={Colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Summary tiles */}
+          <View style={vltModalStyles.tileRow}>
+            <View style={vltModalStyles.tile}>
+              <Text style={vltModalStyles.tileValue}>{overallAvg}d</Text>
+              <Text style={vltModalStyles.tileLabel}>Avg Lead Time</Text>
+            </View>
+            <View style={vltModalStyles.tileDivider} />
+            <View style={vltModalStyles.tile}>
+              <Text style={vltModalStyles.tileValue}>{totalPOs}</Text>
+              <Text style={vltModalStyles.tileLabel}>POs with Delivery Date</Text>
+            </View>
+          </View>
+
+          {/* 6-bar trend chart */}
+          {hasAny ? (
+            <View style={vltModalStyles.barsRow}>
+              {trend.map((m) => {
+                const barH = m.poCount > 0 ? Math.max(4, Math.round((m.avgDays / maxDays) * BAR_H)) : 0;
+                return (
+                  <View key={m.monthLabel} style={vltModalStyles.col}>
+                    {m.avgDays > 0 && (
+                      <Text style={[vltModalStyles.valueLabel, m.isCurrent && vltModalStyles.valueLabelActive]}>
+                        {m.avgDays}d
+                      </Text>
+                    )}
+                    <View style={[vltModalStyles.barWrap, { height: BAR_H }]}>
+                      {m.poCount > 0 ? (
+                        <View style={[vltModalStyles.bar, { height: barH }, m.isCurrent && vltModalStyles.barActive]} />
+                      ) : (
+                        <View style={vltModalStyles.barEmpty} />
+                      )}
+                    </View>
+                    <Text style={[vltModalStyles.monthLabel, m.isCurrent && vltModalStyles.monthLabelActive]}>
+                      {m.monthLabel}
+                    </Text>
+                    {m.poCount > 0 && (
+                      <Text style={vltModalStyles.poCount}>{m.poCount}po</Text>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={vltModalStyles.emptyState}>
+              <Text style={vltModalStyles.emptyText}>No delivery dates recorded for this vendor</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const vltModalStyles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
+  backdropTap: { flex: 1 },
+  sheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    paddingBottom: Spacing.xxl,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.border,
+    alignSelf: 'center',
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    gap: Spacing.sm,
+  },
+  title: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  subtitle: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  tileRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  tile: { flex: 1, alignItems: 'center', gap: 3 },
+  tileDivider: { width: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
+  tileValue: { fontSize: 22, fontWeight: '700', color: Colors.text },
+  tileLabel: { fontSize: 11, color: Colors.textMuted, textAlign: 'center' },
+  barsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
+  },
+  col: { flex: 1, alignItems: 'center', gap: 2 },
+  valueLabel: { fontSize: 10, fontWeight: '600', color: Colors.textMuted },
+  valueLabelActive: { color: Colors.textSecondary, fontWeight: '700' },
+  barWrap: { justifyContent: 'flex-end' },
+  bar: { width: 20, borderRadius: Radius.sm, backgroundColor: Colors.border },
+  barActive: { backgroundColor: Colors.textSecondary },
+  barEmpty: { width: 20, height: 2, backgroundColor: Colors.borderLight, borderRadius: Radius.full },
+  monthLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '500' },
+  monthLabelActive: { color: Colors.text, fontWeight: '700' },
+  poCount: { fontSize: 10, color: Colors.textMuted },
+  emptyState: { padding: Spacing.xl, alignItems: 'center' },
+  emptyText: { fontSize: 13, color: Colors.textMuted, textAlign: 'center' },
+});
 
 const ltStyles = StyleSheet.create({
   card: {
@@ -1059,6 +1248,8 @@ export default function ProcurementAnalyticsScreen() {
   const [dateRange, setDateRange] = useState<DateRangeValue>(EMPTY_RANGE);
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [chartMode, setChartMode] = useState<ChartMode>('count');
+  const [selectedLeadTimeVendor, setSelectedLeadTimeVendor] = useState<string | null>(null);
+  const [vendorLeadTrend, setVendorLeadTrend] = useState<MonthLeadTime[]>([]);
 
   const cacheKey = `procurement-analytics:${companyId ?? 'all'}`;
 
@@ -1149,6 +1340,13 @@ export default function ProcurementAnalyticsScreen() {
       return !v;
     });
   }, []);
+
+  const handleLeadTimeVendorPress = useCallback((vendor: string) => {
+    if (!rawData) return;
+    const trend = computeVendorMonthlyTrend(rawData.pos, vendor);
+    setVendorLeadTrend(trend);
+    setSelectedLeadTimeVendor(vendor);
+  }, [rawData]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -1278,7 +1476,7 @@ export default function ProcurementAnalyticsScreen() {
 
           {/* Supplier Lead Time */}
           <SectionHeader title="Supplier Lead Time" subtitle="Order-to-delivery days per vendor" />
-          <LeadTimeChart rows={analytics.leadTime} />
+          <LeadTimeChart rows={analytics.leadTime} onPress={handleLeadTimeVendorPress} />
 
           {/* Lead Time Monthly Trend */}
           <SectionHeader title="Lead Time Trend" subtitle="Avg days by order month · last 6 months" />
@@ -1286,6 +1484,14 @@ export default function ProcurementAnalyticsScreen() {
 
           <View style={styles.footer} />
         </ScrollView>
+      )}
+
+      {selectedLeadTimeVendor != null && (
+        <VendorLeadTimeModal
+          vendor={selectedLeadTimeVendor}
+          trend={vendorLeadTrend}
+          onClose={() => setSelectedLeadTimeVendor(null)}
+        />
       )}
     </SafeAreaView>
   );

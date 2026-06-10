@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   ActivityIndicator,
@@ -218,6 +218,123 @@ const momStyles = StyleSheet.create({
   badgeDown: { backgroundColor: Colors.borderLight },
   badgeFlat: { backgroundColor: Colors.borderLight },
   badgeText: { fontSize: 10, fontWeight: '700', color: Colors.text },
+});
+
+// ─── Week Activity ───────────────────────────────────────────────────────────
+
+interface WeekActivity {
+  thisCount: number;
+  thisAmount: number;
+  lastCount: number;
+  lastAmount: number;
+}
+
+function computeWeekActivity(vouchers: RecentVoucher[]): WeekActivity | null {
+  const now = new Date();
+  const dow = now.getDay(); // 0=Sun
+  const daysToMon = dow === 0 ? -6 : 1 - dow;
+  const thisMonday = new Date(now);
+  thisMonday.setDate(now.getDate() + daysToMon);
+  thisMonday.setHours(0, 0, 0, 0);
+  const lastMonday = new Date(thisMonday);
+  lastMonday.setDate(thisMonday.getDate() - 7);
+
+  let thisCount = 0, thisAmount = 0;
+  let lastCount = 0, lastAmount = 0;
+
+  for (const v of vouchers) {
+    if (!v.dt) continue;
+    const d = new Date(v.dt);
+    if (d >= thisMonday) { thisCount++; thisAmount += v.amount ?? 0; }
+    else if (d >= lastMonday) { lastCount++; lastAmount += v.amount ?? 0; }
+  }
+
+  if (thisCount === 0 && lastCount === 0) return null;
+  return { thisCount, thisAmount, lastCount, lastAmount };
+}
+
+function WeekActivityCard({
+  activity,
+  onPress,
+}: {
+  activity: WeekActivity;
+  onPress?: () => void;
+}) {
+  const pctChange = activity.lastCount > 0
+    ? Math.round(((activity.thisCount - activity.lastCount) / activity.lastCount) * 100)
+    : null;
+  const isUp = pctChange != null && pctChange > 0;
+  const isDown = pctChange != null && pctChange < 0;
+
+  return (
+    <TouchableOpacity
+      style={waStyles.card}
+      activeOpacity={onPress ? 0.7 : 1}
+      onPress={onPress}
+    >
+      <View style={waStyles.tile}>
+        <Text style={waStyles.tileCount}>{activity.thisCount}</Text>
+        <Text style={waStyles.tileLabel}>THIS WEEK</Text>
+        <Text style={waStyles.tileAmount}>{fmtK(activity.thisAmount)}</Text>
+      </View>
+      <View style={waStyles.divider} />
+      <View style={waStyles.centerTile}>
+        <Feather
+          name={isUp ? 'trending-up' : isDown ? 'trending-down' : 'minus'}
+          size={20}
+          color={isUp ? Colors.text : isDown ? Colors.textSecondary : Colors.textMuted}
+        />
+        {pctChange != null && (
+          <Text style={[waStyles.pctText, isUp && waStyles.pctUp, isDown && waStyles.pctDown]}>
+            {pctChange > 0 ? '+' : ''}{pctChange}%
+          </Text>
+        )}
+        <Text style={waStyles.vsLabel}>vs last week</Text>
+      </View>
+      <View style={waStyles.divider} />
+      <View style={waStyles.tile}>
+        <Text style={[waStyles.tileCount, waStyles.tileCountMuted]}>{activity.lastCount}</Text>
+        <Text style={waStyles.tileLabel}>LAST WEEK</Text>
+        <Text style={waStyles.tileAmount}>{fmtK(activity.lastAmount)}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const waStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  tile: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    gap: 3,
+  },
+  centerTile: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    gap: 3,
+    backgroundColor: Colors.background,
+  },
+  divider: { width: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
+  tileCount: { fontSize: 22, fontWeight: '700', color: Colors.text },
+  tileCountMuted: { color: Colors.textSecondary },
+  tileLabel: { fontSize: 10, fontWeight: '700', color: Colors.textMuted, letterSpacing: 0.5 },
+  tileAmount: { fontSize: 12, color: Colors.textSecondary, fontWeight: '600' },
+  pctText: { fontSize: 13, fontWeight: '700', color: Colors.textMuted },
+  pctUp: { color: Colors.text },
+  pctDown: { color: Colors.textSecondary },
+  vsLabel: { fontSize: 10, color: Colors.textMuted },
 });
 
 // ─── Financial Health Score ───────────────────────────────────────────────────
@@ -502,6 +619,9 @@ export default function DashboardScreen() {
   } | null>(null);
 
   const cacheKey = `dashboard:${selectedCompany?.id ?? 'all'}`;
+
+  const weekActivity = useMemo(() => computeWeekActivity(vouchers), [vouchers]);
+
 
   const load = useCallback(async (isRefresh = false, isSilent = false) => {
     let hadCachedData = false;
@@ -1507,6 +1627,17 @@ export default function DashboardScreen() {
                 />
               </View>
             </View>
+          </>
+        )}
+
+        {/* Week-over-week voucher activity */}
+        {weekActivity != null && (
+          <>
+            <SectionHeader title="Week Activity" meta="this week vs last week" />
+            <WeekActivityCard
+              activity={weekActivity}
+              onPress={() => navigation.navigate('Finance', { screen: 'JournalEntries' } as any)}
+            />
           </>
         )}
 
