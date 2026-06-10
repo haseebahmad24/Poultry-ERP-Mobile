@@ -303,6 +303,10 @@ export default function JournalEntriesScreen() {
           setPickedAccountName(name);
           setShowAccountPicker(false);
         }}
+        onViewLedger={(code, name) => {
+          setShowAccountPicker(false);
+          navigation.navigate('AccountStatement', { accountCode: code, accountName: name });
+        }}
         onClose={() => setShowAccountPicker(false)}
       />
     </SafeAreaView>
@@ -313,11 +317,13 @@ function AccountPickerModal({
   visible,
   companyId,
   onSelect,
+  onViewLedger,
   onClose,
 }: {
   visible: boolean;
   companyId?: string | number;
   onSelect: (code: string, name: string) => void;
+  onViewLedger?: (code: string, name: string) => void;
   onClose: () => void;
 }) {
   const [accounts, setAccounts] = useState<TrialBalanceRow[]>([]);
@@ -355,7 +361,12 @@ function AccountPickerModal({
     >
       <SafeAreaView style={styles.modalRoot} edges={['top']}>
         <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>Filter by Account</Text>
+          <View>
+            <Text style={styles.modalTitle}>Select Account</Text>
+            {onViewLedger && (
+              <Text style={styles.modalSubtitle}>tap to filter JEs · book icon for ledger</Text>
+            )}
+          </View>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Feather name="x" size={20} color={Colors.text} />
           </TouchableOpacity>
@@ -386,14 +397,25 @@ function AccountPickerModal({
             data={filtered}
             keyExtractor={(item) => item.account_code ?? item.account_name}
             renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.accountRow}
-                onPress={() => onSelect(item.account_code!, `${item.account_code} — ${item.account_name}`)}
-              >
-                <Text style={styles.accountCode}>{item.account_code}</Text>
-                <Text style={styles.accountName} numberOfLines={1}>{item.account_name}</Text>
-                <Feather name="chevron-right" size={14} color={Colors.textMuted} />
-              </TouchableOpacity>
+              <View style={styles.accountRow}>
+                <TouchableOpacity
+                  style={styles.accountRowMain}
+                  onPress={() => onSelect(item.account_code!, `${item.account_code} — ${item.account_name}`)}
+                >
+                  <Text style={styles.accountCode}>{item.account_code}</Text>
+                  <Text style={styles.accountName} numberOfLines={1}>{item.account_name}</Text>
+                  <Feather name="filter" size={13} color={Colors.textMuted} />
+                </TouchableOpacity>
+                {onViewLedger && (
+                  <TouchableOpacity
+                    style={styles.accountRowLedgerBtn}
+                    onPress={() => onViewLedger(item.account_code!, `${item.account_code} — ${item.account_name}`)}
+                    hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                  >
+                    <Feather name="book-open" size={15} color={Colors.text} />
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
             ItemSeparatorComponent={() => <View style={styles.separator} />}
             ListEmptyComponent={
@@ -910,6 +932,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   modalTitle: { ...Typography.h3 },
+  modalSubtitle: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
   modalSearch: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -931,10 +954,23 @@ const styles = StyleSheet.create({
   accountRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: Colors.surface,
+  },
+  accountRowMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 2,
     gap: Spacing.sm,
-    backgroundColor: Colors.surface,
+  },
+  accountRowLedgerBtn: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: Colors.borderLight,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   accountCode: {
     fontSize: 12,

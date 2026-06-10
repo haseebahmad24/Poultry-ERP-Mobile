@@ -38,6 +38,7 @@ import { getBookmarks } from '@/utils/bookmarks';
 import { getRecentlyViewed, RecentItem } from '@/utils/recentlyViewed';
 import { getFlaggedIds } from '@/utils/flaggedItems';
 import { exportDashboardSummaryPDF, exportUpcomingPaymentsPDF, exportFlaggedCombinedPDF } from '@/utils/pdfExport';
+import { saveKpiSnapshot, loadKpiHistory, KpiHistoryEntry } from '@/utils/kpiHistory';
 import { fetchAPBills, APBill } from '@/api/accountsPayable';
 import { fetchARInvoices, ARInvoice } from '@/api/accountsReceivable';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
@@ -617,6 +618,7 @@ export default function DashboardScreen() {
     apThis: number; apPrev: number; arThis: number; arPrev: number;
     thisLabel: string; prevLabel: string;
   } | null>(null);
+  const [kpiHistory, setKpiHistory] = useState<KpiHistoryEntry[]>([]);
 
   const cacheKey = `dashboard:${selectedCompany?.id ?? 'all'}`;
 
@@ -649,6 +651,9 @@ export default function DashboardScreen() {
       setIsStale(false);
       setLastUpdated(new Date());
       await setCached(cacheKey, { kpis: data.kpis, recentVouchers: data.recentVouchers, voucherTypeStats: data.voucherTypeStats });
+      // Save daily KPI snapshot and refresh sparkline history
+      await saveKpiSnapshot(selectedCompany?.id, data.kpis);
+      loadKpiHistory(selectedCompany?.id).then(setKpiHistory).catch(() => {});
     } catch (e: any) {
       if (isSilent) {
         // silent auto-refresh: don't clobber UI on transient failure
@@ -666,6 +671,9 @@ export default function DashboardScreen() {
   }, [selectedCompany, cacheKey]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    loadKpiHistory(selectedCompany?.id).then(setKpiHistory).catch(() => {});
+  }, [selectedCompany]);
 
   // Lazy supply chain fetch — runs after main data, doesn't block render
   useEffect(() => {
@@ -995,6 +1003,17 @@ export default function DashboardScreen() {
             />
           </View>
         </View>
+
+        {/* Quick Stats — 7-day KPI history sparkline */}
+        {kpiHistory.length >= 2 && (
+          <>
+            <SectionHeader title="Revenue Trend" meta="month-to-date · last 7 days" />
+            <QuickStatsCard
+              history={kpiHistory}
+              onPress={() => navigation.navigate('Finance', { screen: 'FinancialReports' } as any)}
+            />
+          </>
+        )}
 
         {/* Working Capital */}
         <SectionHeader title="Working Capital" />
@@ -1732,6 +1751,226 @@ function WCRow({
     </View>
   );
 }
+
+// ─── Quick Stats Card — 7-day KPI History Sparkline ─────────────────────────
+
+function fmtKpiShort(val: number): string {
+  if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
+  if (val >= 1_000) return `${(val / 1_000).toFixed(0)}K`;
+  return String(Math.round(val));
+}
+
+function fmtHistDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function QuickStatsCard({
+  history,
+  onPress,
+}: {
+  history: KpiHistoryEntry[];
+  onPress?: () => void;
+}) {
+  if (history.length < 2) return null;
+
+  const maxVal = Math.max(...history.flatMap((e) => [e.revenue, e.expenses]));
+  if (maxVal <= 0) return null;
+
+  const latest = history[history.length - 1];
+  const earliest = history[0];
+  const netChange = latest.netIncome - earliest.netIncome;
+  const netChangePct = earliest.netIncome !== 0
+    ? Math.round(((latest.netIncome - earliest.netIncome) / Math.abs(earliest.netIncome)) * 100)
+    : null;
+  const trending = netChange > 0 ? 'trending-up' : netChange < 0 ? 'trending-down' : 'minus';
+  const trendColor = netChange > 0 ? Colors.text : netChange < 0 ? Colors.textSecondary : Colors.textMuted;
+
+  const BAR_MAX_H = 36;
+
+  const Wrap = onPress ? TouchableOpacity : View;
+
+  return (
+    <Wrap
+      onPress={onPress}
+      activeOpacity={0.8}
+      style={qsStyles.card}
+    >
+      <View style={qsStyles.header}>
+        <View>
+          <Text style={qsStyles.headerTitle}>7-DAY TREND</Text>
+          <Text style={qsStyles.headerSub}>Revenue vs Expenses · month-to-date</Text>
+        </View>
+        <View style={qsStyles.trendPill}>
+          <Feather name={trending as any} size={12} color={trendColor} />
+          {netChangePct != null && (
+            <Text style={[qsStyles.trendPct, { color: trendColor }]}>
+              {netChangePct > 0 ? '+' : ''}{netChangePct}%
+            </Text>
+          )}
+        </View>
+      </View>
+
+      <View style={qsStyles.chartRow}>
+        {history.map((entry, i) => {
+          const isToday = i === history.length - 1;
+          const revH = maxVal > 0 ? Math.max(2, Math.round((entry.revenue / maxVal) * BAR_MAX_H)) : 2;
+          const expH = maxVal > 0 ? Math.max(2, Math.round((entry.expenses / maxVal) * BAR_MAX_H)) : 2;
+          return (
+            <View key={entry.date} style={qsStyles.dayCol}>
+              <View style={[qsStyles.barTrack, { height: BAR_MAX_H }]}>
+                <View style={qsStyles.barsGroup}>
+                  <View style={[qsStyles.barRev, { height: revH }, isToday && qsStyles.barTodayRev]} />
+                  <View style={[qsStyles.barExp, { height: expH }, isToday && qsStyles.barTodayExp]} />
+                </View>
+              </View>
+              <Text style={[qsStyles.dateLabel, isToday && qsStyles.dateLabelToday]}>
+                {isToday ? 'Now' : fmtHistDate(entry.date)}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+
+      <View style={qsStyles.legendRow}>
+        <View style={qsStyles.legendItem}>
+          <View style={[qsStyles.legendDot, qsStyles.legendDotRev]} />
+          <Text style={qsStyles.legendLabel}>Rev {fmtKpiShort(latest.revenue)}</Text>
+        </View>
+        <View style={qsStyles.legendItem}>
+          <View style={[qsStyles.legendDot, qsStyles.legendDotExp]} />
+          <Text style={qsStyles.legendLabel}>Exp {fmtKpiShort(latest.expenses)}</Text>
+        </View>
+        <Text style={qsStyles.legendNet}>
+          Net {latest.netIncome >= 0 ? '+' : ''}{fmtKpiShort(latest.netIncome)}
+        </Text>
+      </View>
+    </Wrap>
+  );
+}
+
+const qsStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  headerSub: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
+  trendPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: Colors.background,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  trendPct: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  chartRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  dayCol: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  barTrack: {
+    width: '100%',
+    justifyContent: 'flex-end',
+  },
+  barsGroup: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 1,
+    justifyContent: 'center',
+  },
+  barRev: {
+    width: 5,
+    backgroundColor: Colors.text,
+    borderRadius: 2,
+    opacity: 0.85,
+  },
+  barExp: {
+    width: 5,
+    backgroundColor: Colors.textMuted,
+    borderRadius: 2,
+    opacity: 0.6,
+  },
+  barTodayRev: {
+    opacity: 1,
+    backgroundColor: Colors.text,
+  },
+  barTodayExp: {
+    opacity: 0.85,
+    backgroundColor: Colors.textSecondary,
+  },
+  dateLabel: {
+    fontSize: 9,
+    color: Colors.textMuted,
+    textAlign: 'center',
+  },
+  dateLabelToday: {
+    color: Colors.text,
+    fontWeight: '600',
+  },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingTop: 2,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  legendDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 2,
+  },
+  legendDotRev: { backgroundColor: Colors.text },
+  legendDotExp: { backgroundColor: Colors.textMuted },
+  legendLabel: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+  },
+  legendNet: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.text,
+    marginLeft: 'auto',
+  },
+});
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
