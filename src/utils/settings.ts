@@ -228,3 +228,46 @@ export async function getPoDeliveryDays(): Promise<number> {
 export async function setPoDeliveryDays(days: number): Promise<void> {
   await AsyncStorage.setItem(KEYS.PO_DELIVERY_DAYS, String(Math.max(1, days)));
 }
+
+const ITEM_THRESHOLD_PREFIX = 'setting:itemThreshold:';
+
+/** Returns the per-item threshold for a specific item, or null if not set. */
+export async function getItemThreshold(itemName: string): Promise<number | null> {
+  try {
+    const raw = await AsyncStorage.getItem(ITEM_THRESHOLD_PREFIX + itemName);
+    if (raw === null) return null;
+    const n = parseInt(raw, 10);
+    return isNaN(n) || n < 0 ? null : n;
+  } catch {
+    return null;
+  }
+}
+
+/** Sets a per-item threshold. Pass null to clear (revert to global). */
+export async function setItemThreshold(itemName: string, threshold: number | null): Promise<void> {
+  try {
+    if (threshold === null) {
+      await AsyncStorage.removeItem(ITEM_THRESHOLD_PREFIX + itemName);
+    } else {
+      await AsyncStorage.setItem(ITEM_THRESHOLD_PREFIX + itemName, String(Math.max(0, threshold)));
+    }
+  } catch {}
+}
+
+/** Loads all per-item thresholds into a Map<itemName, threshold>. */
+export async function loadAllItemThresholds(): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+  try {
+    const allKeys = await AsyncStorage.getAllKeys();
+    const itemKeys = allKeys.filter((k) => k.startsWith(ITEM_THRESHOLD_PREFIX));
+    if (itemKeys.length === 0) return result;
+    const pairs = await AsyncStorage.multiGet(itemKeys);
+    for (const [key, val] of pairs) {
+      if (!val) continue;
+      const name = key.slice(ITEM_THRESHOLD_PREFIX.length);
+      const n = parseInt(val, 10);
+      if (!isNaN(n) && n >= 0) result.set(name, n);
+    }
+  } catch {}
+  return result;
+}

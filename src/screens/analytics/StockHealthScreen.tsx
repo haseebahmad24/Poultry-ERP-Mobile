@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -23,7 +24,7 @@ import ListScreenSkeleton from '@/components/ListScreenSkeleton';
 import { useCompany } from '@/context/CompanyContext';
 import { fetchStockBalances, fetchWarehouses, fetchStockLedger, StockBalance, StockLedgerEntry, Warehouse } from '@/api/inventory';
 import { getCached, setCached } from '@/utils/cache';
-import { getLowStockThreshold } from '@/utils/settings';
+import { getLowStockThreshold, loadAllItemThresholds, setItemThreshold } from '@/utils/settings';
 import { exportStockHealthPDF, exportOutOfStockPDF, StockHealthPDFData } from '@/utils/pdfExport';
 import type { MoreStackParamList } from '@/navigation/MoreNavigator';
 
@@ -99,10 +100,20 @@ function computeLedgerAnalysis(
   return { velocityItems, dusMap };
 }
 
-function computeStockHealth(stock: StockBalance[], _warehouses: Warehouse[], threshold: number): StockHealthData {
+function computeStockHealth(
+  stock: StockBalance[],
+  _warehouses: Warehouse[],
+  threshold: number,
+  perItemThresholds?: Map<string, number>,
+): StockHealthData {
   const allItems = stock;
-  const inStock = allItems.filter((s) => (s.qty ?? 0) >= threshold);
-  const lowStockList = allItems.filter((s) => { const q = s.qty ?? 0; return q > 0 && q < threshold; });
+  const itemThreshold = (s: StockBalance) =>
+    perItemThresholds?.get(s.item_name) ?? threshold;
+  const inStock = allItems.filter((s) => (s.qty ?? 0) >= itemThreshold(s));
+  const lowStockList = allItems.filter((s) => {
+    const q = s.qty ?? 0;
+    return q > 0 && q < itemThreshold(s);
+  });
   const outOfStock = allItems.filter((s) => (s.qty ?? 0) <= 0);
 
   const topByQty = [...allItems]
@@ -248,12 +259,22 @@ const barStyles = StyleSheet.create({
 });
 
 /** Ranked item list */
-function RankedItemList({ items, showLowWarning, showOutOfStock, dusMap, onPress }: {
+function RankedItemList({
+  items,
+  showLowWarning,
+  showOutOfStock,
+  dusMap,
+  onPress,
+  onLongPress,
+  perItemThresholds,
+}: {
   items: StockBalance[];
   showLowWarning?: boolean;
   showOutOfStock?: boolean;
   dusMap?: Map<string, number>;
   onPress?: (item: StockBalance) => void;
+  onLongPress?: (item: StockBalance) => void;
+  perItemThresholds?: Map<string, number>;
 }) {
   if (items.length === 0) {
     return (
@@ -274,12 +295,15 @@ function RankedItemList({ items, showLowWarning, showOutOfStock, dusMap, onPress
         const dusBg = dus != null
           ? (dus <= 7 ? Colors.text : dus <= 14 ? Colors.textSecondary : Colors.textMuted)
           : undefined;
+        const hasCustomThreshold = perItemThresholds?.has(item.item_name) ?? false;
         return (
           <TouchableOpacity
             key={`${item.item_name}-${item.warehouse_name ?? ''}-${i}`}
             style={[itemStyles.row, !isLast && itemStyles.rowBorder]}
             activeOpacity={onPress ? 0.6 : 1}
             onPress={onPress ? () => onPress(item) : undefined}
+            onLongPress={onLongPress ? () => onLongPress(item) : undefined}
+            delayLongPress={400}
           >
             <View style={itemStyles.rankBadge}>
               {showOutOfStock ? (
@@ -291,7 +315,14 @@ function RankedItemList({ items, showLowWarning, showOutOfStock, dusMap, onPress
               )}
             </View>
             <View style={itemStyles.nameCol}>
-              <Text style={itemStyles.name} numberOfLines={1}>{item.item_name}</Text>
+              <View style={itemStyles.nameRow}>
+                <Text style={itemStyles.name} numberOfLines={1}>{item.item_name}</Text>
+                {hasCustomThreshold && (
+                  <View style={itemStyles.customBadge}>
+                    <Feather name="sliders" size={9} color={Colors.textMuted} />
+                  </View>
+                )}
+              </View>
               {item.warehouse_name && (
                 <Text style={itemStyles.warehouse} numberOfLines={1}>{item.warehouse_name}</Text>
               )}
@@ -357,7 +388,18 @@ const itemStyles = StyleSheet.create({
   },
   rankText: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary },
   nameCol: { flex: 1, gap: 3 },
-  name: { ...Typography.body, fontWeight: '600' },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  name: { ...Typography.body, fontWeight: '600', flex: 1 },
+  customBadge: {
+    width: 16,
+    height: 16,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   warehouse: { fontSize: 11, color: Colors.textMuted },
   barTrack: {
     height: 3,
@@ -827,6 +869,148 @@ const modalStyles = StyleSheet.create({
   ledgerBal: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
 });
 
+// ─── Threshold Edit Modal ─────────────────────────────────────────────────────
+
+function ThresholdEditModal({
+  item,
+  currentCustom,
+  globalThreshold,
+  onSave,
+  onClose,
+}: {
+  item: StockBalance;
+  currentCustom: number | null;
+  globalThreshold: number;
+  onSave: (itemName: string, value: number | null) => void;
+  onClose: () => void;
+}) {
+  const [inputVal, setInputVal] = useState(
+    currentCustom != null ? String(currentCustom) : String(globalThreshold)
+  );
+  const inputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => inputRef.current?.focus(), 150);
+    return () => clearTimeout(t);
+  }, []);
+
+  const hasCustom = currentCustom != null;
+  const parsed = parseInt(inputVal, 10);
+  const isValid = !isNaN(parsed) && parsed >= 0;
+
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity style={thmStyles.overlay} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity style={thmStyles.sheet} activeOpacity={1} onPress={() => {}}>
+          <Text style={thmStyles.title} numberOfLines={1}>Reorder Threshold</Text>
+          <Text style={thmStyles.itemName} numberOfLines={2}>{item.item_name}</Text>
+          <Text style={thmStyles.hint}>
+            Alert when stock falls below this quantity.{'\n'}
+            Global threshold: {globalThreshold} units.
+          </Text>
+          <View style={thmStyles.inputRow}>
+            <TextInput
+              ref={inputRef}
+              style={thmStyles.input}
+              value={inputVal}
+              onChangeText={setInputVal}
+              keyboardType="number-pad"
+              selectTextOnFocus
+              placeholder={String(globalThreshold)}
+              placeholderTextColor={Colors.textMuted}
+            />
+            <Text style={thmStyles.unitLabel}>units</Text>
+          </View>
+          <View style={thmStyles.btnRow}>
+            {hasCustom && (
+              <TouchableOpacity
+                style={[thmStyles.btn, thmStyles.btnClear]}
+                onPress={() => { onSave(item.item_name, null); onClose(); }}
+              >
+                <Text style={thmStyles.btnClearText}>Use Global</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={thmStyles.btnCancel} onPress={onClose}>
+              <Text style={thmStyles.btnCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[thmStyles.btn, thmStyles.btnSave, !isValid && thmStyles.btnDisabled]}
+              disabled={!isValid}
+              onPress={() => { onSave(item.item_name, parsed); onClose(); }}
+            >
+              <Text style={thmStyles.btnSaveText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
+const thmStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
+    paddingBottom: Spacing.xxl,
+  },
+  title: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  itemName: { fontSize: 13, color: Colors.textSecondary },
+  hint: { fontSize: 12, color: Colors.textMuted, lineHeight: 18 },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.background,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    marginTop: Spacing.xs,
+  },
+  input: {
+    flex: 1,
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.text,
+    paddingVertical: Spacing.sm + 2,
+  },
+  unitLabel: { fontSize: 13, color: Colors.textMuted },
+  btnRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm, justifyContent: 'flex-end' },
+  btn: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnClear: {
+    flex: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  btnClearText: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary },
+  btnCancel: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  btnCancelText: { fontSize: 13, color: Colors.textMuted },
+  btnSave: { backgroundColor: Colors.text, minWidth: 72 },
+  btnSaveText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  btnDisabled: { opacity: 0.4 },
+});
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function StockHealthScreen() {
@@ -834,6 +1018,9 @@ export default function StockHealthScreen() {
   const { companyId } = useCompany();
   const [data, setData] = useState<StockHealthData | null>(null);
   const [allStock, setAllStock] = useState<StockBalance[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [globalThreshold, setGlobalThreshold] = useState(10);
+  const [perItemThresholds, setPerItemThresholds] = useState<Map<string, number>>(new Map());
   const [velocityItems, setVelocityItems] = useState<VelocityItem[]>([]);
   const [dusMap, setDusMap] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -842,6 +1029,7 @@ export default function StockHealthScreen() {
   const [exporting, setExporting] = useState(false);
   const [exportingOOS, setExportingOOS] = useState(false);
   const [selectedItem, setSelectedItem] = useState<StockBalance | null>(null);
+  const [thresholdEditItem, setThresholdEditItem] = useState<StockBalance | null>(null);
 
   const cacheKey = `stock-health:${companyId ?? 'all'}`;
   const ledgerCacheKey = `stock-velocity:${companyId ?? 'all'}`;
@@ -852,13 +1040,19 @@ export default function StockHealthScreen() {
     setError(false);
 
     try {
-      const cached = await getCached<{ stock: StockBalance[]; warehouses: Warehouse[]; threshold: number }>(cacheKey);
-      const ledgerCached = await getCached<StockLedgerEntry[]>(ledgerCacheKey);
+      const [itemThresholds, cached, ledgerCached] = await Promise.all([
+        loadAllItemThresholds(),
+        getCached<{ stock: StockBalance[]; warehouses: Warehouse[]; threshold: number }>(cacheKey),
+        getCached<StockLedgerEntry[]>(ledgerCacheKey),
+      ]);
+      setPerItemThresholds(itemThresholds);
 
       if (cached && ledgerCached && !isRefresh) {
         const s = cached.data.stock;
         setAllStock(s);
-        setData(computeStockHealth(s, cached.data.warehouses, cached.data.threshold));
+        setWarehouses(cached.data.warehouses);
+        setGlobalThreshold(cached.data.threshold);
+        setData(computeStockHealth(s, cached.data.warehouses, cached.data.threshold, itemThresholds));
         const { velocityItems: vi, dusMap: dm } = computeLedgerAnalysis(ledgerCached.data, s);
         setVelocityItems(vi);
         setDusMap(dm);
@@ -867,18 +1061,20 @@ export default function StockHealthScreen() {
       }
 
       const threshold = await getLowStockThreshold();
-      const [stock, warehouses, ledger] = await Promise.all([
+      const [stock, warehouseList, ledger] = await Promise.all([
         fetchStockBalances(companyId ?? undefined),
         fetchWarehouses(companyId ?? undefined),
         fetchStockLedger({ companyId: companyId ?? undefined }),
       ]);
 
       await Promise.all([
-        setCached(cacheKey, { stock, warehouses, threshold }),
+        setCached(cacheKey, { stock, warehouses: warehouseList, threshold }),
         setCached(ledgerCacheKey, ledger),
       ]);
       setAllStock(stock);
-      setData(computeStockHealth(stock, warehouses, threshold));
+      setWarehouses(warehouseList);
+      setGlobalThreshold(threshold);
+      setData(computeStockHealth(stock, warehouseList, threshold, itemThresholds));
       const { velocityItems: vi, dusMap: dm } = computeLedgerAnalysis(ledger, stock);
       setVelocityItems(vi);
       setDusMap(dm);
@@ -919,6 +1115,20 @@ export default function StockHealthScreen() {
       setExportingOOS(false);
     }
   }, [data]);
+
+  const handleThresholdSave = useCallback(async (itemName: string, value: number | null) => {
+    await setItemThreshold(itemName, value);
+    const updated = new Map(perItemThresholds);
+    if (value === null) {
+      updated.delete(itemName);
+    } else {
+      updated.set(itemName, value);
+    }
+    setPerItemThresholds(updated);
+    if (allStock.length > 0) {
+      setData(computeStockHealth(allStock, warehouses, globalThreshold, updated));
+    }
+  }, [perItemThresholds, allStock, warehouses, globalThreshold]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -985,9 +1195,16 @@ export default function StockHealthScreen() {
             <>
               <SectionHeader
                 title="Low Stock Items"
-                subtitle={`${data.lowStockItems} item${data.lowStockItems !== 1 ? 's' : ''} below threshold`}
+                subtitle={`${data.lowStockItems} item${data.lowStockItems !== 1 ? 's' : ''} · long-press to set threshold`}
               />
-              <RankedItemList items={data.lowStock} showLowWarning dusMap={dusMap} onPress={setSelectedItem} />
+              <RankedItemList
+                items={data.lowStock}
+                showLowWarning
+                dusMap={dusMap}
+                onPress={setSelectedItem}
+                onLongPress={setThresholdEditItem}
+                perItemThresholds={perItemThresholds}
+              />
             </>
           )}
 
@@ -1020,6 +1237,16 @@ export default function StockHealthScreen() {
           allStock={allStock}
           companyId={companyId ?? undefined}
           onClose={() => setSelectedItem(null)}
+        />
+      )}
+
+      {thresholdEditItem && (
+        <ThresholdEditModal
+          item={thresholdEditItem}
+          currentCustom={perItemThresholds.get(thresholdEditItem.item_name) ?? null}
+          globalThreshold={globalThreshold}
+          onSave={handleThresholdSave}
+          onClose={() => setThresholdEditItem(null)}
         />
       )}
     </SafeAreaView>
