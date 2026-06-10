@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -44,6 +44,8 @@ import {
   getDateFormat,
   setDateFormat,
   initDateFormat,
+  loadAllItemThresholds,
+  setItemThreshold,
   type DateFormat,
 } from '@/utils/settings';
 import {
@@ -111,6 +113,35 @@ export default function SettingsScreen() {
   const [notifyPODelivery, setNotifyPODeliveryState] = useState(true);
   const [poDeliveryDaysVal, setPoDeliveryDaysVal] = useState(3);
   const [dateFormat, setDateFormatState] = useState<DateFormat>('natural');
+  const [itemThresholdsMap, setItemThresholdsMap] = useState<Map<string, number>>(new Map());
+  const [editingThreshold, setEditingThreshold] = useState<{ name: string; value: string } | null>(null);
+  const [thresholdEditSaving, setThresholdEditSaving] = useState(false);
+
+  const itemThresholds = useMemo(
+    () => Array.from(itemThresholdsMap.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => a.name.localeCompare(b.name)),
+    [itemThresholdsMap]
+  );
+
+  const reloadItemThresholds = useCallback(async () => {
+    const map = await loadAllItemThresholds();
+    setItemThresholdsMap(map);
+  }, []);
+
+  const handleClearItemThreshold = useCallback(async (itemName: string) => {
+    await setItemThreshold(itemName, null);
+    await reloadItemThresholds();
+  }, [reloadItemThresholds]);
+
+  const handleSaveItemThreshold = useCallback(async () => {
+    if (!editingThreshold) return;
+    const n = parseInt(editingThreshold.value, 10);
+    if (isNaN(n) || n < 0) return;
+    setThresholdEditSaving(true);
+    await setItemThreshold(editingThreshold.name, n);
+    await reloadItemThresholds();
+    setThresholdEditSaving(false);
+    setEditingThreshold(null);
+  }, [editingThreshold, reloadItemThresholds]);
 
   useEffect(() => {
     getLowStockThreshold().then((v) => setThreshold(String(v)));
@@ -127,10 +158,11 @@ export default function SettingsScreen() {
     getNotifyPoDelivery().then((v) => setNotifyPODeliveryState(v));
     getPoDeliveryDays().then((v) => setPoDeliveryDaysVal(v));
     getDateFormat().then((v) => setDateFormatState(v));
+    reloadItemThresholds();
     LocalAuthentication.hasHardwareAsync().then((has) => {
       if (has) LocalAuthentication.isEnrolledAsync().then((enrolled) => setBiometricAvailable(enrolled));
     });
-  }, []);
+  }, [reloadItemThresholds]);
 
   const saveThreshold = useCallback(async () => {
     const n = parseInt(threshold, 10);
@@ -384,6 +416,84 @@ export default function SettingsScreen() {
               )}
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Per-Item Thresholds */}
+        <Text style={styles.sectionLabel}>PER-ITEM THRESHOLDS</Text>
+        <View style={styles.card}>
+          <View style={[styles.settingRow, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight }]}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingTitle}>Custom low-stock thresholds</Text>
+              <Text style={styles.settingDesc}>
+                Items with a custom threshold override the global setting. Long-press any item in Stock Health to set one.
+              </Text>
+            </View>
+          </View>
+          {itemThresholds.length === 0 ? (
+            <View style={styles.itemThresholdEmpty}>
+              <Feather name="sliders" size={16} color={Colors.textMuted} />
+              <Text style={styles.itemThresholdEmptyText}>No custom thresholds set</Text>
+            </View>
+          ) : (
+            itemThresholds.map(({ name, value }, idx) => (
+              <View
+                key={name}
+                style={[
+                  styles.itemThresholdRow,
+                  idx < itemThresholds.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight },
+                ]}
+              >
+                <Feather name="package" size={13} color={Colors.textMuted} />
+                <Text style={styles.itemThresholdName} numberOfLines={1}>{name}</Text>
+                {editingThreshold?.name === name ? (
+                  <>
+                    <TextInput
+                      style={styles.itemThresholdInput}
+                      value={editingThreshold.value}
+                      onChangeText={(t) => setEditingThreshold({ name, value: t.replace(/[^0-9]/g, '') })}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      autoFocus
+                      returnKeyType="done"
+                      onSubmitEditing={handleSaveItemThreshold}
+                    />
+                    <TouchableOpacity
+                      style={styles.itemThresholdSave}
+                      onPress={handleSaveItemThreshold}
+                      disabled={thresholdEditSaving}
+                    >
+                      <Feather name="check" size={14} color={Colors.surface} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.itemThresholdCancel}
+                      onPress={() => setEditingThreshold(null)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Feather name="x" size={14} color={Colors.textMuted} />
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      style={styles.itemThresholdValueBtn}
+                      onPress={() => setEditingThreshold({ name, value: String(value) })}
+                      hitSlop={{ top: 6, bottom: 6 }}
+                    >
+                      <Text style={styles.itemThresholdValue}>{value}</Text>
+                      <Text style={styles.itemThresholdUnit}> units</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.itemThresholdClear}
+                      onPress={() => handleClearItemThreshold(name)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Feather name="trash-2" size={13} color={Colors.textMuted} />
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            ))
+          )}
         </View>
 
         {/* Dashboard */}
@@ -835,4 +945,50 @@ const styles = StyleSheet.create({
   companyName: { fontSize: 14, fontWeight: '500', color: Colors.textSecondary },
   companyNameActive: { fontWeight: '700', color: Colors.text },
   companyCode: { fontSize: 11, color: Colors.textMuted, marginTop: 1 },
+
+  itemThresholdEmpty: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  itemThresholdEmptyText: { fontSize: 13, color: Colors.textMuted, fontStyle: 'italic' },
+
+  itemThresholdRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    gap: Spacing.sm,
+  },
+  itemThresholdName: { flex: 1, fontSize: 13, fontWeight: '500', color: Colors.text },
+  itemThresholdValueBtn: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
+  itemThresholdValue: { fontSize: 14, fontWeight: '700', color: Colors.text },
+  itemThresholdUnit: { fontSize: 11, color: Colors.textMuted },
+  itemThresholdClear: {
+    padding: 4,
+    marginLeft: 4,
+  },
+  itemThresholdInput: {
+    width: 64,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 5,
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text,
+    backgroundColor: Colors.background,
+    textAlign: 'center',
+  },
+  itemThresholdSave: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: Colors.text,
+    borderRadius: Radius.sm,
+    marginLeft: 4,
+  },
+  itemThresholdCancel: { padding: 4 },
 });

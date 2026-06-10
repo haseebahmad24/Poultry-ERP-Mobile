@@ -62,10 +62,8 @@ export default function JournalEntriesScreen() {
   const scrollRef = useRef<ScrollView>(null);
 
   const handleSelectAccount = useCallback((account: string) => {
-    setPickedAccount(account);
-    setPickedAccountName(account);
-    scrollRef.current?.scrollTo({ y: 0, animated: true });
-  }, []);
+    navigation.navigate('AccountStatement', { accountCode: account, accountName: account });
+  }, [navigation]);
 
   const handleSelectType = useCallback((type: string) => {
     setSelectedType(type);
@@ -474,7 +472,7 @@ function AccountActivityList({
           <View style={[acctStyles.dot, acctStyles.dotCr]} />
           <Text style={acctStyles.legendLabel}>Cr</Text>
           {onSelectAccount && (
-            <Text style={acctStyles.tapHint}>tap to filter</Text>
+            <Text style={acctStyles.tapHint}>tap for ledger</Text>
           )}
         </View>
       </View>

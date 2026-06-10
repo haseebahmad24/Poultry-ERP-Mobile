@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   ActivityIndicator,
   RefreshControl,
   ScrollView,
@@ -259,11 +260,26 @@ function FinancialHealthCard({ apBuckets, arBuckets, onPress }: {
   onPress?: () => void;
 }) {
   const hs = computeHealthScore(apBuckets, arBuckets);
+  const gradeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!hs) return;
+    gradeAnim.setValue(0);
+    Animated.spring(gradeAnim, {
+      toValue: 1,
+      tension: 120,
+      friction: 6,
+      useNativeDriver: true,
+    }).start();
+  }, [hs?.grade]);  // re-animate when grade changes
+
   if (!hs) return null;
 
   const gradeLabel: Record<string, string> = {
     A: 'Excellent', B: 'Good', C: 'Fair', D: 'At Risk', F: 'Critical',
   };
+
+  const gradeScale = gradeAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] });
 
   const cardInner = (
     <>
@@ -272,9 +288,9 @@ function FinancialHealthCard({ apBuckets, arBuckets, onPress }: {
           <Text style={healthStyles.scoreNum}>{hs.score}</Text>
           <Text style={healthStyles.scoreLabel}>/ 100</Text>
         </View>
-        <View style={healthStyles.gradeBadge}>
+        <Animated.View style={[healthStyles.gradeBadge, { transform: [{ scale: gradeScale }] }]}>
           <Text style={healthStyles.gradeText}>{hs.grade}</Text>
-        </View>
+        </Animated.View>
         <View style={healthStyles.statusBlock}>
           <Text style={healthStyles.statusLabel}>Financial Health</Text>
           <Text style={healthStyles.statusDesc}>{gradeLabel[hs.grade]}</Text>
