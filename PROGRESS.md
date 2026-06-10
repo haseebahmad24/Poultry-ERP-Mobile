@@ -8,6 +8,41 @@
 
 ---
 
+## Session 55 — 2026-06-10
+
+### Completed This Session
+
+**JournalEntries — Account Picker Modal Dual-Action** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- `AccountPickerModal` gains optional `onViewLedger?: (code, name) => void` prop
+- Each account row split into two tap targets: main area (filter JEs — existing behavior) + right `book-open` icon button that navigates to `AccountStatement` for the selected account
+- Main row icon changed from `chevron-right` to `filter` to clarify its purpose
+- Modal title changed from "Filter by Account" to "Select Account"; subtitle "tap to filter JEs · book icon for ledger" added when `onViewLedger` is provided
+- Style updates: `accountRow` becomes a container, `accountRowMain` is the flex tappable area, `accountRowLedgerBtn` is the right-side icon with hairline left border separator
+- Main screen wires `onViewLedger` to close modal + `navigation.navigate('AccountStatement', ...)`
+
+**Dashboard — 7-Day KPI History Sparkline** (`src/screens/dashboard/DashboardScreen.tsx`, `src/utils/kpiHistory.ts`)
+- New `src/utils/kpiHistory.ts`: rolling 7-entry daily snapshot per company — `KpiHistoryEntry { date, companyId, revenue, expenses, netIncome, vouchersMonth }`; `saveKpiSnapshot` upserts today's entry (replaces same-day entry with latest values); `loadKpiHistory` returns the full rolling array
+- `DashboardScreen`: imports `saveKpiSnapshot/loadKpiHistory/KpiHistoryEntry`; `kpiHistory` state; after each fresh API fetch → save snapshot + reload history; also loads history on company change
+- `QuickStatsCard` component: shows 7 grouped revenue (dark) + expense (muted) bars per day; today's bars are brighter; trend pill shows net income % change vs earliest entry (up/down/minus icon + pct); legend row with Rev/Exp/Net values; only renders when history has ≥2 entries
+- Inserted between KPI grid and Working Capital section with "Revenue Trend" section header
+
+**ProcurementAnalytics — Vendor Lead Time Comparison** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- `compareLeadTimeVendor` + `compareLeadTrend` state in main screen; `handleCompareVendorSelect` callback
+- `VendorLeadTimeModal` gains: `compareVendor`, `compareTrend`, `otherVendors`, `onSelectCompare`, `onClearCompare` props; internal `showPicker` state
+- Solo mode (existing): tiles show avg days + PO count; single bar per month
+- Compare mode: header shows "A vs B", tiles show both avg days + delta ("Xd slower/faster"), legend row with colored dots (dark=primary, muted=compare), grouped dual bars per month; "Clear" button resets to solo view
+- "Compare with another vendor" button (git-merge icon) appears below solo chart
+- Inline `FlatList` vendor picker embedded in modal bottom — shows vendor name + avg days; tap selects and closes picker
+
+### Next Session
+- Consider: StockHealth — warehouse-specific velocity view (filter velocity card by warehouse dropdown)
+- Consider: Dashboard — "Quick Stats" sparkline auto-seeding from first load (currently only visible after 2+ days); consider showing today's bar prominently even with 1 entry
+- Consider: JournalEntries — improve narration search (search inside narration text, not just account/type)
+- Consider: FinancialAnalytics — NWC trend line chart upgrade (polyline from View transforms instead of bars)
+- Consider: ProcurementAnalytics — add comparison to top-vendor/customer ranked lists (pick 2 vendors to compare PO values)
+
+---
+
 ## Session 54 — 2026-06-10
 
 ### Completed This Session
