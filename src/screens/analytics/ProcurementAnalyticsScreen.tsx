@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  FlatList,
   Modal,
   RefreshControl,
   ScrollView,
@@ -912,21 +913,49 @@ function LeadTimeChart({ rows, onPress }: { rows: LeadTimeRow[]; onPress?: (vend
 function VendorLeadTimeModal({
   vendor,
   trend,
+  compareVendor,
+  compareTrend,
+  otherVendors,
+  onSelectCompare,
+  onClearCompare,
   onClose,
 }: {
   vendor: string;
   trend: MonthLeadTime[];
+  compareVendor: string | null;
+  compareTrend: MonthLeadTime[];
+  otherVendors: LeadTimeRow[];
+  onSelectCompare: (vendor: string) => void;
+  onClearCompare: () => void;
   onClose: () => void;
 }) {
+  const [showPicker, setShowPicker] = useState(false);
+
   const hasAny = trend.some((m) => m.poCount > 0);
   const BAR_H = 72;
-  const maxDays = Math.max(...trend.map((m) => m.avgDays), 1);
-  const overallAvg = (() => {
+
+  // Primary vendor stats
+  const primaryAvg = (() => {
     const withData = trend.filter((m) => m.poCount > 0);
     if (withData.length === 0) return 0;
     return Math.round(withData.reduce((s, m) => s + m.avgDays, 0) / withData.length);
   })();
-  const totalPOs = trend.reduce((s, m) => s + m.poCount, 0);
+  const primaryTotal = trend.reduce((s, m) => s + m.poCount, 0);
+
+  // Compare vendor stats
+  const compareAvg = (() => {
+    if (!compareVendor) return 0;
+    const withData = compareTrend.filter((m) => m.poCount > 0);
+    if (withData.length === 0) return 0;
+    return Math.round(withData.reduce((s, m) => s + m.avgDays, 0) / withData.length);
+  })();
+
+  // Shared max for comparison chart
+  const maxDays = Math.max(
+    ...trend.map((m) => m.avgDays),
+    ...(compareTrend.length > 0 ? compareTrend.map((m) => m.avgDays) : []),
+    1,
+  );
 
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
@@ -936,8 +965,12 @@ function VendorLeadTimeModal({
           <View style={vltModalStyles.handle} />
           <View style={vltModalStyles.header}>
             <View style={{ flex: 1 }}>
-              <Text style={vltModalStyles.title} numberOfLines={1}>{vendor}</Text>
-              <Text style={vltModalStyles.subtitle}>6-month lead time trend</Text>
+              <Text style={vltModalStyles.title} numberOfLines={1}>
+                {compareVendor ? `${vendor} vs ${compareVendor}` : vendor}
+              </Text>
+              <Text style={vltModalStyles.subtitle}>
+                {compareVendor ? 'Lead time comparison · 6 months' : '6-month lead time trend'}
+              </Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Feather name="x" size={18} color={Colors.text} />
@@ -947,41 +980,114 @@ function VendorLeadTimeModal({
           {/* Summary tiles */}
           <View style={vltModalStyles.tileRow}>
             <View style={vltModalStyles.tile}>
-              <Text style={vltModalStyles.tileValue}>{overallAvg}d</Text>
-              <Text style={vltModalStyles.tileLabel}>Avg Lead Time</Text>
+              <Text style={vltModalStyles.tileValue}>{primaryAvg}d</Text>
+              <Text style={vltModalStyles.tileLabel} numberOfLines={1}>
+                {compareVendor ? vendor.split(' ')[0] : 'Avg Lead Time'}
+              </Text>
             </View>
-            <View style={vltModalStyles.tileDivider} />
-            <View style={vltModalStyles.tile}>
-              <Text style={vltModalStyles.tileValue}>{totalPOs}</Text>
-              <Text style={vltModalStyles.tileLabel}>POs with Delivery Date</Text>
-            </View>
+            {compareVendor ? (
+              <>
+                <View style={vltModalStyles.tileDivider} />
+                <View style={vltModalStyles.tile}>
+                  <Text style={vltModalStyles.tileValue}>{compareAvg}d</Text>
+                  <Text style={vltModalStyles.tileLabel} numberOfLines={1}>
+                    {compareVendor.split(' ')[0]}
+                  </Text>
+                </View>
+                <View style={vltModalStyles.tileDivider} />
+                <View style={vltModalStyles.tile}>
+                  <Text style={[vltModalStyles.tileValue, { fontSize: 16 }]}>
+                    {primaryAvg > compareAvg
+                      ? `+${primaryAvg - compareAvg}d slower`
+                      : primaryAvg < compareAvg
+                      ? `${compareAvg - primaryAvg}d faster`
+                      : 'Same'}
+                  </Text>
+                  <Text style={vltModalStyles.tileLabel}>vs compare</Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={vltModalStyles.tileDivider} />
+                <View style={vltModalStyles.tile}>
+                  <Text style={vltModalStyles.tileValue}>{primaryTotal}</Text>
+                  <Text style={vltModalStyles.tileLabel}>POs with Delivery Date</Text>
+                </View>
+              </>
+            )}
           </View>
 
-          {/* 6-bar trend chart */}
+          {/* Legend row when comparing */}
+          {compareVendor && (
+            <View style={vltModalStyles.compareLegend}>
+              <View style={vltModalStyles.compareLegendItem}>
+                <View style={[vltModalStyles.compareDot, vltModalStyles.compareDotPrimary]} />
+                <Text style={vltModalStyles.compareLegendLabel} numberOfLines={1}>{vendor}</Text>
+              </View>
+              <View style={vltModalStyles.compareLegendItem}>
+                <View style={[vltModalStyles.compareDot, vltModalStyles.compareDotSecondary]} />
+                <Text style={vltModalStyles.compareLegendLabel} numberOfLines={1}>{compareVendor}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={onClearCompare}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                style={vltModalStyles.clearCompareBtn}
+              >
+                <Feather name="x-circle" size={14} color={Colors.textMuted} />
+                <Text style={vltModalStyles.clearCompareText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* 6-bar trend chart — solo or comparison */}
           {hasAny ? (
             <View style={vltModalStyles.barsRow}>
-              {trend.map((m) => {
-                const barH = m.poCount > 0 ? Math.max(4, Math.round((m.avgDays / maxDays) * BAR_H)) : 0;
+              {trend.map((m, idx) => {
+                const primaryH = m.poCount > 0 ? Math.max(4, Math.round((m.avgDays / maxDays) * BAR_H)) : 0;
+                const compareM = compareTrend[idx];
+                const compareH = compareM && compareM.poCount > 0
+                  ? Math.max(4, Math.round((compareM.avgDays / maxDays) * BAR_H))
+                  : 0;
                 return (
                   <View key={m.monthLabel} style={vltModalStyles.col}>
-                    {m.avgDays > 0 && (
-                      <Text style={[vltModalStyles.valueLabel, m.isCurrent && vltModalStyles.valueLabelActive]}>
-                        {m.avgDays}d
-                      </Text>
+                    {/* Value labels */}
+                    {compareVendor ? (
+                      <View style={vltModalStyles.compareValueRow}>
+                        {m.poCount > 0 && (
+                          <Text style={vltModalStyles.compareValuePrimary}>{m.avgDays}</Text>
+                        )}
+                        {compareM && compareM.poCount > 0 && (
+                          <Text style={vltModalStyles.compareValueSecondary}>{compareM.avgDays}</Text>
+                        )}
+                      </View>
+                    ) : (
+                      m.avgDays > 0 && (
+                        <Text style={[vltModalStyles.valueLabel, m.isCurrent && vltModalStyles.valueLabelActive]}>
+                          {m.avgDays}d
+                        </Text>
+                      )
                     )}
                     <View style={[vltModalStyles.barWrap, { height: BAR_H }]}>
-                      {m.poCount > 0 ? (
-                        <View style={[vltModalStyles.bar, { height: barH }, m.isCurrent && vltModalStyles.barActive]} />
+                      {compareVendor ? (
+                        <View style={vltModalStyles.compareBarGroup}>
+                          {primaryH > 0
+                            ? <View style={[vltModalStyles.bar, vltModalStyles.compareBarPrimary, { height: primaryH }, m.isCurrent && vltModalStyles.barActive]} />
+                            : <View style={vltModalStyles.barEmpty} />}
+                          {compareH > 0
+                            ? <View style={[vltModalStyles.bar, vltModalStyles.compareBarSecondary, { height: compareH }]} />
+                            : <View style={vltModalStyles.barEmpty} />}
+                        </View>
                       ) : (
-                        <View style={vltModalStyles.barEmpty} />
+                        m.poCount > 0 ? (
+                          <View style={[vltModalStyles.bar, { height: primaryH }, m.isCurrent && vltModalStyles.barActive]} />
+                        ) : (
+                          <View style={vltModalStyles.barEmpty} />
+                        )
                       )}
                     </View>
                     <Text style={[vltModalStyles.monthLabel, m.isCurrent && vltModalStyles.monthLabelActive]}>
                       {m.monthLabel}
                     </Text>
-                    {m.poCount > 0 && (
-                      <Text style={vltModalStyles.poCount}>{m.poCount}po</Text>
-                    )}
                   </View>
                 );
               })}
@@ -989,6 +1095,45 @@ function VendorLeadTimeModal({
           ) : (
             <View style={vltModalStyles.emptyState}>
               <Text style={vltModalStyles.emptyText}>No delivery dates recorded for this vendor</Text>
+            </View>
+          )}
+
+          {/* Compare / picker footer */}
+          {!compareVendor && otherVendors.length > 0 && !showPicker && (
+            <TouchableOpacity
+              style={vltModalStyles.compareBtn}
+              onPress={() => setShowPicker(true)}
+            >
+              <Feather name="git-merge" size={14} color={Colors.text} />
+              <Text style={vltModalStyles.compareBtnText}>Compare with another vendor</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Inline vendor picker */}
+          {showPicker && !compareVendor && (
+            <View style={vltModalStyles.pickerContainer}>
+              <View style={vltModalStyles.pickerHeader}>
+                <Text style={vltModalStyles.pickerTitle}>Select vendor to compare</Text>
+                <TouchableOpacity onPress={() => setShowPicker(false)}>
+                  <Feather name="x" size={16} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={otherVendors}
+                keyExtractor={(r) => r.vendor}
+                style={{ maxHeight: 180 }}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={vltModalStyles.pickerRow}
+                    onPress={() => { setShowPicker(false); onSelectCompare(item.vendor); }}
+                  >
+                    <Text style={vltModalStyles.pickerVendor} numberOfLines={1}>{item.vendor}</Text>
+                    <Text style={vltModalStyles.pickerAvg}>{item.avgDays}d avg</Text>
+                    <Feather name="chevron-right" size={13} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                )}
+                ItemSeparatorComponent={() => <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: Colors.borderLight }} />}
+              />
             </View>
           )}
         </View>
@@ -1057,6 +1202,78 @@ const vltModalStyles = StyleSheet.create({
   poCount: { fontSize: 10, color: Colors.textMuted },
   emptyState: { padding: Spacing.xl, alignItems: 'center' },
   emptyText: { fontSize: 13, color: Colors.textMuted, textAlign: 'center' },
+
+  // Comparison additions
+  compareLegend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  compareLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 },
+  compareDot: { width: 8, height: 8, borderRadius: 2 },
+  compareDotPrimary: { backgroundColor: Colors.text },
+  compareDotSecondary: { backgroundColor: Colors.textMuted },
+  compareLegendLabel: { fontSize: 11, color: Colors.textSecondary, flex: 1 },
+  clearCompareBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  clearCompareText: { fontSize: 11, color: Colors.textMuted },
+
+  compareValueRow: { flexDirection: 'row', gap: 2, alignItems: 'flex-end', marginBottom: 2 },
+  compareValuePrimary: { fontSize: 9, fontWeight: '700', color: Colors.text },
+  compareValueSecondary: { fontSize: 9, fontWeight: '600', color: Colors.textMuted },
+
+  compareBarGroup: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, justifyContent: 'center' },
+  compareBarPrimary: { backgroundColor: Colors.text },
+  compareBarSecondary: { backgroundColor: Colors.textMuted, width: 8 },
+
+  compareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  compareBtnText: { fontSize: 13, fontWeight: '600', color: Colors.text },
+
+  pickerContainer: {
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.sm,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    overflow: 'hidden',
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  pickerTitle: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary },
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
+    backgroundColor: Colors.surface,
+  },
+  pickerVendor: { flex: 1, fontSize: 13, color: Colors.text },
+  pickerAvg: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary },
 });
 
 const ltStyles = StyleSheet.create({
@@ -1250,6 +1467,8 @@ export default function ProcurementAnalyticsScreen() {
   const [chartMode, setChartMode] = useState<ChartMode>('count');
   const [selectedLeadTimeVendor, setSelectedLeadTimeVendor] = useState<string | null>(null);
   const [vendorLeadTrend, setVendorLeadTrend] = useState<MonthLeadTime[]>([]);
+  const [compareLeadTimeVendor, setCompareLeadTimeVendor] = useState<string | null>(null);
+  const [compareLeadTrend, setCompareLeadTrend] = useState<MonthLeadTime[]>([]);
 
   const cacheKey = `procurement-analytics:${companyId ?? 'all'}`;
 
@@ -1346,6 +1565,15 @@ export default function ProcurementAnalyticsScreen() {
     const trend = computeVendorMonthlyTrend(rawData.pos, vendor);
     setVendorLeadTrend(trend);
     setSelectedLeadTimeVendor(vendor);
+    setCompareLeadTimeVendor(null);
+    setCompareLeadTrend([]);
+  }, [rawData]);
+
+  const handleCompareVendorSelect = useCallback((vendor: string) => {
+    if (!rawData) return;
+    const trend = computeVendorMonthlyTrend(rawData.pos, vendor);
+    setCompareLeadTimeVendor(vendor);
+    setCompareLeadTrend(trend);
   }, [rawData]);
 
   return (
@@ -1490,7 +1718,12 @@ export default function ProcurementAnalyticsScreen() {
         <VendorLeadTimeModal
           vendor={selectedLeadTimeVendor}
           trend={vendorLeadTrend}
-          onClose={() => setSelectedLeadTimeVendor(null)}
+          compareVendor={compareLeadTimeVendor}
+          compareTrend={compareLeadTrend}
+          otherVendors={(analytics?.leadTime ?? []).filter((r) => r.vendor !== selectedLeadTimeVendor)}
+          onSelectCompare={handleCompareVendorSelect}
+          onClearCompare={() => { setCompareLeadTimeVendor(null); setCompareLeadTrend([]); }}
+          onClose={() => { setSelectedLeadTimeVendor(null); setCompareLeadTimeVendor(null); setCompareLeadTrend([]); }}
         />
       )}
     </SafeAreaView>
