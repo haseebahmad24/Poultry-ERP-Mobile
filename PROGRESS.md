@@ -6,6 +6,49 @@
 
 ---
 
+## Session 51 — 2026-06-10
+
+### Completed This Session
+
+**JournalEntries — Account & Voucher-Type Drill-Down** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- `AccountActivityList` gains `onSelectAccount?: (account: string) => void` — rows become `TouchableOpacity` with chevron-right + "tap to filter" hint in legend row
+- `JESummaryCard` gains `onSelectAccount` + `onSelectType` props; voucher-type bar rows also become tappable when `onSelectType` is provided
+- Main screen: `scrollRef` on ScrollView; `handleSelectAccount` sets `pickedAccount`/`pickedAccountName` + scrolls to top; `handleSelectType` sets `selectedType` chip + scrolls to top
+
+**Dashboard — Financial Health Card Tap → FinancialAnalytics** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `FinancialHealthCard` gains `onPress?: () => void` prop — card wraps in `TouchableOpacity` when provided
+- Chevron-right icon in top row + "· tap for full breakdown" hint text added when tappable
+- Dashboard wires `onPress={() => navigation.navigate('More', { screen: 'FinancialAnalytics' })}`
+
+**KPICard — Mini Bar Chart** (`src/components/KPICard.tsx`)
+- `miniChart?: { prev: number; curr: number; prevLabel?: string; currLabel?: string }` prop
+- `MiniBarChart` renders two side-by-side bars (prev=light gray, curr=dark) with labels; max height 28px
+- Net Income KPI card passes `miniChart` when `prevNetIncome` is available
+- New Vouchers KPI row added to Dashboard (This Month + Today cards); This Month card shows miniChart vs prev month when `vouchersPrevMonth` is non-null
+
+**ProcurementAnalytics — Lead Time Monthly Trend Chart** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- `MonthLeadTime` interface: `{ monthLabel, avgDays, poCount, isCurrent }`
+- `computeLeadTimeTrend(pos)`: groups POs by `dt` month for last 6 months, avg order-to-delivery days per month (skips outliers)
+- `LeadTimeTrendChart`: 6-bar chart — bar height ∝ avgDays/maxDays; current month bar highlighted; value labels + month labels + poCount footer
+- Trend pill shows "Xd slower/faster" vs first month with data; hidden when no POs have delivery dates
+- Rendered after "Supplier Lead Time" section with subtitle "last 6 months"
+
+**StockHealth — Per-Item Reorder Thresholds** (`src/screens/analytics/StockHealthScreen.tsx`, `src/utils/settings.ts`)
+- `settings.ts`: `getItemThreshold(itemName)` / `setItemThreshold(itemName, value|null)` / `loadAllItemThresholds()` — AsyncStorage key `setting:itemThreshold:<name>`
+- `computeStockHealth` accepts `perItemThresholds?: Map<string, number>` — uses item-specific threshold when available
+- `RankedItemList`: `onLongPress` prop (delayLongPress=400) + `perItemThresholds` prop; items with custom threshold show sliders icon badge
+- `ThresholdEditModal`: bottom-sheet style modal with auto-focused numeric TextInput, "Use Global" to clear, Save/Cancel buttons
+- `StockHealthScreen`: loads all item thresholds on fetch; `handleThresholdSave` updates Map + recomputes data immediately
+
+### Next Session
+- Consider: JournalEntries — tap account row in AccountActivityList navigates to JE Account Statement (account ledger)
+- Consider: FinancialAnalytics — NWC trend line chart (upgrade current bar sparkline to SVG-style line using View polyline)
+- Consider: ProcurementAnalytics — lead time trend per top vendor (drill into specific vendor's monthly trend)
+- Consider: Dashboard — health score grade animation (brief flash/scale on mount)
+- Consider: Settings — per-item threshold list view (see all custom thresholds, edit/clear from one place)
+
+---
+
 ## Session 49 — 2026-06-09
 
 ### Completed This Session
