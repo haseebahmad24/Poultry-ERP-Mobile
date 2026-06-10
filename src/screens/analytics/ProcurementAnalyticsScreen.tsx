@@ -75,7 +75,20 @@ interface LeadTimeRow {
   poCount: number;
 }
 
-type Analytics = ProcurementAnalyticsData & { months: MonthBucket[]; valueDist: ValueDistRow[]; deliveryPerf: DeliveryPerf; leadTime: LeadTimeRow[] };
+interface MonthLeadTime {
+  monthLabel: string;
+  avgDays: number;
+  poCount: number;
+  isCurrent: boolean;
+}
+
+type Analytics = ProcurementAnalyticsData & {
+  months: MonthBucket[];
+  valueDist: ValueDistRow[];
+  deliveryPerf: DeliveryPerf;
+  leadTime: LeadTimeRow[];
+  leadTimeTrend: MonthLeadTime[];
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -228,6 +241,7 @@ function computeAnalytics(
     valueDist: computeValueDistribution(pos, sos),
     deliveryPerf: computeDeliveryPerformance(pos),
     leadTime: computeLeadTime(pos),
+    leadTimeTrend: computeLeadTimeTrend(pos),
   };
 }
 
@@ -579,6 +593,38 @@ function computeLeadTime(pos: PurchaseOrder[]): LeadTimeRow[] {
     .slice(0, 8);
 }
 
+function computeLeadTimeTrend(pos: PurchaseOrder[]): MonthLeadTime[] {
+  const now = new Date();
+  const buckets: { key: string; monthLabel: string; isCurrent: boolean; days: number[] }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    buckets.push({
+      key,
+      monthLabel: d.toLocaleString('default', { month: 'short' }),
+      isCurrent: i === 0,
+      days: [],
+    });
+  }
+  for (const po of pos) {
+    if (!po.dt || !po.delivery_date) continue;
+    const orderDate = new Date(po.dt);
+    const delivDate = new Date(po.delivery_date);
+    if (isNaN(orderDate.getTime()) || isNaN(delivDate.getTime())) continue;
+    const days = Math.round((delivDate.getTime() - orderDate.getTime()) / 86_400_000);
+    if (days < 0 || days > 365) continue;
+    const monthKey = po.dt.slice(0, 7);
+    const bucket = buckets.find((b) => b.key === monthKey);
+    if (bucket) bucket.days.push(days);
+  }
+  return buckets.map((b) => ({
+    monthLabel: b.monthLabel,
+    avgDays: b.days.length > 0 ? Math.round(b.days.reduce((s, d) => s + d, 0) / b.days.length) : 0,
+    poCount: b.days.length,
+    isCurrent: b.isCurrent,
+  }));
+}
+
 function computeValueDistribution(pos: PurchaseOrder[], sos: SalesOrder[]): ValueDistRow[] {
   const rows: ValueDistRow[] = VALUE_BUCKETS.map((b) => ({ label: b.label, poCount: 0, soCount: 0 }));
 
@@ -882,6 +928,122 @@ const ltStyles = StyleSheet.create({
   range: { fontSize: 10, color: Colors.textMuted, marginTop: 2 },
 });
 
+function LeadTimeTrendChart({ data }: { data: MonthLeadTime[] }) {
+  const hasAny = data.some((m) => m.poCount > 0);
+  if (!hasAny) return null;
+
+  const BAR_H = 60;
+  const maxDays = Math.max(...data.map((m) => m.avgDays), 1);
+
+  const trendDir = (() => {
+    const withData = data.filter((m) => m.poCount > 0);
+    if (withData.length < 2) return 0;
+    const first = withData[0].avgDays;
+    const last = withData[withData.length - 1].avgDays;
+    return last - first;
+  })();
+
+  return (
+    <View style={ltTrendStyles.card}>
+      <View style={ltTrendStyles.headerRow}>
+        <Text style={ltTrendStyles.title}>6-MONTH LEAD TIME TREND</Text>
+        <Text style={ltTrendStyles.meta}>avg order-to-delivery days</Text>
+        {trendDir !== 0 && (
+          <View style={ltTrendStyles.trendPill}>
+            <Feather
+              name={trendDir > 0 ? 'trending-up' : 'trending-down'}
+              size={10}
+              color={Colors.textMuted}
+            />
+            <Text style={ltTrendStyles.trendText}>
+              {Math.abs(trendDir)}d {trendDir > 0 ? 'slower' : 'faster'}
+            </Text>
+          </View>
+        )}
+      </View>
+      <View style={ltTrendStyles.barsRow}>
+        {data.map((m) => {
+          const barH = m.poCount > 0 ? Math.max(4, Math.round((m.avgDays / maxDays) * BAR_H)) : 0;
+          return (
+            <View key={m.monthLabel} style={ltTrendStyles.col}>
+              {m.avgDays > 0 && (
+                <Text style={[ltTrendStyles.valueLabel, m.isCurrent && ltTrendStyles.valueLabelActive]}>
+                  {m.avgDays}d
+                </Text>
+              )}
+              <View style={[ltTrendStyles.barWrap, { height: BAR_H }]}>
+                {m.poCount > 0 ? (
+                  <View style={[ltTrendStyles.bar, { height: barH }, m.isCurrent && ltTrendStyles.barActive]} />
+                ) : (
+                  <View style={ltTrendStyles.barEmpty} />
+                )}
+              </View>
+              <Text style={[ltTrendStyles.monthLabel, m.isCurrent && ltTrendStyles.monthLabelActive]}>
+                {m.monthLabel}
+              </Text>
+              {m.poCount > 0 && (
+                <Text style={ltTrendStyles.poCount}>{m.poCount}po</Text>
+              )}
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const ltTrendStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    marginHorizontal: Spacing.md,
+    padding: Spacing.md,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+    flexWrap: 'wrap',
+  },
+  title: { fontSize: 10, fontWeight: '700', color: Colors.textMuted, letterSpacing: 0.5, flex: 1 },
+  meta: { fontSize: 10, color: Colors.textMuted },
+  trendPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  trendText: { fontSize: 10, color: Colors.textMuted, fontWeight: '600' },
+  barsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingTop: Spacing.xs,
+  },
+  col: { flex: 1, alignItems: 'center', gap: 2 },
+  valueLabel: { fontSize: 10, fontWeight: '600', color: Colors.textMuted },
+  valueLabelActive: { color: Colors.textSecondary, fontWeight: '700' },
+  barWrap: { justifyContent: 'flex-end' },
+  bar: {
+    width: 20,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.border,
+  },
+  barActive: { backgroundColor: Colors.textSecondary },
+  barEmpty: { width: 20, height: 2, backgroundColor: Colors.borderLight, borderRadius: Radius.full },
+  monthLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '500' },
+  monthLabelActive: { color: Colors.text, fontWeight: '700' },
+  poCount: { fontSize: 9, color: Colors.textMuted },
+});
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 const EMPTY_RANGE: DateRangeValue = { from: '', to: '' };
@@ -1117,6 +1279,10 @@ export default function ProcurementAnalyticsScreen() {
           {/* Supplier Lead Time */}
           <SectionHeader title="Supplier Lead Time" subtitle="Order-to-delivery days per vendor" />
           <LeadTimeChart rows={analytics.leadTime} />
+
+          {/* Lead Time Monthly Trend */}
+          <SectionHeader title="Lead Time Trend" subtitle="Avg days by order month · last 6 months" />
+          <LeadTimeTrendChart data={analytics.leadTimeTrend} />
 
           <View style={styles.footer} />
         </ScrollView>
