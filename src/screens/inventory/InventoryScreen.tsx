@@ -258,21 +258,28 @@ export default function InventoryScreen() {
 
       {activeTab === 'stock' && (
         <View style={styles.stockFilterBar}>
-          {([
-            { key: 'all', label: 'All' },
-            { key: 'low', label: `Low Stock${lowStockCount > 0 ? ` (${lowStockCount})` : ''}` },
-            { key: 'out', label: `Out of Stock${outOfStockCount > 0 ? ` (${outOfStockCount})` : ''}` },
-          ] as { key: StockFilter; label: string }[]).map(({ key, label }) => (
-            <TouchableOpacity
-              key={key}
-              style={[styles.stockFilterChip, stockFilter === key && styles.stockFilterChipActive]}
-              onPress={() => setStockFilter(key)}
-            >
-              <Text style={[styles.stockFilterChipText, stockFilter === key && styles.stockFilterChipTextActive]}>
-                {label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.stockFilterChips}
+            keyboardShouldPersistTaps="handled"
+          >
+            {([
+              { key: 'all', label: 'All' },
+              { key: 'low', label: `Low Stock${lowStockCount > 0 ? ` (${lowStockCount})` : ''}` },
+              { key: 'out', label: `Out of Stock${outOfStockCount > 0 ? ` (${outOfStockCount})` : ''}` },
+            ] as { key: StockFilter; label: string }[]).map(({ key, label }) => (
+              <TouchableOpacity
+                key={key}
+                style={[styles.stockFilterChip, stockFilter === key && styles.stockFilterChipActive]}
+                onPress={() => setStockFilter(key)}
+              >
+                <Text style={[styles.stockFilterChipText, stockFilter === key && styles.stockFilterChipTextActive]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
           <View style={styles.stockSortLabel}>
             <Feather
               name={stockSort === 'qty-desc' ? 'arrow-down' : stockSort === 'qty-asc' ? 'arrow-up' : 'type'}
@@ -604,12 +611,17 @@ const styles = StyleSheet.create({
 
   stockFilterBar: {
     flexDirection: 'row',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 2,
+    alignItems: 'center',
     backgroundColor: Colors.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.borderLight,
+  },
+  stockFilterChips: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   stockFilterChip: {
     paddingHorizontal: 10,
@@ -626,11 +638,13 @@ const styles = StyleSheet.create({
   stockFilterChipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
   stockFilterChipTextActive: { color: '#ffffff', fontWeight: '600' },
   stockSortLabel: {
-    marginLeft: 'auto',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    paddingHorizontal: 6,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs + 2,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: Colors.borderLight,
   },
   stockSortLabelText: { fontSize: 10, color: Colors.textMuted, fontWeight: '500' },
 
