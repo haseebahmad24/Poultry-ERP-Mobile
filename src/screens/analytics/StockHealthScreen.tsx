@@ -5,6 +5,7 @@ import {
   Modal,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -1054,6 +1055,183 @@ const thmStyles = StyleSheet.create({
   btnDisabled: { opacity: 0.4 },
 });
 
+// ─── Threshold Import Modal ───────────────────────────────────────────────────
+
+interface ParsedThresholdRow { name: string; threshold: number }
+
+function parseThresholdCSV(text: string): { rows: ParsedThresholdRow[]; errors: number } {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const rows: ParsedThresholdRow[] = [];
+  let errors = 0;
+  for (const line of lines) {
+    if (line.toLowerCase().startsWith('item_name')) continue; // skip header
+    const parts = line.split(',');
+    if (parts.length < 2) { errors++; continue; }
+    const name = parts[0].replace(/^"|"$/g, '').trim();
+    const t = parseInt(parts[1].trim(), 10);
+    if (!name || isNaN(t) || t < 0) { errors++; continue; }
+    rows.push({ name, threshold: t });
+  }
+  return { rows, errors };
+}
+
+function ThresholdImportModal({
+  visible,
+  onClose,
+  onImport,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onImport: (rows: ParsedThresholdRow[]) => Promise<void>;
+}) {
+  const [text, setText] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<{ imported: number; errors: number } | null>(null);
+
+  const { rows, errors } = parseThresholdCSV(text);
+
+  const handleImport = async () => {
+    if (rows.length === 0) return;
+    setImporting(true);
+    setResult(null);
+    try {
+      await onImport(rows);
+      setResult({ imported: rows.length, errors });
+      setText('');
+    } catch {
+      setResult({ imported: 0, errors: rows.length });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={importStyles.root} edges={['top']}>
+        <View style={importStyles.header}>
+          <Text style={importStyles.title}>Import Thresholds</Text>
+          <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Feather name="x" size={20} color={Colors.text} />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={importStyles.hint}>
+          Paste CSV with two columns: <Text style={importStyles.hintCode}>item_name,threshold</Text>
+          {'\n'}Header row is optional. One row per item.
+        </Text>
+
+        <TextInput
+          style={importStyles.input}
+          multiline
+          value={text}
+          onChangeText={(t) => { setText(t); setResult(null); }}
+          placeholder={'item_name,threshold\nChick Feed,50\nLayer Mash,30'}
+          placeholderTextColor={Colors.textMuted}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+
+        {text.trim().length > 0 && (
+          <View style={importStyles.previewRow}>
+            <Feather name={errors > 0 ? 'alert-circle' : 'check-circle'} size={13} color={errors > 0 ? Colors.textSecondary : Colors.textMuted} />
+            <Text style={importStyles.previewText}>
+              {rows.length} row{rows.length !== 1 ? 's' : ''} parsed
+              {errors > 0 ? ` · ${errors} error${errors !== 1 ? 's' : ''}` : ''}
+            </Text>
+          </View>
+        )}
+
+        {result && (
+          <View style={importStyles.resultRow}>
+            <Feather name="check-circle" size={13} color={Colors.textMuted} />
+            <Text style={importStyles.resultText}>
+              Imported {result.imported} threshold{result.imported !== 1 ? 's' : ''}
+              {result.errors > 0 ? ` · ${result.errors} skipped` : ''}
+            </Text>
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={[importStyles.importBtn, (rows.length === 0 || importing) && importStyles.importBtnDisabled]}
+          onPress={handleImport}
+          disabled={rows.length === 0 || importing}
+        >
+          {importing
+            ? <ActivityIndicator size="small" color={Colors.surface} />
+            : <Text style={importStyles.importBtnText}>Import {rows.length > 0 ? `${rows.length} rows` : ''}</Text>
+          }
+        </TouchableOpacity>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+const importStyles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: Colors.background },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  title: { ...Typography.h2 },
+  hint: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    lineHeight: 18,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  hintCode: { fontFamily: 'monospace', color: Colors.textSecondary, fontSize: 11 },
+  input: {
+    margin: Spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
+    padding: Spacing.sm,
+    fontSize: 12,
+    color: Colors.text,
+    minHeight: 160,
+    textAlignVertical: 'top',
+    fontFamily: 'monospace',
+  },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  previewText: { fontSize: 12, color: Colors.textSecondary },
+  resultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  resultText: { fontSize: 12, color: Colors.textMuted },
+  importBtn: {
+    marginHorizontal: Spacing.md,
+    backgroundColor: Colors.text,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.sm + 4,
+    alignItems: 'center',
+  },
+  importBtnDisabled: { opacity: 0.4 },
+  importBtnText: { fontSize: 14, fontWeight: '700', color: Colors.surface },
+});
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function StockHealthScreen() {
@@ -1075,6 +1253,7 @@ export default function StockHealthScreen() {
   const [exportingOOS, setExportingOOS] = useState(false);
   const [selectedItem, setSelectedItem] = useState<StockBalance | null>(null);
   const [thresholdEditItem, setThresholdEditItem] = useState<StockBalance | null>(null);
+  const [showThresholdImport, setShowThresholdImport] = useState(false);
 
   const cacheKey = `stock-health:${companyId ?? 'all'}`;
   const ledgerCacheKey = `stock-velocity:${companyId ?? 'all'}`;
@@ -1187,6 +1366,19 @@ export default function StockHealthScreen() {
     }
   }, [perItemThresholds, allStock, warehouses, globalThreshold]);
 
+  const handleExportThresholds = useCallback(async () => {
+    const thresholds = await loadAllItemThresholds();
+    if (thresholds.size === 0) {
+      await Share.share({ message: 'item_name,threshold\n(no custom thresholds set)' });
+      return;
+    }
+    const rows = Array.from(thresholds.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([name, t]) => `${name.includes(',') ? `"${name}"` : name},${t}`);
+    const csv = ['item_name,threshold', ...rows].join('\n');
+    await Share.share({ message: csv, title: 'Stock Thresholds' });
+  }, []);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar style="dark" />
@@ -1195,6 +1387,22 @@ export default function StockHealthScreen() {
       <View style={styles.header}>
         <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.headerTitle}>Stock Health</Text>
+        <TouchableOpacity
+          style={styles.exportBtn}
+          onPress={handleExportThresholds}
+          accessibilityLabel="Export thresholds CSV"
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+        >
+          <Feather name="share" size={15} color={Colors.textSecondary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.exportBtn}
+          onPress={() => setShowThresholdImport(true)}
+          accessibilityLabel="Import thresholds CSV"
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+        >
+          <Feather name="upload" size={15} color={Colors.textSecondary} />
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.exportBtn}
           onPress={handleExport}
@@ -1391,6 +1599,22 @@ export default function StockHealthScreen() {
           onClose={() => setThresholdEditItem(null)}
         />
       )}
+
+      <ThresholdImportModal
+        visible={showThresholdImport}
+        onClose={() => setShowThresholdImport(false)}
+        onImport={async (rows) => {
+          for (const { name, threshold } of rows) {
+            await setItemThreshold(name, threshold);
+          }
+          const updated = await loadAllItemThresholds();
+          setPerItemThresholds(updated);
+          if (allStock.length > 0) {
+            setData(computeStockHealth(allStock, warehouses, globalThreshold, updated));
+          }
+          setShowThresholdImport(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
