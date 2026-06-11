@@ -1490,7 +1490,7 @@ const vltModalStyles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   compareLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 },
-  compareDot: { width: 8, height: 8, borderRadius: 2 },
+  compareDot: { width: 8, height: 8, borderRadius: Radius.full },
   compareDotPrimary: { backgroundColor: Colors.text },
   compareDotSecondary: { backgroundColor: Colors.textMuted },
   compareLegendLabel: { fontSize: 11, color: Colors.textSecondary, flex: 1 },

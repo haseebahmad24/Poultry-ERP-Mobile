@@ -2016,13 +2016,13 @@ const qsStyles = StyleSheet.create({
   barRev: {
     width: 5,
     backgroundColor: Colors.text,
-    borderRadius: 2,
+    borderRadius: Radius.sm,
     opacity: 0.85,
   },
   barExp: {
     width: 5,
     backgroundColor: Colors.textMuted,
-    borderRadius: 2,
+    borderRadius: Radius.sm,
     opacity: 0.6,
   },
   barTodayRev: {
@@ -2058,7 +2058,7 @@ const qsStyles = StyleSheet.create({
   legendDot: {
     width: 7,
     height: 7,
-    borderRadius: 2,
+    borderRadius: Radius.full,
   },
   legendDotRev: { backgroundColor: Colors.text },
   legendDotExp: { backgroundColor: Colors.textMuted },
