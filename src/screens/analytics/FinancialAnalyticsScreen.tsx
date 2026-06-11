@@ -788,7 +788,17 @@ const historyStyles = StyleSheet.create({
 const NWC_CHART_H = 64;
 const NWC_DOT_R = 3;
 
-function NWCPolyline({ values, maxAbs }: { values: number[]; maxAbs: number }) {
+function NWCPolyline({
+  values,
+  maxAbs,
+  selectedIdx,
+  onSelectIdx,
+}: {
+  values: number[];
+  maxAbs: number;
+  selectedIdx: number | null;
+  onSelectIdx: (idx: number | null) => void;
+}) {
   const [chartW, setChartW] = React.useState(0);
   if (values.length < 2) return null;
 
@@ -804,6 +814,7 @@ function NWCPolyline({ values, maxAbs }: { values: number[]; maxAbs: number }) {
     : [];
 
   const zeroY = getY(0);
+  const HIT = { top: 12, bottom: 12, left: 10, right: 10 };
 
   return (
     <View
@@ -863,23 +874,44 @@ function NWCPolyline({ values, maxAbs }: { values: number[]; maxAbs: number }) {
             );
           })}
 
-          {/* Dots */}
-          {pts.map((pt, i) => (
+          {/* Cursor hairline at selected point */}
+          {selectedIdx != null && pts[selectedIdx] && (
             <View
-              key={`dot-${i}`}
               style={{
                 position: 'absolute',
-                width: NWC_DOT_R * 2,
-                height: NWC_DOT_R * 2,
-                borderRadius: NWC_DOT_R,
-                backgroundColor: pt.pos ? Colors.text : Colors.textSecondary,
-                left: pt.x - NWC_DOT_R,
-                top: pt.y - NWC_DOT_R,
-                borderWidth: 1.5,
-                borderColor: Colors.surface,
+                left: pts[selectedIdx].x,
+                top: 0,
+                bottom: 0,
+                width: StyleSheet.hairlineWidth,
+                backgroundColor: Colors.border,
               }}
             />
-          ))}
+          )}
+
+          {/* Tappable dots */}
+          {pts.map((pt, i) => {
+            const isSelected = selectedIdx === i;
+            const r = isSelected ? NWC_DOT_R + 2 : NWC_DOT_R;
+            return (
+              <TouchableOpacity
+                key={`dot-${i}`}
+                hitSlop={HIT}
+                activeOpacity={0.7}
+                onPress={() => onSelectIdx(selectedIdx === i ? null : i)}
+                style={{
+                  position: 'absolute',
+                  width: r * 2,
+                  height: r * 2,
+                  borderRadius: r,
+                  backgroundColor: pt.pos ? Colors.text : Colors.textSecondary,
+                  left: pt.x - r,
+                  top: pt.y - r,
+                  borderWidth: isSelected ? 2 : 1.5,
+                  borderColor: Colors.surface,
+                }}
+              />
+            );
+          })}
         </>
       )}
     </View>
@@ -887,6 +919,7 @@ function NWCPolyline({ values, maxAbs }: { values: number[]; maxAbs: number }) {
 }
 
 function NWCTrendCard({ history }: { history: AgingHistoryEntry[] }) {
+  const [selectedIdx, setSelectedIdx] = React.useState<number | null>(null);
   if (history.length < 2) return null;
 
   const visible = history.slice(-10);
@@ -895,6 +928,9 @@ function NWCTrendCard({ history }: { history: AgingHistoryEntry[] }) {
   const firstNWC = nwcValues[0] ?? 0;
   const delta = currentNWC - firstNWC;
   const maxAbs = Math.max(...nwcValues.map((v) => Math.abs(v)), 1);
+
+  const snap = selectedIdx != null ? visible[selectedIdx] : null;
+  const snapNWC = snap ? snap.arTotal - snap.apTotal : 0;
 
   const fmtK = (v: number) => {
     const abs = Math.abs(v);
@@ -907,7 +943,9 @@ function NWCTrendCard({ history }: { history: AgingHistoryEntry[] }) {
     <View style={nwcStyles.card}>
       <View style={nwcStyles.headerRow}>
         <Text style={nwcStyles.title}>NET WORKING CAPITAL TREND</Text>
-        <Text style={nwcStyles.meta}>{visible.length}d · AR − AP</Text>
+        <Text style={nwcStyles.meta}>
+          {snap ? snap.date.slice(5) : `${visible.length}d · tap dot`}
+        </Text>
       </View>
 
       {/* Summary tiles */}
@@ -931,14 +969,50 @@ function NWCTrendCard({ history }: { history: AgingHistoryEntry[] }) {
       </View>
 
       {/* Polyline chart */}
-      <NWCPolyline values={nwcValues} maxAbs={maxAbs} />
+      <NWCPolyline
+        values={nwcValues}
+        maxAbs={maxAbs}
+        selectedIdx={selectedIdx}
+        onSelectIdx={setSelectedIdx}
+      />
 
       {/* Date labels */}
       <View style={nwcStyles.labelRow}>
         <Text style={nwcStyles.dateLabel}>{visible[0]?.date.slice(5) ?? ''}</Text>
-        <Text style={nwcStyles.centerLabel}>positive = AR {'>'} AP</Text>
+        <Text style={nwcStyles.centerLabel}>
+          {snap ? 'tap same dot to clear' : 'positive = AR > AP'}
+        </Text>
         <Text style={nwcStyles.dateLabel}>{visible[visible.length - 1]?.date.slice(5) ?? ''}</Text>
       </View>
+
+      {/* Snapshot row — shown when a dot is selected */}
+      {snap && (
+        <View style={nwcStyles.snapRow}>
+          <View style={nwcStyles.snapItem}>
+            <Text style={nwcStyles.snapLabel}>AP</Text>
+            <Text style={nwcStyles.snapVal}>{fmtK(snap.apTotal)}</Text>
+          </View>
+          <View style={nwcStyles.snapDivider} />
+          <View style={nwcStyles.snapItem}>
+            <Text style={nwcStyles.snapLabel}>AR</Text>
+            <Text style={nwcStyles.snapVal}>{fmtK(snap.arTotal)}</Text>
+          </View>
+          <View style={nwcStyles.snapDivider} />
+          <View style={nwcStyles.snapItem}>
+            <Text style={nwcStyles.snapLabel}>NWC</Text>
+            <Text style={[nwcStyles.snapVal, snapNWC < 0 && nwcStyles.negative]}>
+              {snapNWC >= 0 ? '+' : '−'}{fmtK(Math.abs(snapNWC))}
+            </Text>
+          </View>
+          <View style={nwcStyles.snapDivider} />
+          <View style={nwcStyles.snapItem}>
+            <Text style={nwcStyles.snapLabel}>STATUS</Text>
+            <Text style={[nwcStyles.snapVal, snapNWC < 0 && nwcStyles.negative]}>
+              {snapNWC >= 0 ? 'Surplus' : 'Deficit'}
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -992,6 +1066,22 @@ const nwcStyles = StyleSheet.create({
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dateLabel: { fontSize: 10, color: Colors.textMuted },
   centerLabel: { fontSize: 10, color: Colors.textMuted, fontStyle: 'italic' },
+  snapRow: {
+    flexDirection: 'row',
+    backgroundColor: Colors.background,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.borderLight,
+    paddingVertical: Spacing.sm,
+  },
+  snapItem: { flex: 1, alignItems: 'center', gap: 2 },
+  snapDivider: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.borderLight,
+    alignSelf: 'stretch',
+  },
+  snapLabel: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  snapVal: { fontSize: 13, fontWeight: '700', color: Colors.text },
 });
 
 // ─── DSO / DPO / CCC Turnover Card ───────────────────────────────────────────

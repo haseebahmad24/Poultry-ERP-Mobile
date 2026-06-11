@@ -957,11 +957,13 @@ function computeValueDistribution(pos: PurchaseOrder[], sos: SalesOrder[]): Valu
 }
 
 function ValueDistributionChart({ rows }: { rows: ValueDistRow[] }) {
+  const [selectedBucket, setSelectedBucket] = React.useState<number | null>(null);
   const hasData = rows.some((r) => r.poCount > 0 || r.soCount > 0);
   if (!hasData) return null;
 
   const maxCount = Math.max(...rows.flatMap((r) => [r.poCount, r.soCount]), 1);
   const BAR_HEIGHT = 72;
+  const snap = selectedBucket != null ? rows[selectedBucket] : null;
 
   return (
     <View style={distStyles.card}>
@@ -974,27 +976,65 @@ function ValueDistributionChart({ rows }: { rows: ValueDistRow[] }) {
           <View style={[distStyles.legendDot, { backgroundColor: Colors.textMuted }]} />
           <Text style={distStyles.legendLabel}>SO</Text>
         </View>
+        {snap && (
+          <Text style={distStyles.legendMeta}>{snap.label} · tap to clear</Text>
+        )}
       </View>
       <View style={distStyles.barsRow}>
-        {rows.map((r) => {
+        {rows.map((r, idx) => {
           const poH = (r.poCount / maxCount) * BAR_HEIGHT;
           const soH = (r.soCount / maxCount) * BAR_HEIGHT;
+          const isSelected = selectedBucket === idx;
           return (
-            <View key={r.label} style={distStyles.col}>
-              <View style={[distStyles.barTrack, { height: BAR_HEIGHT }]}>
+            <TouchableOpacity
+              key={r.label}
+              style={distStyles.col}
+              activeOpacity={0.7}
+              onPress={() => setSelectedBucket(selectedBucket === idx ? null : idx)}
+            >
+              <View style={[distStyles.barTrack, { height: BAR_HEIGHT }, isSelected && distStyles.barTrackSelected]}>
                 <View style={distStyles.barsBottom}>
-                  <View style={[distStyles.bar, { height: Math.max(poH, r.poCount > 0 ? 2 : 0), backgroundColor: Colors.text }]} />
-                  <View style={[distStyles.bar, { height: Math.max(soH, r.soCount > 0 ? 2 : 0), backgroundColor: Colors.textMuted }]} />
+                  <View style={[distStyles.bar, { height: Math.max(poH, r.poCount > 0 ? 2 : 0), backgroundColor: Colors.text, opacity: isSelected ? 1 : 0.7 }]} />
+                  <View style={[distStyles.bar, { height: Math.max(soH, r.soCount > 0 ? 2 : 0), backgroundColor: Colors.textMuted, opacity: isSelected ? 1 : 0.7 }]} />
                 </View>
               </View>
-              <Text style={distStyles.bucketLabel}>{r.label}</Text>
+              <Text style={[distStyles.bucketLabel, isSelected && distStyles.bucketLabelSelected]}>{r.label}</Text>
               {(r.poCount > 0 || r.soCount > 0) && (
-                <Text style={distStyles.bucketTotal}>{r.poCount + r.soCount}</Text>
+                <Text style={[distStyles.bucketTotal, isSelected && distStyles.bucketTotalSelected]}>{r.poCount + r.soCount}</Text>
               )}
-            </View>
+            </TouchableOpacity>
           );
         })}
       </View>
+
+      {/* Bucket detail row */}
+      {snap && (
+        <View style={distStyles.snapRow}>
+          <View style={distStyles.snapItem}>
+            <Text style={distStyles.snapLabel}>PO</Text>
+            <Text style={distStyles.snapVal}>{snap.poCount}</Text>
+          </View>
+          <View style={distStyles.snapDivider} />
+          <View style={distStyles.snapItem}>
+            <Text style={distStyles.snapLabel}>SO</Text>
+            <Text style={distStyles.snapVal}>{snap.soCount}</Text>
+          </View>
+          <View style={distStyles.snapDivider} />
+          <View style={distStyles.snapItem}>
+            <Text style={distStyles.snapLabel}>TOTAL</Text>
+            <Text style={distStyles.snapVal}>{snap.poCount + snap.soCount}</Text>
+          </View>
+          <View style={distStyles.snapDivider} />
+          <View style={distStyles.snapItem}>
+            <Text style={distStyles.snapLabel}>PO %</Text>
+            <Text style={distStyles.snapVal}>
+              {snap.poCount + snap.soCount > 0
+                ? `${Math.round((snap.poCount / (snap.poCount + snap.soCount)) * 100)}%`
+                : '—'}
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -1007,18 +1047,41 @@ const distStyles = StyleSheet.create({
     borderColor: Colors.border,
     padding: Spacing.md,
     marginHorizontal: Spacing.md,
+    gap: Spacing.sm,
   },
-  legend: { flexDirection: 'row', gap: Spacing.lg, marginBottom: Spacing.md },
+  legend: { flexDirection: 'row', gap: Spacing.lg, alignItems: 'center' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 8, height: 8, borderRadius: Radius.full },
   legendLabel: { fontSize: 11, color: Colors.textSecondary },
+  legendMeta: { marginLeft: 'auto' as any, fontSize: 10, color: Colors.textMuted, fontStyle: 'italic' },
   barsRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
   col: { flex: 1, alignItems: 'center', gap: 3 },
   barTrack: { width: '100%', justifyContent: 'flex-end' },
+  barTrackSelected: {
+    backgroundColor: Colors.background,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
   barsBottom: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: 2 },
   bar: { width: 9, borderRadius: Radius.sm },
   bucketLabel: { fontSize: 10, color: Colors.textMuted, textAlign: 'center', lineHeight: 13 },
+  bucketLabelSelected: { color: Colors.textSecondary, fontWeight: '600' },
   bucketTotal: { fontSize: 10, fontWeight: '700', color: Colors.text },
+  bucketTotalSelected: { color: Colors.text },
+  snapRow: {
+    flexDirection: 'row',
+    backgroundColor: Colors.background,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.borderLight,
+    paddingVertical: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  snapItem: { flex: 1, alignItems: 'center', gap: 2 },
+  snapDivider: { width: StyleSheet.hairlineWidth, backgroundColor: Colors.borderLight, alignSelf: 'stretch' },
+  snapLabel: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  snapVal: { fontSize: 14, fontWeight: '700', color: Colors.text },
 });
 
 // ─── Delivery Performance Card ────────────────────────────────────────────────

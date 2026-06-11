@@ -122,13 +122,10 @@ export default function JournalEntriesScreen() {
   useEffect(() => { load(); }, [load]);
 
   const filtered = entries.filter((e) => {
-    const q = search.toLowerCase();
-    return (
-      !q ||
-      e.voucher_no?.toLowerCase().includes(q) ||
-      e.narration?.toLowerCase().includes(q) ||
-      e.voucher_type?.toLowerCase().includes(q)
-    );
+    if (!search.trim()) return true;
+    const words = search.toLowerCase().split(/\s+/).filter(Boolean);
+    const haystack = [e.voucher_no ?? '', e.narration ?? '', e.voucher_type ?? ''].join(' ').toLowerCase();
+    return words.every((w) => haystack.includes(w));
   });
 
   const filteredDebit = filtered.reduce((s, e) => s + (e.total_debit ?? 0), 0);
@@ -246,7 +243,7 @@ export default function JournalEntriesScreen() {
             <Feather name="search" size={14} color={Colors.textMuted} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search voucher, narration…"
+              placeholder="Search by voucher, narration, type…"
               placeholderTextColor={Colors.textMuted}
               value={search}
               onChangeText={setSearch}
