@@ -1068,11 +1068,11 @@ const nwcStyles = StyleSheet.create({
   centerLabel: { fontSize: 10, color: Colors.textMuted, fontStyle: 'italic' },
   snapRow: {
     flexDirection: 'row',
-    backgroundColor: Colors.background,
-    borderRadius: Radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.borderLight,
-    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+    paddingTop: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+    gap: Spacing.xs,
   },
   snapItem: { flex: 1, alignItems: 'center', gap: 2 },
   snapDivider: {
