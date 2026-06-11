@@ -1005,7 +1005,7 @@ export default function DashboardScreen() {
         </View>
 
         {/* Quick Stats — 7-day KPI history sparkline */}
-        {kpiHistory.length >= 2 && (
+        {kpiHistory.length >= 1 && (
           <>
             <SectionHeader title="Revenue Trend" meta="month-to-date · last 7 days" />
             <QuickStatsCard
@@ -1772,15 +1772,17 @@ function QuickStatsCard({
   history: KpiHistoryEntry[];
   onPress?: () => void;
 }) {
-  if (history.length < 2) return null;
+  if (history.length < 1) return null;
 
   const maxVal = Math.max(...history.flatMap((e) => [e.revenue, e.expenses]));
   if (maxVal <= 0) return null;
 
+  const isSingleDay = history.length === 1;
+
   const latest = history[history.length - 1];
   const earliest = history[0];
   const netChange = latest.netIncome - earliest.netIncome;
-  const netChangePct = earliest.netIncome !== 0
+  const netChangePct = !isSingleDay && earliest.netIncome !== 0
     ? Math.round(((latest.netIncome - earliest.netIncome) / Math.abs(earliest.netIncome)) * 100)
     : null;
   const trending = netChange > 0 ? 'trending-up' : netChange < 0 ? 'trending-down' : 'minus';
@@ -1798,17 +1800,21 @@ function QuickStatsCard({
     >
       <View style={qsStyles.header}>
         <View>
-          <Text style={qsStyles.headerTitle}>7-DAY TREND</Text>
-          <Text style={qsStyles.headerSub}>Revenue vs Expenses · month-to-date</Text>
+          <Text style={qsStyles.headerTitle}>{isSingleDay ? "TODAY'S SNAPSHOT" : '7-DAY TREND'}</Text>
+          <Text style={qsStyles.headerSub}>
+            {isSingleDay ? 'First day — trend builds over 7 days' : 'Revenue vs Expenses · month-to-date'}
+          </Text>
         </View>
-        <View style={qsStyles.trendPill}>
-          <Feather name={trending as any} size={12} color={trendColor} />
-          {netChangePct != null && (
-            <Text style={[qsStyles.trendPct, { color: trendColor }]}>
-              {netChangePct > 0 ? '+' : ''}{netChangePct}%
-            </Text>
-          )}
-        </View>
+        {!isSingleDay && (
+          <View style={qsStyles.trendPill}>
+            <Feather name={trending as any} size={12} color={trendColor} />
+            {netChangePct != null && (
+              <Text style={[qsStyles.trendPct, { color: trendColor }]}>
+                {netChangePct > 0 ? '+' : ''}{netChangePct}%
+              </Text>
+            )}
+          </View>
+        )}
       </View>
 
       <View style={qsStyles.chartRow}>

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Modal,
   RefreshControl,
   ScrollView,
@@ -1041,6 +1042,8 @@ export default function StockHealthScreen() {
   const [perItemThresholds, setPerItemThresholds] = useState<Map<string, number>>(new Map());
   const [rawLedger, setRawLedger] = useState<StockLedgerEntry[]>([]);
   const [velocityPeriod, setVelocityPeriod] = useState<VelocityPeriod>('all');
+  const [velocityWarehouse, setVelocityWarehouse] = useState<string | null>(null);
+  const [showWarehousePicker, setShowWarehousePicker] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
@@ -1052,10 +1055,21 @@ export default function StockHealthScreen() {
   const cacheKey = `stock-health:${companyId ?? 'all'}`;
   const ledgerCacheKey = `stock-velocity:${companyId ?? 'all'}`;
 
+  const velocityWarehouses = useMemo(() => {
+    const names = new Set<string>();
+    for (const e of rawLedger) {
+      if (e.warehouse_name) names.add(e.warehouse_name);
+    }
+    return Array.from(names).sort();
+  }, [rawLedger]);
+
   const { velocityItems, dusMap } = useMemo(() => {
-    const filtered = filterLedgerByPeriod(rawLedger, velocityPeriod);
+    let filtered = filterLedgerByPeriod(rawLedger, velocityPeriod);
+    if (velocityWarehouse) {
+      filtered = filtered.filter((e) => e.warehouse_name === velocityWarehouse);
+    }
     return computeLedgerAnalysis(filtered, allStock);
-  }, [rawLedger, velocityPeriod, allStock]);
+  }, [rawLedger, velocityPeriod, velocityWarehouse, allStock]);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -1236,7 +1250,9 @@ export default function StockHealthScreen() {
             <>
               <SectionHeader
                 title="Stock Velocity"
-                subtitle={velocityPeriod === 'all' ? 'Top items by combined movement' : `Movement in last ${velocityPeriod}`}
+                subtitle={velocityWarehouse
+                  ? `${velocityWarehouse} · ${velocityPeriod === 'all' ? 'all time' : `last ${velocityPeriod}`}`
+                  : velocityPeriod === 'all' ? 'Top items by combined movement' : `Movement in last ${velocityPeriod}`}
                 action={
                   <View style={styles.periodChips}>
                     {VELOCITY_PERIODS.map((p) => (
@@ -1253,12 +1269,70 @@ export default function StockHealthScreen() {
                   </View>
                 }
               />
+              {velocityWarehouses.length > 1 && (
+                <TouchableOpacity
+                  style={styles.warehouseFilterRow}
+                  onPress={() => setShowWarehousePicker(true)}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="layers" size={13} color={velocityWarehouse ? Colors.text : Colors.textMuted} />
+                  <Text style={[styles.warehouseFilterLabel, velocityWarehouse && styles.warehouseFilterLabelActive]}>
+                    {velocityWarehouse ?? 'All warehouses'}
+                  </Text>
+                  <Feather name="chevron-down" size={13} color={Colors.textMuted} />
+                </TouchableOpacity>
+              )}
               {velocityItems.length > 0
                 ? <VelocityCard items={velocityItems} />
                 : <View style={styles.emptyVelocity}><Text style={styles.emptyVelocityText}>No movement in this period</Text></View>
               }
             </>
           )}
+
+          {/* Warehouse picker modal */}
+          <Modal
+            visible={showWarehousePicker}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowWarehousePicker(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => setShowWarehousePicker(false)}
+            >
+              <View style={styles.pickerSheet} onStartShouldSetResponder={() => true}>
+                <View style={styles.pickerHandle} />
+                <Text style={styles.pickerTitle}>Filter by Warehouse</Text>
+                <FlatList
+                  data={[null, ...velocityWarehouses]}
+                  keyExtractor={(item) => item ?? '__all__'}
+                  renderItem={({ item }) => {
+                    const isActive = item === velocityWarehouse;
+                    return (
+                      <TouchableOpacity
+                        style={[styles.pickerRow, isActive && styles.pickerRowActive]}
+                        onPress={() => { setVelocityWarehouse(item); setShowWarehousePicker(false); }}
+                        activeOpacity={0.7}
+                      >
+                        <Feather
+                          name={item === null ? 'layers' : 'archive'}
+                          size={14}
+                          color={isActive ? Colors.surface : Colors.textMuted}
+                        />
+                        <Text style={[styles.pickerRowLabel, isActive && styles.pickerRowLabelActive]}>
+                          {item ?? 'All warehouses'}
+                        </Text>
+                        {isActive && <Feather name="check" size={14} color={Colors.surface} />}
+                      </TouchableOpacity>
+                    );
+                  }}
+                  style={styles.pickerList}
+                  showsVerticalScrollIndicator={false}
+                />
+              </View>
+            </TouchableOpacity>
+          </Modal>
 
           {/* Warehouse breakdown */}
           <SectionHeader title="Warehouse Distribution" subtitle="Total quantity per warehouse" />
@@ -1332,4 +1406,68 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyVelocityText: { ...Typography.bodySmall, color: Colors.textMuted },
+  warehouseFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 6,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+    alignSelf: 'flex-start',
+  },
+  warehouseFilterLabel: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    fontWeight: '500',
+    maxWidth: 180,
+  },
+  warehouseFilterLabelActive: { color: Colors.text, fontWeight: '600' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+  pickerSheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xxl,
+    maxHeight: '60%',
+  },
+  pickerHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.border,
+    alignSelf: 'center',
+    marginBottom: Spacing.md,
+  },
+  pickerTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  pickerList: { flexGrow: 0 },
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  pickerRowActive: { backgroundColor: Colors.text },
+  pickerRowLabel: { flex: 1, fontSize: 14, color: Colors.text },
+  pickerRowLabelActive: { color: Colors.surface, fontWeight: '600' },
 });

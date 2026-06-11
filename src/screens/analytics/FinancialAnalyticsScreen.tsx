@@ -639,6 +639,107 @@ const historyStyles = StyleSheet.create({
 
 // ─── Net Working Capital Trend ───────────────────────────────────────────────
 
+const NWC_CHART_H = 64;
+const NWC_DOT_R = 3;
+
+function NWCPolyline({ values, maxAbs }: { values: number[]; maxAbs: number }) {
+  const [chartW, setChartW] = React.useState(0);
+  if (values.length < 2) return null;
+
+  const getY = (v: number) =>
+    NWC_CHART_H * (1 - (v + maxAbs) / (2 * maxAbs));
+
+  const pts = chartW > 0
+    ? values.map((v, i) => ({
+        x: (i / (values.length - 1)) * chartW,
+        y: getY(v),
+        pos: v >= 0,
+      }))
+    : [];
+
+  const zeroY = getY(0);
+
+  return (
+    <View
+      style={nwcStyles.polylineContainer}
+      onLayout={(e) => setChartW(e.nativeEvent.layout.width)}
+    >
+      {/* Zero line */}
+      <View style={[nwcStyles.zeroLine, { top: zeroY }]} />
+
+      {chartW > 0 && (
+        <>
+          {/* Connecting line segments */}
+          {pts.map((pt, i) => {
+            if (i === 0) return null;
+            const prev = pts[i - 1];
+            const dx = pt.x - prev.x;
+            const dy = pt.y - prev.y;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+            const cx = (prev.x + pt.x) / 2;
+            const cy = (prev.y + pt.y) / 2;
+            return (
+              <View
+                key={`seg-${i}`}
+                style={{
+                  position: 'absolute',
+                  width: len,
+                  height: 1.5,
+                  backgroundColor: Colors.text,
+                  left: cx - len / 2,
+                  top: cy - 0.75,
+                  transform: [{ rotate: `${angle}deg` }],
+                }}
+              />
+            );
+          })}
+
+          {/* Area fill above zero line (positive region) */}
+          {pts.map((pt, i) => {
+            if (!pt.pos) return null;
+            const fillH = Math.max(0, zeroY - pt.y);
+            if (fillH < 1) return null;
+            const colW = chartW / (values.length - 1);
+            return (
+              <View
+                key={`fill-${i}`}
+                style={{
+                  position: 'absolute',
+                  width: Math.max(1, colW - 2),
+                  height: fillH,
+                  backgroundColor: Colors.text,
+                  opacity: 0.06,
+                  left: pt.x - (colW - 2) / 2,
+                  top: pt.y,
+                }}
+              />
+            );
+          })}
+
+          {/* Dots */}
+          {pts.map((pt, i) => (
+            <View
+              key={`dot-${i}`}
+              style={{
+                position: 'absolute',
+                width: NWC_DOT_R * 2,
+                height: NWC_DOT_R * 2,
+                borderRadius: NWC_DOT_R,
+                backgroundColor: pt.pos ? Colors.text : Colors.textSecondary,
+                left: pt.x - NWC_DOT_R,
+                top: pt.y - NWC_DOT_R,
+                borderWidth: 1.5,
+                borderColor: Colors.surface,
+              }}
+            />
+          ))}
+        </>
+      )}
+    </View>
+  );
+}
+
 function NWCTrendCard({ history }: { history: AgingHistoryEntry[] }) {
   if (history.length < 2) return null;
 
@@ -655,8 +756,6 @@ function NWCTrendCard({ history }: { history: AgingHistoryEntry[] }) {
     if (abs >= 1_000) return `${(abs / 1_000).toFixed(0)}K`;
     return abs.toFixed(0);
   };
-
-  const BAR_H = 48;
 
   return (
     <View style={nwcStyles.card}>
@@ -685,25 +784,8 @@ function NWCTrendCard({ history }: { history: AgingHistoryEntry[] }) {
         </View>
       </View>
 
-      {/* Sparkline — bars above zero line */}
-      <View style={nwcStyles.chartArea}>
-        {nwcValues.map((val, i) => {
-          const pct = Math.abs(val) / maxAbs;
-          const barH = Math.max(3, pct * BAR_H);
-          const isPos = val >= 0;
-          return (
-            <View key={i} style={nwcStyles.col}>
-              <View style={[{ height: BAR_H }, nwcStyles.colInner]}>
-                <View style={[
-                  nwcStyles.bar,
-                  { height: barH },
-                  isPos ? nwcStyles.barPos : nwcStyles.barNeg,
-                ]} />
-              </View>
-            </View>
-          );
-        })}
-      </View>
+      {/* Polyline chart */}
+      <NWCPolyline values={nwcValues} maxAbs={maxAbs} />
 
       {/* Date labels */}
       <View style={nwcStyles.labelRow}>
@@ -746,18 +828,21 @@ const nwcStyles = StyleSheet.create({
   tileLabel: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
   positive: { color: Colors.text },
   negative: { color: Colors.textSecondary },
-  chartArea: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 3,
+  polylineContainer: {
+    height: NWC_CHART_H,
+    position: 'relative',
+    overflow: 'visible',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
+    marginBottom: 2,
   },
-  col: { flex: 1, alignItems: 'center' },
-  colInner: { justifyContent: 'flex-end', width: '100%', alignItems: 'center' },
-  bar: { width: '80%', borderRadius: Radius.sm },
-  barPos: { backgroundColor: Colors.text },
-  barNeg: { backgroundColor: Colors.textMuted },
+  zeroLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.borderLight,
+  },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dateLabel: { fontSize: 10, color: Colors.textMuted },
   centerLabel: { fontSize: 10, color: Colors.textMuted, fontStyle: 'italic' },
