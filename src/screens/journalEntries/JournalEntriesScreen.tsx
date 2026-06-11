@@ -839,6 +839,8 @@ const summaryStyles = StyleSheet.create({
 
 // ─── JE Card ──────────────────────────────────────────────────────────────────
 
+const JE_LINES_PREVIEW = 4;
+
 function JECard({
   entry,
   runningBalance,
@@ -852,9 +854,14 @@ function JECard({
   const statusKey = (entry.status ?? '').toUpperCase();
   const isDraft = statusKey === 'DRAFT';
   const isVoid = statusKey === 'VOID';
-  const hasLines = (entry.lines?.length ?? 0) > 0;
+  const lines = entry.lines ?? [];
+  const hasLines = lines.length > 0;
   const longNarration = (entry.narration?.length ?? 0) > 80;
   const [narrationExpanded, setNarrationExpanded] = useState(false);
+  const [linesExpanded, setLinesExpanded] = useState(false);
+
+  const previewLines = linesExpanded ? lines.slice(0, JE_LINES_PREVIEW) : [];
+  const hiddenCount = lines.length - JE_LINES_PREVIEW;
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
@@ -921,7 +928,20 @@ function JECard({
         ) : (
           <View style={styles.cardFooter}>
             {hasLines && (
-              <Text style={styles.linesHint}>{entry.lines!.length} lines</Text>
+              <TouchableOpacity
+                style={styles.linesToggleBtn}
+                onPress={(e) => { e.stopPropagation(); setLinesExpanded((v) => !v); }}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Feather
+                  name={linesExpanded ? 'chevron-up' : 'list'}
+                  size={11}
+                  color={linesExpanded ? Colors.textSecondary : Colors.textMuted}
+                />
+                <Text style={[styles.linesHint, linesExpanded && styles.linesHintActive]}>
+                  {lines.length} lines
+                </Text>
+              </TouchableOpacity>
             )}
             <Feather name="chevron-right" size={14} color={Colors.textMuted} />
           </View>
@@ -929,8 +949,50 @@ function JECard({
       </View>
       {runningBalance !== undefined && (
         <View style={styles.runningBalanceFooter}>
-          {hasLines && <Text style={styles.linesHint}>{entry.lines!.length} lines</Text>}
+          {hasLines && (
+            <TouchableOpacity
+              style={styles.linesToggleBtn}
+              onPress={(e) => { e.stopPropagation(); setLinesExpanded((v) => !v); }}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Feather
+                name={linesExpanded ? 'chevron-up' : 'list'}
+                size={11}
+                color={linesExpanded ? Colors.textSecondary : Colors.textMuted}
+              />
+              <Text style={[styles.linesHint, linesExpanded && styles.linesHintActive]}>
+                {lines.length} lines
+              </Text>
+            </TouchableOpacity>
+          )}
           <Feather name="chevron-right" size={14} color={Colors.textMuted} style={{ marginLeft: 'auto' }} />
+        </View>
+      )}
+
+      {/* Inline line items preview */}
+      {linesExpanded && previewLines.length > 0 && (
+        <View style={styles.linesPreview}>
+          <View style={styles.linesPreviewHeader}>
+            <Text style={styles.linesPreviewCol}>Account</Text>
+            <Text style={styles.linesPreviewAmtCol}>Dr</Text>
+            <Text style={styles.linesPreviewAmtCol}>Cr</Text>
+          </View>
+          {previewLines.map((line, i) => (
+            <View key={i} style={styles.linesPreviewRow}>
+              <Text style={styles.linesPreviewAccount} numberOfLines={1}>
+                {line.account ?? '—'}
+              </Text>
+              <Text style={[styles.linesPreviewAmt, (line.debit ?? 0) > 0 && styles.linesPreviewDr]}>
+                {(line.debit ?? 0) > 0 ? fmtCompactJE(line.debit!) : ''}
+              </Text>
+              <Text style={[styles.linesPreviewAmt, (line.credit ?? 0) > 0 && styles.linesPreviewCr]}>
+                {(line.credit ?? 0) > 0 ? fmtCompactJE(line.credit!) : ''}
+              </Text>
+            </View>
+          ))}
+          {hiddenCount > 0 && (
+            <Text style={styles.linesPreviewMore}>+{hiddenCount} more — tap card for full detail</Text>
+          )}
         </View>
       )}
     </TouchableOpacity>
@@ -1171,6 +1233,30 @@ const styles = StyleSheet.create({
   amtValue: { fontSize: 14, fontWeight: '700', color: Colors.text },
   cardFooter: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   linesHint: { fontSize: 11, color: Colors.textMuted },
+  linesHintActive: { color: Colors.textSecondary },
+  linesToggleBtn: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  linesPreview: {
+    marginTop: Spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+    paddingTop: Spacing.xs,
+    gap: 2,
+  },
+  linesPreviewHeader: {
+    flexDirection: 'row',
+    paddingBottom: 3,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+    marginBottom: 2,
+  },
+  linesPreviewCol: { flex: 1, fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  linesPreviewAmtCol: { width: 52, fontSize: 10, color: Colors.textMuted, textAlign: 'right', textTransform: 'uppercase', letterSpacing: 0.4 },
+  linesPreviewRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 2 },
+  linesPreviewAccount: { flex: 1, fontSize: 11, color: Colors.textSecondary },
+  linesPreviewAmt: { width: 52, fontSize: 11, textAlign: 'right', color: Colors.textMuted },
+  linesPreviewDr: { color: Colors.text, fontWeight: '600' },
+  linesPreviewCr: { color: Colors.textSecondary, fontWeight: '600' },
+  linesPreviewMore: { fontSize: 10, color: Colors.textMuted, fontStyle: 'italic', textAlign: 'center', paddingTop: 3 },
   runningBalanceCol: { marginLeft: 'auto', alignItems: 'flex-end' },
   runningBalanceVal: { fontSize: 13, fontWeight: '700', color: Colors.text },
   runningBalanceNeg: { color: Colors.textSecondary },
