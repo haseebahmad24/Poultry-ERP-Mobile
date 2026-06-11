@@ -1,5 +1,48 @@
 # Mobile App Progress
 
+## Session 60 — 2026-06-11
+
+### Completed This Session
+
+**Inventory — ItemLedger Computed Running Balance** (`src/screens/inventory/ItemLedgerScreen.tsx`)
+- When all ledger entries have `balance == null` (API doesn't provide it), compute running balance client-side
+- Entries sorted chronologically, cumulative `qty_in − qty_out` accumulated per entry as `computedBalance`
+- `LedgerCard` gains `computedBalance: number | null` prop; displayed as `~BAL` with italic + muted style to signal it's estimated
+- `latestBalance` in the summary bar uses computed value as fallback when `entry.balance` is null
+- If any entry has an API-provided balance, computed mode is not activated (API data takes priority)
+
+**JournalEntries — Zero-Crossing Highlight** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- `zeroCrossingIdx` useMemo: scans `filteredWithBalance` for the first index where the running balance sign flips
+- Detects positive→negative OR negative→positive transitions in the chronologically sorted list
+- Renders a hairline divider row with `shuffle` icon + "balance crosses zero" italic label between the two cards at that point
+- Marker rendered via `React.Fragment` wrapping, only visible when `pickedAccount` is active and a sign flip exists
+- New styles: `zeroCrossMarker`, `zeroCrossLine`, `zeroCrossText`
+
+**Dashboard — "Today's Activity" Card** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `computeTodayActivity(vouchers)`: filters recent vouchers by today's ISO date prefix; groups by voucher type; returns `null` when none
+- `TodayActivityCard`: header row with total count + total amount; per-type rows with voucher-type badge, proportional fill bar, and count
+- Bar fill = `(type.count / maxCount) × 100%` for visual proportion comparison across types
+- `todayActivity` useMemo derived from `vouchers` state — zero extra API calls
+- Rendered in "Today's Activity" section above Week Activity when non-null
+
+**FinancialAnalytics — AgingHistoryChart Interactive Dots** (`src/screens/analytics/FinancialAnalyticsScreen.tsx`)
+- `AgingHistoryPolylines` gains `selectedIdx` + `onSelectIdx` props for controlled selection state
+- Dots replaced with `TouchableOpacity` (hitSlop ±12/10px) for easy mobile tapping; tap same dot again to deselect
+- Selected dot renders larger (r+2) with 2px border ring; vertical cursor hairline drawn at selected x-position
+- `AgingHistoryChart` adds `selectedIdx` state; `snapRow` shown below chart when a dot is selected
+- Snapshot row tiles: AP / AR / NWC with compact values; 90d+ column added when non-zero
+- NWC tile styled muted when AR < AP (negative working capital)
+- Legend meta: `"{N} days · tap dot"` default → selected date string when a point is active
+
+### Next Session
+- Consider: ProcurementAnalytics — value distribution comparison for top-items chart (compare PO vs SO buckets)
+- Consider: JournalEntries — narration full-text search (currently only matches account/type; search inside narration)
+- Consider: FinancialAnalytics — NWCTrendCard interactive (same tap-dot treatment as AgingHistoryChart)
+- Consider: Dashboard — financial health trend over time (store daily health scores in AsyncStorage, show sparkline)
+- Consider: StockHealth — per-item threshold bulk import/export (CSV in/out for reorder thresholds)
+
+---
+
 ## Session 59 — 2026-06-11
 
 ### Completed This Session
