@@ -1900,7 +1900,7 @@ export default function ProcurementAnalyticsScreen() {
           <Feather
             name="calendar"
             size={16}
-            color={isDateActive ? '#fff' : Colors.text}
+            color={isDateActive ? Colors.surface : Colors.text}
           />
           {isDateActive && (
             <Text style={styles.iconBtnBadge}>

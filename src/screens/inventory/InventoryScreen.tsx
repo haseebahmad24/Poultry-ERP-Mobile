@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.text,
   },
   stockFilterChipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
-  stockFilterChipTextActive: { color: '#ffffff', fontWeight: '600' },
+  stockFilterChipTextActive: { color: Colors.surface, fontWeight: '600' },
   stockSortLabel: {
     flexDirection: 'row',
     alignItems: 'center',

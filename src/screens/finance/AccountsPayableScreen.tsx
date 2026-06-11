@@ -434,7 +434,7 @@ export default function AccountsPayableScreen() {
                   style={[styles.filterChip, showFlaggedOnly && styles.filterChipActive]}
                   onPress={() => setShowFlaggedOnly((v) => !v)}
                 >
-                  <Feather name="star" size={11} color={showFlaggedOnly ? '#fff' : Colors.textSecondary} />
+                  <Feather name="star" size={11} color={showFlaggedOnly ? Colors.surface : Colors.textSecondary} />
                   {flaggedBillIds.size > 0 && (
                     <Text style={[styles.filterChipText, showFlaggedOnly && styles.filterChipTextActive]}>
                       {` ${flaggedBillIds.size}`}
@@ -445,7 +445,7 @@ export default function AccountsPayableScreen() {
                   style={[styles.filterChip, showReviewedOnly && styles.filterChipActive]}
                   onPress={() => setShowReviewedOnly((v) => !v)}
                 >
-                  <Feather name="check-circle" size={11} color={showReviewedOnly ? '#fff' : Colors.textSecondary} />
+                  <Feather name="check-circle" size={11} color={showReviewedOnly ? Colors.surface : Colors.textSecondary} />
                   {reviewedBillIds.size > 0 && (
                     <Text style={[styles.filterChipText, showReviewedOnly && styles.filterChipTextActive]}>
                       {` ${reviewedBillIds.size}`}
@@ -463,7 +463,7 @@ export default function AccountsPayableScreen() {
                     }
                   }}
                 >
-                  <Feather name="calendar" size={11} color={(showDateFilter || billDateRange.from) ? '#fff' : Colors.textSecondary} />
+                  <Feather name="calendar" size={11} color={(showDateFilter || billDateRange.from) ? Colors.surface : Colors.textSecondary} />
                   {(billDateRange.from || billDateRange.to) && (
                     <Text style={[styles.filterChipText, styles.filterChipTextActive]}>
                       {billDateRange.from ? billDateRange.from.slice(5) : '?'}–{billDateRange.to ? billDateRange.to.slice(5) : '?'}

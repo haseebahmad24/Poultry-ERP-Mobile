@@ -60,7 +60,7 @@ export default function BiometricLockOverlay({ onUnlock }: Props) {
           <ActivityIndicator size="small" color={Colors.text} style={styles.indicator} />
         ) : (
           <TouchableOpacity style={styles.unlockBtn} onPress={authenticate} activeOpacity={0.8}>
-            <Feather name="unlock" size={16} color="#fff" />
+            <Feather name="unlock" size={16} color={Colors.surface} />
             <Text style={styles.unlockBtnText}>
               {failed ? 'Try Again' : 'Unlock'}
             </Text>

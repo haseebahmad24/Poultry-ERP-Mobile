@@ -433,7 +433,7 @@ export default function AccountsReceivableScreen() {
                   style={[styles.filterChip, showFlaggedOnly && styles.filterChipActive]}
                   onPress={() => setShowFlaggedOnly((v) => !v)}
                 >
-                  <Feather name="star" size={11} color={showFlaggedOnly ? '#fff' : Colors.textSecondary} />
+                  <Feather name="star" size={11} color={showFlaggedOnly ? Colors.surface : Colors.textSecondary} />
                   {flaggedInvoiceIds.size > 0 && (
                     <Text style={[styles.filterChipText, showFlaggedOnly && styles.filterChipTextActive]}>
                       {` ${flaggedInvoiceIds.size}`}
@@ -444,7 +444,7 @@ export default function AccountsReceivableScreen() {
                   style={[styles.filterChip, showReviewedOnly && styles.filterChipActive]}
                   onPress={() => setShowReviewedOnly((v) => !v)}
                 >
-                  <Feather name="check-circle" size={11} color={showReviewedOnly ? '#fff' : Colors.textSecondary} />
+                  <Feather name="check-circle" size={11} color={showReviewedOnly ? Colors.surface : Colors.textSecondary} />
                   {reviewedInvoiceIds.size > 0 && (
                     <Text style={[styles.filterChipText, showReviewedOnly && styles.filterChipTextActive]}>
                       {` ${reviewedInvoiceIds.size}`}
@@ -462,7 +462,7 @@ export default function AccountsReceivableScreen() {
                     }
                   }}
                 >
-                  <Feather name="calendar" size={11} color={(showDateFilter || invDateRange.from) ? '#fff' : Colors.textSecondary} />
+                  <Feather name="calendar" size={11} color={(showDateFilter || invDateRange.from) ? Colors.surface : Colors.textSecondary} />
                   {(invDateRange.from || invDateRange.to) && (
                     <Text style={[styles.filterChipText, styles.filterChipTextActive]}>
                       {invDateRange.from ? invDateRange.from.slice(5) : '?'}–{invDateRange.to ? invDateRange.to.slice(5) : '?'}
