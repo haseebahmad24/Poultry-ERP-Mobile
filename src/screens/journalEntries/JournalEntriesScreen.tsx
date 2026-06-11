@@ -146,6 +146,17 @@ export default function JournalEntriesScreen() {
     });
   }, [filtered, pickedAccount]);
 
+  // First index where the running balance changes sign (crosses zero)
+  const zeroCrossingIdx = React.useMemo(() => {
+    if (!pickedAccount || filteredWithBalance.length < 2) return -1;
+    for (let i = 1; i < filteredWithBalance.length; i++) {
+      const prev = filteredWithBalance[i - 1].runningBalance;
+      const curr = filteredWithBalance[i].runningBalance;
+      if ((prev > 0 && curr < 0) || (prev < 0 && curr > 0)) return i;
+    }
+    return -1;
+  }, [filteredWithBalance, pickedAccount]);
+
   const handleExportPDF = async () => {
     await exportJournalEntriesPDF({
       entries: filtered,
@@ -318,13 +329,22 @@ export default function JournalEntriesScreen() {
               </View>
             ) : (
               <View style={styles.cardList}>
-                {filteredWithBalance.map(({ entry, runningBalance }) => (
-                  <JECard
-                    key={entry.id}
-                    entry={entry}
-                    runningBalance={pickedAccount ? runningBalance : undefined}
-                    onPress={() => navigation.navigate('JournalEntryDetail', { entry })}
-                  />
+                {filteredWithBalance.map(({ entry, runningBalance }, idx) => (
+                  <React.Fragment key={entry.id}>
+                    {idx === zeroCrossingIdx && (
+                      <View style={styles.zeroCrossMarker}>
+                        <View style={styles.zeroCrossLine} />
+                        <Feather name="shuffle" size={11} color={Colors.textMuted} />
+                        <Text style={styles.zeroCrossText}>balance crosses zero</Text>
+                        <View style={styles.zeroCrossLine} />
+                      </View>
+                    )}
+                    <JECard
+                      entry={entry}
+                      runningBalance={pickedAccount ? runningBalance : undefined}
+                      onPress={() => navigation.navigate('JournalEntryDetail', { entry })}
+                    />
+                  </React.Fragment>
                 ))}
               </View>
             )}
@@ -1177,4 +1197,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   emptyText: { ...Typography.body, color: Colors.textMuted },
+
+  zeroCrossMarker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginHorizontal: Spacing.md,
+    marginVertical: 2,
+  },
+  zeroCrossLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
+  zeroCrossText: { fontSize: 10, color: Colors.textMuted, fontStyle: 'italic' },
 });

@@ -63,7 +63,23 @@ export default function ItemLedgerScreen() {
 
   const totalIn = entries.reduce((s, e) => s + (e.qty_in ?? 0), 0);
   const totalOut = entries.reduce((s, e) => s + (e.qty_out ?? 0), 0);
-  const latestBalance = entries.length > 0 ? entries[entries.length - 1].balance ?? null : null;
+
+  // Compute running balance client-side when the API doesn't provide balance fields
+  const entriesWithBalance = React.useMemo(() => {
+    const allMissingBalance = entries.length > 0 && entries.every((e) => e.balance == null);
+    if (!allMissingBalance) return entries.map((e) => ({ entry: e, computedBalance: null as number | null }));
+    // Sort chronologically (oldest first) and accumulate qty_in − qty_out
+    const sorted = [...entries].sort((a, b) => (a.dt ?? '').localeCompare(b.dt ?? ''));
+    let running = 0;
+    return sorted.map((entry) => {
+      running += (entry.qty_in ?? 0) - (entry.qty_out ?? 0);
+      return { entry, computedBalance: running };
+    });
+  }, [entries]);
+
+  const latestBalance = entries.length > 0
+    ? (entries[entries.length - 1].balance ?? entriesWithBalance[entriesWithBalance.length - 1]?.computedBalance ?? null)
+    : null;
 
   const handleExportPDF = async () => {
     await exportItemLedgerPDF({
@@ -149,7 +165,7 @@ export default function ItemLedgerScreen() {
           meta={`${entries.length} entries${hasDateFilter ? ' (filtered)' : ''}`}
         />
 
-        {entries.length === 0 ? (
+        {entriesWithBalance.length === 0 ? (
           <View style={styles.emptyState}>
             <Feather name="box" size={36} color={Colors.textMuted} />
             <Text style={styles.emptyText}>No ledger entries found</Text>
@@ -161,8 +177,8 @@ export default function ItemLedgerScreen() {
           </View>
         ) : (
           <View style={styles.cardList}>
-            {entries.map((entry, idx) => (
-              <LedgerCard key={`${entry.id ?? idx}`} entry={entry} />
+            {entriesWithBalance.map(({ entry, computedBalance }, idx) => (
+              <LedgerCard key={`${entry.id ?? idx}`} entry={entry} computedBalance={computedBalance} />
             ))}
           </View>
         )}
@@ -173,10 +189,12 @@ export default function ItemLedgerScreen() {
   );
 }
 
-function LedgerCard({ entry }: { entry: StockLedgerEntry }) {
+function LedgerCard({ entry, computedBalance }: { entry: StockLedgerEntry; computedBalance: number | null }) {
   const vtype = entry.voucher_type ?? '';
   const qtyIn = entry.qty_in ?? 0;
   const qtyOut = entry.qty_out ?? 0;
+  const balanceToShow = entry.balance != null ? entry.balance : computedBalance;
+  const isComputed = entry.balance == null && computedBalance != null;
 
   return (
     <View style={styles.card}>
@@ -205,10 +223,14 @@ function LedgerCard({ entry }: { entry: StockLedgerEntry }) {
             <Text style={styles.qtyPillValue}>-{qtyOut.toLocaleString()}</Text>
           </View>
         )}
-        {entry.balance != null && (
+        {balanceToShow != null && (
           <View style={styles.qtyPill}>
-            <Text style={styles.qtyPillLabel}>BAL</Text>
-            <Text style={styles.qtyPillValue}>{entry.balance.toLocaleString()}</Text>
+            <Text style={[styles.qtyPillLabel, isComputed && styles.qtyPillLabelComputed]}>
+              {isComputed ? '~BAL' : 'BAL'}
+            </Text>
+            <Text style={[styles.qtyPillValue, isComputed && styles.qtyPillValueComputed]}>
+              {balanceToShow.toLocaleString()}
+            </Text>
           </View>
         )}
         {entry.unit && <Text style={styles.qtyUnit}>{entry.unit}</Text>}
@@ -284,7 +306,9 @@ const styles = StyleSheet.create({
   ledgerQtys: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.sm },
   qtyPill: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   qtyPillLabel: { fontSize: 10, fontWeight: '700', color: Colors.textMuted },
+  qtyPillLabelComputed: { color: Colors.textSecondary, fontStyle: 'italic' },
   qtyPillValue: { ...Typography.body, fontWeight: '700', color: Colors.text },
+  qtyPillValueComputed: { color: Colors.textSecondary, fontStyle: 'italic' },
   qtyUnit: { ...Typography.bodySmall, color: Colors.textMuted },
 
   pdfBtn: { padding: 4 },

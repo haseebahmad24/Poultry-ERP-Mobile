@@ -338,6 +338,112 @@ const waStyles = StyleSheet.create({
   vsLabel: { fontSize: 10, color: Colors.textMuted },
 });
 
+// ─── Today's Activity ─────────────────────────────────────────────────────────
+
+interface TodayActivity {
+  count: number;
+  totalAmount: number;
+  byType: Array<{ type: string; count: number; amount: number }>;
+}
+
+function computeTodayActivity(vouchers: RecentVoucher[]): TodayActivity | null {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayVouchers = vouchers.filter((v) => v.dt && v.dt.startsWith(todayStr));
+  if (todayVouchers.length === 0) return null;
+  const typeMap: Record<string, { count: number; amount: number }> = {};
+  let totalAmount = 0;
+  for (const v of todayVouchers) {
+    const t = v.type ?? 'JV';
+    if (!typeMap[t]) typeMap[t] = { count: 0, amount: 0 };
+    typeMap[t].count++;
+    typeMap[t].amount += v.amount ?? 0;
+    totalAmount += v.amount ?? 0;
+  }
+  const byType = Object.entries(typeMap)
+    .map(([type, { count, amount }]) => ({ type, count, amount }))
+    .sort((a, b) => b.count - a.count);
+  return { count: todayVouchers.length, totalAmount, byType };
+}
+
+function TodayActivityCard({
+  activity,
+  onPress,
+}: {
+  activity: TodayActivity;
+  onPress?: () => void;
+}) {
+  const maxCount = Math.max(...activity.byType.map((t) => t.count), 1);
+  return (
+    <TouchableOpacity
+      style={taStyles.card}
+      activeOpacity={onPress ? 0.7 : 1}
+      onPress={onPress}
+    >
+      <View style={taStyles.header}>
+        <View style={taStyles.headerLeft}>
+          <Text style={taStyles.count}>{activity.count}</Text>
+          <Text style={taStyles.countLabel}>
+            {activity.count === 1 ? 'voucher today' : 'vouchers today'}
+          </Text>
+        </View>
+        <Text style={taStyles.total}>{fmtK(activity.totalAmount)}</Text>
+      </View>
+      {activity.byType.map((t) => (
+        <View key={t.type} style={taStyles.typeRow}>
+          <View style={taStyles.typeBadge}>
+            <Text style={taStyles.typeBadgeText}>{t.type}</Text>
+          </View>
+          <View style={taStyles.trackWrap}>
+            <View style={[taStyles.track, { width: `${Math.round((t.count / maxCount) * 100)}%` }]} />
+          </View>
+          <Text style={taStyles.typeCount}>{t.count}</Text>
+        </View>
+      ))}
+    </TouchableOpacity>
+  );
+}
+
+const taStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.xs },
+  count: { fontSize: 22, fontWeight: '700', color: Colors.text },
+  countLabel: { fontSize: 12, color: Colors.textMuted },
+  total: { fontSize: 14, fontWeight: '600', color: Colors.textSecondary },
+  typeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  typeBadge: {
+    width: 48,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    alignItems: 'center',
+  },
+  typeBadgeText: { fontSize: 11, fontWeight: '700', color: Colors.text },
+  trackWrap: {
+    flex: 1,
+    height: 6,
+    backgroundColor: Colors.background,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+  },
+  track: { height: 6, backgroundColor: Colors.text, borderRadius: Radius.full },
+  typeCount: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary, width: 20, textAlign: 'right' },
+});
+
 // ─── Financial Health Score ───────────────────────────────────────────────────
 
 interface HealthScore {
@@ -709,6 +815,7 @@ export default function DashboardScreen() {
   const cacheKey = `dashboard:${selectedCompany?.id ?? 'all'}`;
 
   const weekActivity = useMemo(() => computeWeekActivity(vouchers), [vouchers]);
+  const todayActivity = useMemo(() => computeTodayActivity(vouchers), [vouchers]);
 
 
   const load = useCallback(async (isRefresh = false, isSilent = false) => {
@@ -1742,6 +1849,17 @@ export default function DashboardScreen() {
                 />
               </View>
             </View>
+          </>
+        )}
+
+        {/* Today's voucher activity breakdown */}
+        {todayActivity != null && (
+          <>
+            <SectionHeader title="Today's Activity" meta={`${todayActivity.count} vouchers · ${todayActivity.byType.length} types`} />
+            <TodayActivityCard
+              activity={todayActivity}
+              onPress={() => navigation.navigate('Finance', { screen: 'JournalEntries' } as any)}
+            />
           </>
         )}
 
