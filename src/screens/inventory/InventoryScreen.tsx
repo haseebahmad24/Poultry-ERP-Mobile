@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   RefreshControl,
   ScrollView,
@@ -54,6 +54,7 @@ export default function InventoryScreen() {
   const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
   const [stockSort, setStockSort] = useState<'name' | 'qty-asc' | 'qty-desc'>('name');
+  const [stockWarehouse, setStockWarehouse] = useState<string | null>(null);
   const [lowStockThreshold, setLowStockThreshold] = useState(100);
 
   useEffect(() => {
@@ -118,6 +119,14 @@ export default function InventoryScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  const stockWarehouses = useMemo(() => {
+    const names = new Set<string>();
+    for (const s of stockData) {
+      if (s.warehouse_name) names.add(s.warehouse_name);
+    }
+    return Array.from(names).sort();
+  }, [stockData]);
+
   const filteredStock = stockData
     .filter((s) => {
       const q = search.toLowerCase();
@@ -129,7 +138,8 @@ export default function InventoryScreen() {
         stockFilter === 'all' ||
         (stockFilter === 'out' && qty <= 0) ||
         (stockFilter === 'low' && qty > 0 && qty < lowStockThreshold);
-      return matchesSearch && matchesStockFilter;
+      const matchesWarehouse = !stockWarehouse || s.warehouse_name === stockWarehouse;
+      return matchesSearch && matchesStockFilter && matchesWarehouse;
     })
     .sort((a, b) => {
       if (stockSort === 'qty-asc') return (a.qty ?? 0) - (b.qty ?? 0);
@@ -291,6 +301,35 @@ export default function InventoryScreen() {
             </Text>
           </View>
         </View>
+      )}
+
+      {activeTab === 'stock' && stockWarehouses.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.warehouseChips}
+          keyboardShouldPersistTaps="handled"
+        >
+          <TouchableOpacity
+            style={[styles.warehouseChip, !stockWarehouse && styles.warehouseChipActive]}
+            onPress={() => setStockWarehouse(null)}
+          >
+            <Text style={[styles.warehouseChipText, !stockWarehouse && styles.warehouseChipTextActive]}>
+              All
+            </Text>
+          </TouchableOpacity>
+          {stockWarehouses.map((wh) => (
+            <TouchableOpacity
+              key={wh}
+              style={[styles.warehouseChip, stockWarehouse === wh && styles.warehouseChipActive]}
+              onPress={() => setStockWarehouse(stockWarehouse === wh ? null : wh)}
+            >
+              <Text style={[styles.warehouseChipText, stockWarehouse === wh && styles.warehouseChipTextActive]}>
+                {wh}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       )}
 
       <View style={styles.searchContainer}>
@@ -647,6 +686,26 @@ const styles = StyleSheet.create({
     borderLeftColor: Colors.borderLight,
   },
   stockSortLabelText: { fontSize: 10, color: Colors.textMuted, fontWeight: '500' },
+
+  warehouseChips: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  warehouseChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  warehouseChipActive: { backgroundColor: Colors.text, borderColor: Colors.text },
+  warehouseChipText: { fontSize: 11, fontWeight: '500', color: Colors.textSecondary },
+  warehouseChipTextActive: { color: Colors.surface, fontWeight: '600' },
 
   searchContainer: {
     flexDirection: 'row',
