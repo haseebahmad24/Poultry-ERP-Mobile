@@ -131,6 +131,9 @@ export default function JournalEntriesScreen() {
     );
   });
 
+  const filteredDebit = filtered.reduce((s, e) => s + (e.total_debit ?? 0), 0);
+  const filteredCredit = filtered.reduce((s, e) => s + (e.total_credit ?? 0), 0);
+
   const handleExportPDF = async () => {
     await exportJournalEntriesPDF({
       entries: filtered,
@@ -250,6 +253,28 @@ export default function JournalEntriesScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
+
+          {filtered.length > 0 && (
+            <View style={styles.statsStrip}>
+              <Text style={styles.statsStripCount}>{filtered.length}</Text>
+              <Text style={styles.statsStripLabel}>vouchers</Text>
+              <View style={styles.statsStripDivider} />
+              <Text style={styles.statsStripKey}>Dr</Text>
+              <Text style={styles.statsStripVal}>{fmtCompactJE(filteredDebit)}</Text>
+              <View style={styles.statsStripDivider} />
+              <Text style={styles.statsStripKey}>Cr</Text>
+              <Text style={styles.statsStripVal}>{fmtCompactJE(filteredCredit)}</Text>
+              {filteredDebit > 0 && filteredCredit > 0 && (
+                <View style={styles.statsStripCheck}>
+                  <Feather
+                    name={Math.abs(filteredDebit - filteredCredit) < 0.01 ? 'check-circle' : 'alert-circle'}
+                    size={12}
+                    color={Math.abs(filteredDebit - filteredCredit) < 0.01 ? Colors.textMuted : Colors.textSecondary}
+                  />
+                </View>
+              )}
+            </View>
+          )}
 
           <ScrollView
             ref={scrollRef}
@@ -1028,6 +1053,23 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: Colors.text, borderColor: Colors.text },
   chipText: { fontSize: 12, fontWeight: '500', color: Colors.textSecondary },
   chipTextActive: { color: Colors.surface, fontWeight: '700' },
+
+  statsStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 7,
+    backgroundColor: Colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+    gap: 6,
+  },
+  statsStripCount: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  statsStripLabel: { fontSize: 11, color: Colors.textMuted, marginRight: 2 },
+  statsStripDivider: { width: StyleSheet.hairlineWidth, height: 12, backgroundColor: Colors.border },
+  statsStripKey: { fontSize: 11, fontWeight: '600', color: Colors.textMuted },
+  statsStripVal: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary },
+  statsStripCheck: { marginLeft: 'auto' as any },
 
   scroll: { flex: 1 },
   scrollContent: { paddingTop: Spacing.sm },
