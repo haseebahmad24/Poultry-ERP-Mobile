@@ -1,5 +1,57 @@
 # Mobile App Progress
 
+## Session 61 — 2026-06-11
+
+### Completed This Session
+
+**FinancialAnalytics — NWCTrendCard Interactive Dots** (`src/screens/analytics/FinancialAnalyticsScreen.tsx`)
+- `NWCPolyline` gains `selectedIdx: number | null` and `onSelectIdx` props — same pattern as `AgingHistoryPolylines`
+- Dots replaced with `TouchableOpacity` (hitSlop ±12/10px); tap same dot to deselect
+- Selected dot: r+2 radius, 2px border ring; vertical cursor hairline at selected x-position
+- `NWCTrendCard` adds `selectedIdx` state; meta text switches from `{N}d · tap dot` → selected date string
+- `centerLabel` toggles from `positive = AR > AP` → `tap same dot to clear` when active
+- `snapRow` tile row below date labels when dot selected: AP / AR / NWC / STATUS with hairline dividers
+- NWC and STATUS tiles use `Colors.textSecondary` style when snapNWC < 0
+- New `nwcStyles`: `snapRow`, `snapItem`, `snapDivider`, `snapLabel`, `snapVal`
+
+**ProcurementAnalytics — ValueDistributionChart Bucket Tap** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- Each bucket column is now `TouchableOpacity`; tap selects/deselects
+- Selected column: `barTrackSelected` highlight (Colors.background + border); unselected bars at 0.7 opacity
+- `legendMeta` label shows `BUCKET · tap to clear` when a bucket is selected
+- `snapRow` below bars when active: PO count / SO count / Total / PO% in 4-tile layout with hairline dividers
+- New `distStyles`: `barTrackSelected`, `bucketLabelSelected`, `legendMeta`, `snapRow`, `snapItem`, `snapDivider`, `snapLabel`, `snapVal`
+
+**JournalEntries — Multi-Word AND Search** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- Search splits input on whitespace: `words.every(w => haystack.includes(w))` — all words must match
+- Haystack is `voucher_no + narration + voucher_type` joined; case-insensitive
+- Previous: single `includes(q)` call — now proper multi-term AND logic
+- Updated placeholder: `Search by voucher, narration, type…`
+
+**JournalEntries — JECard Inline Line Items Preview** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- `JECard` gains `linesExpanded` state; `N lines` badge becomes `linesToggleBtn` with `list` / `chevron-up` icon
+- `stopPropagation` on tap to avoid triggering card navigation
+- When expanded: compact `Account | Dr | Cr` inline table with hairline header separator
+- Up to `JE_LINES_PREVIEW = 4` lines; `+N more — tap card for full detail` italic footer for overflow
+- Dr amounts: bold/dark (`linesPreviewDr`); Cr amounts: bold/secondary (`linesPreviewCr`)
+- `linesToggleBtn` placed in both normal footer path and `runningBalance` footer path
+
+**StockHealth — Threshold CSV Export & Paste Import** (`src/screens/analytics/StockHealthScreen.tsx`)
+- Share button in header: exports all per-item thresholds via `Share.share()` as `item_name,threshold` CSV
+- Upload button in header: opens `ThresholdImportModal`
+- `parseThresholdCSV`: skips header row, strips quotes, validates name + threshold ≥ 0; returns `{ rows, errors }`
+- `ThresholdImportModal`: multiline monospace `TextInput`; live parse preview (`N rows · M errors`); `Import N rows` button
+- Import applies via `setItemThreshold` per row, reloads `loadAllItemThresholds`, recomputes stock health in-place
+- Result feedback row shows import count and skipped count
+
+### Next Session
+- Consider: Dashboard — financial health score sparkline (composite AR/AP/stock score stored daily in AsyncStorage, shown on dashboard)
+- Consider: JournalEntries — AccountStatement screen: full account ledger with opening balance and running balance (from trial balance + JE lines)
+- Consider: FinancialAnalytics — NWCTrendCard drill-down: tap on surplus/deficit tile to see contributing bills/invoices
+- Consider: ProcurementAnalytics — ItemLedger cross-navigation from velocity items (already in StockHealth; wire from ProcurementAnalytics too)
+- Consider: StockHealth — import from last exported CSV (read-back verification: show diff between current vs imported thresholds before applying)
+
+---
+
 ## Session 60 — 2026-06-11
 
 ### Completed This Session
