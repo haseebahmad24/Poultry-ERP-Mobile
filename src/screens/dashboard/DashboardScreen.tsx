@@ -489,6 +489,92 @@ const healthStyles = StyleSheet.create({
   hint: { fontSize: 10, color: Colors.textMuted },
 });
 
+// ─── Pending Approvals Card ───────────────────────────────────────────────────
+
+function PendingApprovalsCard({
+  pendingPOs,
+  pendingSOs,
+  onPressPOs,
+  onPressSOs,
+}: {
+  pendingPOs: number;
+  pendingSOs: number;
+  onPressPOs: () => void;
+  onPressSOs: () => void;
+}) {
+  const total = pendingPOs + pendingSOs;
+  return (
+    <View style={pendingStyles.card}>
+      <View style={pendingStyles.headerRow}>
+        <Feather name="clock" size={13} color={Colors.text} />
+        <Text style={pendingStyles.headerText}>Pending Approvals</Text>
+        <View style={pendingStyles.totalBadge}>
+          <Text style={pendingStyles.totalBadgeText}>{total}</Text>
+        </View>
+      </View>
+      <View style={pendingStyles.tileRow}>
+        {pendingPOs > 0 && (
+          <TouchableOpacity style={pendingStyles.tile} onPress={onPressPOs} activeOpacity={0.7}>
+            <Text style={pendingStyles.tileCount}>{pendingPOs}</Text>
+            <Text style={pendingStyles.tileLabel}>PO{pendingPOs !== 1 ? 's' : ''}</Text>
+            <Feather name="chevron-right" size={11} color={Colors.textMuted} style={{ marginTop: 2 }} />
+          </TouchableOpacity>
+        )}
+        {pendingPOs > 0 && pendingSOs > 0 && <View style={pendingStyles.tileDivider} />}
+        {pendingSOs > 0 && (
+          <TouchableOpacity style={pendingStyles.tile} onPress={onPressSOs} activeOpacity={0.7}>
+            <Text style={pendingStyles.tileCount}>{pendingSOs}</Text>
+            <Text style={pendingStyles.tileLabel}>SO{pendingSOs !== 1 ? 's' : ''}</Text>
+            <Feather name="chevron-right" size={11} color={Colors.textMuted} style={{ marginTop: 2 }} />
+          </TouchableOpacity>
+        )}
+      </View>
+      <Text style={pendingStyles.hint}>Orders awaiting approval — tap to review</Text>
+    </View>
+  );
+}
+
+const pendingStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  headerText: { ...Typography.label, flex: 1 },
+  totalBadge: {
+    backgroundColor: Colors.text,
+    borderRadius: Radius.full,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  totalBadgeText: { fontSize: 11, fontWeight: '700', color: Colors.surface },
+  tileRow: { flexDirection: 'row', gap: Spacing.sm },
+  tile: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: Colors.surfaceHover,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs + 2,
+  },
+  tileCount: { fontSize: 18, fontWeight: '700', color: Colors.text },
+  tileLabel: { ...Typography.bodySmall, color: Colors.textSecondary, flex: 1 },
+  tileDivider: { width: StyleSheet.hairlineWidth, backgroundColor: Colors.borderLight, alignSelf: 'stretch' },
+  hint: { fontSize: 11, color: Colors.textMuted, fontStyle: 'italic' },
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 function formatLastUpdated(date: Date): string {
@@ -1147,6 +1233,16 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             </View>
           </>
+        )}
+
+        {/* Pending Approvals — shown when POs or SOs are in draft/submitted state */}
+        {supplyChain !== null && (supplyChain.pendingApprovalPOs > 0 || supplyChain.pendingApprovalSOs > 0) && (
+          <PendingApprovalsCard
+            pendingPOs={supplyChain.pendingApprovalPOs}
+            pendingSOs={supplyChain.pendingApprovalSOs}
+            onPressPOs={() => navigation.navigate('More', { screen: 'PurchaseOrders' } as any)}
+            onPressSOs={() => navigation.navigate('More', { screen: 'SalesOrders' } as any)}
+          />
         )}
 
         {/* Upcoming Deliveries */}

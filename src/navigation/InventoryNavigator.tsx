@@ -6,7 +6,7 @@ import ItemLedgerScreen from '@/screens/inventory/ItemLedgerScreen';
 
 export type InventoryStackParamList = {
   InventoryMain: undefined;
-  ItemLedger: { item_id: number; item_name: string; item_code?: string };
+  ItemLedger: { item_id: number; item_name: string; item_code?: string; warehouse_id?: number; warehouse_name?: string };
 };
 
 const Stack = createNativeStackNavigator<InventoryStackParamList>();

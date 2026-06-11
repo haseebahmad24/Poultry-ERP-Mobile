@@ -211,6 +211,8 @@ export type SupplyChainSnapshot = {
   deliveriesOverdue: number;
   openPOList: any[];
   openSOList: any[];
+  pendingApprovalPOs: number;
+  pendingApprovalSOs: number;
 };
 
 export async function fetchSupplyChainSnapshot(companyId?: string): Promise<SupplyChainSnapshot> {
@@ -246,5 +248,13 @@ export async function fetchSupplyChainSnapshot(companyId?: string): Promise<Supp
     else if (due <= weekEnd) deliveriesDueThisWeek++;
   }
 
-  return { openPOs, openSOs, activeMaterials, deliveriesDueThisWeek, deliveriesOverdue, openPOList, openSOList };
+  const PENDING_STATUSES = new Set(['draft', 'submitted', 'pending', 'pending_approval']);
+  const pendingApprovalPOs = openPOList.filter(
+    (o) => PENDING_STATUSES.has((o.status ?? '').toLowerCase())
+  ).length;
+  const pendingApprovalSOs = openSOList.filter(
+    (o) => PENDING_STATUSES.has((o.status ?? '').toLowerCase())
+  ).length;
+
+  return { openPOs, openSOs, activeMaterials, deliveriesDueThisWeek, deliveriesOverdue, openPOList, openSOList, pendingApprovalPOs, pendingApprovalSOs };
 }

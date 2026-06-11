@@ -134,6 +134,18 @@ export default function JournalEntriesScreen() {
   const filteredDebit = filtered.reduce((s, e) => s + (e.total_debit ?? 0), 0);
   const filteredCredit = filtered.reduce((s, e) => s + (e.total_credit ?? 0), 0);
 
+  // Running balance — only computed when an account filter is active
+  const filteredWithBalance = React.useMemo<Array<{ entry: JournalEntry; runningBalance: number }>>(() => {
+    if (!pickedAccount) return filtered.map((entry) => ({ entry, runningBalance: 0 }));
+    // Sort chronologically so running balance accumulates oldest → newest
+    const sorted = [...filtered].sort((a, b) => (a.dt ?? '').localeCompare(b.dt ?? ''));
+    let running = 0;
+    return sorted.map((entry) => {
+      running += (entry.total_debit ?? 0) - (entry.total_credit ?? 0);
+      return { entry, runningBalance: running };
+    });
+  }, [filtered, pickedAccount]);
+
   const handleExportPDF = async () => {
     await exportJournalEntriesPDF({
       entries: filtered,
@@ -299,17 +311,18 @@ export default function JournalEntriesScreen() {
 
             <SectionHeader title="Vouchers" meta={`${filtered.length} records`} />
 
-            {filtered.length === 0 ? (
+            {filteredWithBalance.length === 0 ? (
               <View style={styles.emptyState}>
                 <Feather name="book-open" size={32} color={Colors.textMuted} />
                 <Text style={styles.emptyText}>No journal entries found</Text>
               </View>
             ) : (
               <View style={styles.cardList}>
-                {filtered.map((entry) => (
+                {filteredWithBalance.map(({ entry, runningBalance }) => (
                   <JECard
                     key={entry.id}
                     entry={entry}
+                    runningBalance={pickedAccount ? runningBalance : undefined}
                     onPress={() => navigation.navigate('JournalEntryDetail', { entry })}
                   />
                 ))}
@@ -811,9 +824,11 @@ const summaryStyles = StyleSheet.create({
 
 function JECard({
   entry,
+  runningBalance,
   onPress,
 }: {
   entry: JournalEntry;
+  runningBalance?: number;
   onPress: () => void;
 }) {
   const vtype = entry.voucher_type ?? 'JV';
@@ -879,13 +894,28 @@ function JECard({
           <Text style={styles.amtLabel}>Credit</Text>
           <Text style={styles.amtValue}>{formatCurrency(entry.total_credit ?? 0)}</Text>
         </View>
-        <View style={styles.cardFooter}>
-          {hasLines && (
-            <Text style={styles.linesHint}>{entry.lines!.length} lines</Text>
-          )}
-          <Feather name="chevron-right" size={14} color={Colors.textMuted} />
-        </View>
+        {runningBalance !== undefined ? (
+          <View style={styles.runningBalanceCol}>
+            <Text style={styles.amtLabel}>Balance</Text>
+            <Text style={[styles.runningBalanceVal, runningBalance < 0 && styles.runningBalanceNeg]}>
+              {runningBalance < 0 ? '−' : ''}{formatCurrency(Math.abs(runningBalance))}
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.cardFooter}>
+            {hasLines && (
+              <Text style={styles.linesHint}>{entry.lines!.length} lines</Text>
+            )}
+            <Feather name="chevron-right" size={14} color={Colors.textMuted} />
+          </View>
+        )}
       </View>
+      {runningBalance !== undefined && (
+        <View style={styles.runningBalanceFooter}>
+          {hasLines && <Text style={styles.linesHint}>{entry.lines!.length} lines</Text>}
+          <Feather name="chevron-right" size={14} color={Colors.textMuted} style={{ marginLeft: 'auto' }} />
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -1124,6 +1154,17 @@ const styles = StyleSheet.create({
   amtValue: { fontSize: 14, fontWeight: '700', color: Colors.text },
   cardFooter: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   linesHint: { fontSize: 11, color: Colors.textMuted },
+  runningBalanceCol: { marginLeft: 'auto', alignItems: 'flex-end' },
+  runningBalanceVal: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  runningBalanceNeg: { color: Colors.textSecondary },
+  runningBalanceFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+    paddingTop: 4,
+  },
 
   emptyState: {
     marginHorizontal: Spacing.md,

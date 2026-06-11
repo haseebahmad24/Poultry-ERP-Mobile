@@ -27,7 +27,7 @@ type RouteType = RouteProp<InventoryStackParamList, 'ItemLedger'>;
 
 export default function ItemLedgerScreen() {
   const route = useRoute<RouteType>();
-  const { item_id, item_name, item_code } = route.params;
+  const { item_id, item_name, item_code, warehouse_id, warehouse_name } = route.params;
   const { companyId, selectedCompany } = useCompany();
 
   const [entries, setEntries] = useState<StockLedgerEntry[]>([]);
@@ -44,6 +44,7 @@ export default function ItemLedgerScreen() {
       const data = await fetchStockLedger({
         companyId,
         itemId: item_id,
+        warehouseId: warehouse_id,
         from: dateRange.from || undefined,
         to: dateRange.to || undefined,
       });
@@ -54,7 +55,7 @@ export default function ItemLedgerScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [companyId, item_id, dateRange.from, dateRange.to]);
+  }, [companyId, item_id, warehouse_id, dateRange.from, dateRange.to]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -88,7 +89,16 @@ export default function ItemLedgerScreen() {
         <BackButton />
         <View style={styles.headerText}>
           <Text style={styles.headerTitle} numberOfLines={1}>{item_name}</Text>
-          {item_code && <Text style={styles.headerSub}>{item_code}</Text>}
+          <View style={styles.headerSubRow}>
+            {item_code && <Text style={styles.headerSub}>{item_code}</Text>}
+            {warehouse_name && (
+              <>
+                {item_code && <Text style={styles.headerSubDot}>·</Text>}
+                <Feather name="map-pin" size={10} color={Colors.textMuted} />
+                <Text style={styles.headerSubWarehouse} numberOfLines={1}>{warehouse_name}</Text>
+              </>
+            )}
+          </View>
         </View>
         {entries.length > 0 && (
           <TouchableOpacity style={styles.pdfBtn} onPress={handleExportPDF}>
@@ -223,6 +233,9 @@ const styles = StyleSheet.create({
   headerText: { flex: 1 },
   headerTitle: { ...Typography.h3 },
   headerSub: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
+  headerSubRow: { flexDirection: 'row', alignItems: 'center', gap: 3, flexWrap: 'wrap', marginTop: 2 },
+  headerSubDot: { fontSize: 10, color: Colors.textMuted },
+  headerSubWarehouse: { fontSize: 11, color: Colors.textMuted, flex: 1 },
 
   summaryBar: {
     flexDirection: 'row',

@@ -446,6 +446,14 @@ export default function InventoryScreen() {
                       item_name: group.item_name,
                       item_code: group.item_code,
                     }) : undefined}
+                    onNavigateWarehouse={group.item_id != null ? (warehouseId, warehouseName) =>
+                      navigation.navigate('ItemLedger', {
+                        item_id: group.item_id!,
+                        item_name: group.item_name,
+                        item_code: group.item_code,
+                        warehouse_id: warehouseId,
+                        warehouse_name: warehouseName,
+                      }) : undefined}
                   />
                 ))}
               </View>
@@ -585,12 +593,14 @@ function GroupedStockCard({
   expanded,
   onToggle,
   onNavigate,
+  onNavigateWarehouse,
 }: {
   group: GroupedStock;
   lowThreshold: number;
   expanded: boolean;
   onToggle: () => void;
   onNavigate?: () => void;
+  onNavigateWarehouse?: (warehouseId: number, warehouseName: string) => void;
 }) {
   const qty = group.totalQty;
   const isOut = qty <= 0;
@@ -645,11 +655,15 @@ function GroupedStockCard({
         const whOut = whQty <= 0;
         const whLow = whQty > 0 && whQty < lowThreshold;
         const whStatus = whOut ? 'Out' : whLow ? 'Low' : null;
+        const canNavWh = !!(wh.warehouse_id && onNavigateWarehouse);
+        const canNav = canNavWh || !!onNavigate;
         return (
           <TouchableOpacity
             key={`${wh.warehouse_name ?? i}`}
             style={styles.whSubRow}
-            onPress={onNavigate}
+            onPress={canNavWh
+              ? () => onNavigateWarehouse!(wh.warehouse_id!, wh.warehouse_name ?? '')
+              : onNavigate}
             activeOpacity={0.65}
           >
             <Feather name="corner-down-right" size={11} color={Colors.textMuted} style={styles.whSubIcon} />
@@ -660,7 +674,7 @@ function GroupedStockCard({
                 <Text style={styles.statusPillText}>{whStatus}</Text>
               </View>
             )}
-            {onNavigate && <Feather name="chevron-right" size={12} color={Colors.textMuted} />}
+            {canNav && <Feather name="chevron-right" size={12} color={Colors.textMuted} />}
           </TouchableOpacity>
         );
       })}
