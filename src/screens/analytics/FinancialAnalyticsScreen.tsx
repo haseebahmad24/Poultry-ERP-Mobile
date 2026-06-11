@@ -543,9 +543,13 @@ const AGING_DOT_R = 3;
 function AgingHistoryPolylines({
   visible,
   maxVal,
+  selectedIdx,
+  onSelectIdx,
 }: {
   visible: AgingHistoryEntry[];
   maxVal: number;
+  selectedIdx: number | null;
+  onSelectIdx: (idx: number | null) => void;
 }) {
   const [chartW, setChartW] = React.useState(0);
   if (visible.length < 2) return null;
@@ -585,23 +589,32 @@ function AgingHistoryPolylines({
       );
     });
 
+  // Render tappable dots with expanded hit slop for easy tapping
+  const HIT = { top: 12, bottom: 12, left: 10, right: 10 };
   const renderDots = (pts: { x: number; y: number }[], color: string, key: string) =>
-    pts.map((pt, i) => (
-      <View
-        key={`${key}-dot-${i}`}
-        style={{
-          position: 'absolute',
-          width: AGING_DOT_R * 2,
-          height: AGING_DOT_R * 2,
-          borderRadius: AGING_DOT_R,
-          backgroundColor: color,
-          left: pt.x - AGING_DOT_R,
-          top: pt.y - AGING_DOT_R,
-          borderWidth: 1.5,
-          borderColor: Colors.surface,
-        }}
-      />
-    ));
+    pts.map((pt, i) => {
+      const isSelected = selectedIdx === i;
+      const r = isSelected ? AGING_DOT_R + 2 : AGING_DOT_R;
+      return (
+        <TouchableOpacity
+          key={`${key}-dot-${i}`}
+          hitSlop={HIT}
+          activeOpacity={0.7}
+          onPress={() => onSelectIdx(selectedIdx === i ? null : i)}
+          style={{
+            position: 'absolute',
+            width: r * 2,
+            height: r * 2,
+            borderRadius: r,
+            backgroundColor: color,
+            left: pt.x - r,
+            top: pt.y - r,
+            borderWidth: isSelected ? 2 : 1.5,
+            borderColor: Colors.surface,
+          }}
+        />
+      );
+    });
 
   return (
     <View
@@ -614,6 +627,18 @@ function AgingHistoryPolylines({
           {renderSegments(arPts, Colors.text, 'ar')}
           {renderDots(apPts, Colors.textSecondary, 'ap')}
           {renderDots(arPts, Colors.text, 'ar')}
+          {selectedIdx != null && apPts[selectedIdx] && (
+            <View
+              style={{
+                position: 'absolute',
+                left: apPts[selectedIdx].x,
+                top: 0,
+                bottom: 0,
+                width: StyleSheet.hairlineWidth,
+                backgroundColor: Colors.border,
+              }}
+            />
+          )}
         </>
       )}
     </View>
@@ -621,10 +646,12 @@ function AgingHistoryPolylines({
 }
 
 function AgingHistoryChart({ history }: { history: AgingHistoryEntry[] }) {
+  const [selectedIdx, setSelectedIdx] = React.useState<number | null>(null);
   if (history.length < 2) return null;
 
   const visible = history.slice(-10);
   const maxVal = Math.max(...visible.flatMap((e) => [e.apTotal, e.arTotal]), 1);
+  const snap = selectedIdx != null ? visible[selectedIdx] : null;
 
   return (
     <View style={historyStyles.card}>
@@ -638,14 +665,51 @@ function AgingHistoryChart({ history }: { history: AgingHistoryEntry[] }) {
           <View style={[historyStyles.dot, { backgroundColor: Colors.text }]} />
           <Text style={historyStyles.legendLabel}>AR</Text>
         </View>
-        <Text style={historyStyles.legendMeta}>{history.length} days recorded</Text>
+        <Text style={historyStyles.legendMeta}>
+          {snap ? snap.date.slice(5) : `${history.length} days · tap dot`}
+        </Text>
       </View>
-      <AgingHistoryPolylines visible={visible} maxVal={maxVal} />
+      <AgingHistoryPolylines
+        visible={visible}
+        maxVal={maxVal}
+        selectedIdx={selectedIdx}
+        onSelectIdx={setSelectedIdx}
+      />
       <View style={historyStyles.dateRow}>
         <Text style={historyStyles.dateLabel}>{visible[0]?.date.slice(5) ?? ''}</Text>
         <Text style={historyStyles.dateLabel}>{visible[visible.length - 1]?.date.slice(5) ?? ''}</Text>
       </View>
-      {history.some((e) => e.apOver90 > 0 || e.arOver90 > 0) && (
+      {snap ? (
+        <View style={historyStyles.snapRow}>
+          <View style={historyStyles.snapItem}>
+            <Text style={historyStyles.snapLabel}>AP</Text>
+            <Text style={historyStyles.snapVal}>{fmtCompact(snap.apTotal)}</Text>
+          </View>
+          <View style={historyStyles.snapDivider} />
+          <View style={historyStyles.snapItem}>
+            <Text style={historyStyles.snapLabel}>AR</Text>
+            <Text style={historyStyles.snapVal}>{fmtCompact(snap.arTotal)}</Text>
+          </View>
+          <View style={historyStyles.snapDivider} />
+          <View style={historyStyles.snapItem}>
+            <Text style={historyStyles.snapLabel}>NWC</Text>
+            <Text style={[historyStyles.snapVal, snap.arTotal < snap.apTotal && historyStyles.snapValNeg]}>
+              {snap.arTotal - snap.apTotal >= 0 ? '+' : '−'}{fmtCompact(Math.abs(snap.arTotal - snap.apTotal))}
+            </Text>
+          </View>
+          {(snap.apOver90 > 0 || snap.arOver90 > 0) && (
+            <>
+              <View style={historyStyles.snapDivider} />
+              <View style={historyStyles.snapItem}>
+                <Text style={historyStyles.snapLabel}>90d+</Text>
+                <Text style={historyStyles.snapVal}>
+                  AP {fmtCompact(snap.apOver90)} · AR {fmtCompact(snap.arOver90)}
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
+      ) : history.some((e) => e.apOver90 > 0 || e.arOver90 > 0) && (
         <View style={historyStyles.over90Row}>
           <Text style={historyStyles.over90Label}>90d+ AP</Text>
           <Text style={historyStyles.over90Val}>
@@ -703,6 +767,20 @@ const historyStyles = StyleSheet.create({
   },
   over90Label: { fontSize: 10, color: Colors.textMuted, fontWeight: '500', textTransform: 'uppercase' },
   over90Val: { fontSize: 11, fontWeight: '700', color: Colors.text },
+
+  snapRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+    gap: Spacing.xs,
+  },
+  snapItem: { flex: 1, alignItems: 'center', gap: 2 },
+  snapLabel: { fontSize: 10, fontWeight: '700', color: Colors.textMuted, letterSpacing: 0.4 },
+  snapVal: { fontSize: 12, fontWeight: '700', color: Colors.text },
+  snapValNeg: { color: Colors.textSecondary },
+  snapDivider: { width: StyleSheet.hairlineWidth, height: 24, backgroundColor: Colors.border },
 });
 
 // ─── Net Working Capital Trend ───────────────────────────────────────────────
