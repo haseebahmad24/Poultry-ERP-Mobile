@@ -537,19 +537,98 @@ function fmtHistoryDate(dateStr: string): string {
   return `${HISTORY_MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
 }
 
+const AGING_CHART_H = 64;
+const AGING_DOT_R = 3;
+
+function AgingHistoryPolylines({
+  visible,
+  maxVal,
+}: {
+  visible: AgingHistoryEntry[];
+  maxVal: number;
+}) {
+  const [chartW, setChartW] = React.useState(0);
+  if (visible.length < 2) return null;
+
+  const getY = (v: number) => AGING_CHART_H * (1 - Math.min(v / maxVal, 1));
+
+  const apPts = chartW > 0
+    ? visible.map((e, i) => ({ x: (i / (visible.length - 1)) * chartW, y: getY(e.apTotal) }))
+    : [];
+  const arPts = chartW > 0
+    ? visible.map((e, i) => ({ x: (i / (visible.length - 1)) * chartW, y: getY(e.arTotal) }))
+    : [];
+
+  const renderSegments = (pts: { x: number; y: number }[], color: string, key: string) =>
+    pts.map((pt, i) => {
+      if (i === 0) return null;
+      const prev = pts[i - 1];
+      const dx = pt.x - prev.x;
+      const dy = pt.y - prev.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+      const cx = (prev.x + pt.x) / 2;
+      const cy = (prev.y + pt.y) / 2;
+      return (
+        <View
+          key={`${key}-seg-${i}`}
+          style={{
+            position: 'absolute',
+            width: len,
+            height: 1.5,
+            backgroundColor: color,
+            left: cx - len / 2,
+            top: cy - 0.75,
+            transform: [{ rotate: `${angle}deg` }],
+          }}
+        />
+      );
+    });
+
+  const renderDots = (pts: { x: number; y: number }[], color: string, key: string) =>
+    pts.map((pt, i) => (
+      <View
+        key={`${key}-dot-${i}`}
+        style={{
+          position: 'absolute',
+          width: AGING_DOT_R * 2,
+          height: AGING_DOT_R * 2,
+          borderRadius: AGING_DOT_R,
+          backgroundColor: color,
+          left: pt.x - AGING_DOT_R,
+          top: pt.y - AGING_DOT_R,
+          borderWidth: 1.5,
+          borderColor: Colors.surface,
+        }}
+      />
+    ));
+
+  return (
+    <View
+      style={historyStyles.polylineContainer}
+      onLayout={(e) => setChartW(e.nativeEvent.layout.width)}
+    >
+      {chartW > 0 && (
+        <>
+          {renderSegments(apPts, Colors.textSecondary, 'ap')}
+          {renderSegments(arPts, Colors.text, 'ar')}
+          {renderDots(apPts, Colors.textSecondary, 'ap')}
+          {renderDots(arPts, Colors.text, 'ar')}
+        </>
+      )}
+    </View>
+  );
+}
+
 function AgingHistoryChart({ history }: { history: AgingHistoryEntry[] }) {
   if (history.length < 2) return null;
 
-  const BAR_HEIGHT = 64;
-  const maxVal = Math.max(...history.flatMap((e) => [e.apTotal, e.arTotal]), 1);
-
-  // Show last 10 entries to keep chart readable
   const visible = history.slice(-10);
+  const maxVal = Math.max(...visible.flatMap((e) => [e.apTotal, e.arTotal]), 1);
 
   return (
     <View style={historyStyles.card}>
       <Text style={historyStyles.title}>OUTSTANDING TREND</Text>
-      {/* Legend */}
       <View style={historyStyles.legend}>
         <View style={historyStyles.legendItem}>
           <View style={[historyStyles.dot, { backgroundColor: Colors.textSecondary }]} />
@@ -561,25 +640,11 @@ function AgingHistoryChart({ history }: { history: AgingHistoryEntry[] }) {
         </View>
         <Text style={historyStyles.legendMeta}>{history.length} days recorded</Text>
       </View>
-      {/* Bars */}
-      <View style={historyStyles.barsRow}>
-        {visible.map((entry) => {
-          const apH = maxVal > 0 ? (entry.apTotal / maxVal) * BAR_HEIGHT : 0;
-          const arH = maxVal > 0 ? (entry.arTotal / maxVal) * BAR_HEIGHT : 0;
-          return (
-            <View key={entry.date} style={historyStyles.dayCol}>
-              <View style={[historyStyles.track, { height: BAR_HEIGHT }]}>
-                <View style={historyStyles.barsBottom}>
-                  <View style={[historyStyles.bar, { height: Math.max(apH, 2), backgroundColor: Colors.textSecondary, marginRight: 1 }]} />
-                  <View style={[historyStyles.bar, { height: Math.max(arH, 2), backgroundColor: Colors.text }]} />
-                </View>
-              </View>
-              <Text style={historyStyles.dateLabel}>{fmtHistoryDate(entry.date)}</Text>
-            </View>
-          );
-        })}
+      <AgingHistoryPolylines visible={visible} maxVal={maxVal} />
+      <View style={historyStyles.dateRow}>
+        <Text style={historyStyles.dateLabel}>{visible[0]?.date.slice(5) ?? ''}</Text>
+        <Text style={historyStyles.dateLabel}>{visible[visible.length - 1]?.date.slice(5) ?? ''}</Text>
       </View>
-      {/* Over-90 row */}
       {history.some((e) => e.apOver90 > 0 || e.arOver90 > 0) && (
         <View style={historyStyles.over90Row}>
           <Text style={historyStyles.over90Label}>90d+ AP</Text>
@@ -619,12 +684,15 @@ const historyStyles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: Radius.full },
   legendLabel: { fontSize: 11, color: Colors.textSecondary },
   legendMeta: { fontSize: 10, color: Colors.textMuted, marginLeft: 'auto' },
-  barsRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
-  dayCol: { flex: 1, alignItems: 'center', gap: 2 },
-  track: { width: '100%', justifyContent: 'flex-end' },
-  barsBottom: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
-  bar: { width: 6, borderRadius: Radius.sm },
-  dateLabel: { fontSize: 10, color: Colors.textMuted, textAlign: 'center' },
+  polylineContainer: {
+    height: AGING_CHART_H,
+    position: 'relative',
+    overflow: 'visible',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  dateRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  dateLabel: { fontSize: 10, color: Colors.textMuted },
   over90Row: {
     flexDirection: 'row',
     alignItems: 'center',
