@@ -1,5 +1,64 @@
 # Mobile App Progress
 
+## Session 57 — 2026-06-11
+
+### Completed This Session
+
+**StockHealth — Warehouse Velocity Filter** (`src/screens/analytics/StockHealthScreen.tsx`)
+- Added `velocityWarehouse` state and `velocityWarehouses` useMemo (unique warehouse names from rawLedger)
+- Velocity useMemo now filters by `velocityWarehouse` in addition to `velocityPeriod`
+- Compact warehouse filter button appears below velocity SectionHeader when 2+ warehouses exist
+- Tapping opens a FlatList bottom-sheet modal with "All warehouses" + per-warehouse rows
+- Active selection shown with dark filled row; selection cleared via "All warehouses" option
+- SectionHeader subtitle updates to show warehouse name + period when filtered
+
+**FinancialAnalytics — NWC Polyline Chart** (`src/screens/analytics/FinancialAnalyticsScreen.tsx`)
+- Replaced bar chart in `NWCTrendCard` with `NWCPolyline` component using `position: 'absolute'` Views
+- Each line segment positioned at its midpoint and rotated using `Math.atan2(dy, dx)` angle transform
+- Subtle 6% opacity fill rectangles in positive (AR > AP) region for visual context
+- Filled dots (dark = positive, muted = negative) at each data point with white border
+- Zero reference hairline across center of chart; uses `onLayout` to get actual container width
+- `NWC_CHART_H = 64` constant, `NWC_DOT_R = 3` for dot radius
+
+**Dashboard — KPI Sparkline on First Day** (`src/screens/dashboard/DashboardScreen.tsx`)
+- Lowered `kpiHistory.length >= 2` threshold to `>= 1` in both render condition and `QuickStatsCard`
+- Single-entry state shows "TODAY'S SNAPSHOT" header and "First day — trend builds over 7 days" subtitle
+- Trend pill hidden when `isSingleDay`; full 7-day trend pill shown when multiple entries exist
+
+**ProcurementAnalytics — Top Vendor/Customer Comparison Modal** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- `computeEntityMonthlyValues(items, nameField, entityName)` helper: last-6-month bucket aggregation for PO/SO totals by vendor/customer name
+- `RankedBarList` gains optional `onPress` prop; rows become `TouchableOpacity` with `bar-chart-2` icon when provided; `rowBorder` extracted as separate style
+- `RankedCompareModal` bottom-sheet: primary entity stats (value/count/avg), "Compare" dashed button that expands FlatList vendor picker, compare entity stats with "tap to clear", dual monthly bars (dark=primary, muted=compare), legend row
+- Main screen: `selectedRankedVendor/Customer` + `compareRanked*` state; monthly value useMemo hooks; both vendor and customer `RankedCompareModal` instances at bottom of render
+
+**StockHealth — "View Full Ledger" from Item Modal** (`src/screens/analytics/StockHealthScreen.tsx`)
+- `ItemDetailModal` gains optional `onViewLedger` prop
+- When item has an `item_id`, main screen wires `onViewLedger` to close modal + cross-stack navigate to `Inventory > ItemLedger`
+- "View Full Ledger" button appears at bottom of modal above padding, with list icon + chevron
+- Button only rendered when `onViewLedger` is provided (undefined for items without item_id)
+
+**FinancialAnalytics — AgingHistory Period Chips** (`src/screens/analytics/FinancialAnalyticsScreen.tsx`)
+- `historyPeriod` state: 7 | 14 | 30, default 14 days
+- Period chips (7d/14d/30d) rendered in "AP vs AR History" SectionHeader action slot
+- `agingHistory.slice(-historyPeriod)` passed to both `AgingHistoryChart` and `NWCTrendCard`
+- `faStyles` StyleSheet added for period chip styles consistent with other screens
+
+**InventoryScreen — Warehouse Filter Chips on Stock Tab** (`src/screens/inventory/InventoryScreen.tsx`)
+- `stockWarehouses` useMemo: unique warehouse names from stockData
+- `stockWarehouse` state (string | null); `filteredStock` adds `matchesWarehouse` predicate
+- Horizontal ScrollView of warehouse chips appears below status filter bar when 2+ warehouses exist
+- "All" chip clears filter; active chip is dark filled; row only shown when on stock tab
+
+### Next Session
+- Consider: JournalEntries — summary stats bar (total debit/credit for current filter, count)
+- Consider: FinancialAnalytics — AgingHistoryChart polyline upgrade (apply same polyline treatment as NWC chart)
+- Consider: ProcurementAnalytics — comparison also available for value distribution chart
+- Consider: Dashboard — show "pending approvals" count from open POs/SOs
+- Consider: Alerts screen — due-soon threshold configurable from the alerts screen directly
+- Consider: Inventory — aggregate view: collapse same-item across warehouses to single row with warehouse breakdown on tap
+
+---
+
 ### UI Polish Log (Monochrome)
 
 **2026-06-10 — Session 56 UI Polish** — Final `'#fff'`/`'#ffffff'` → `Colors.surface` sweep across all remaining files: `DateRangeBar` chipTextActive, `JournalEntriesScreen` chipTextActive, `SettingsScreen` save-button check icon, `PartnersScreen` notes-filter chip icon, `InboxScreen` swipe-delete trash icon. Navigator header defaults (`InventoryNavigator`, `MoreNavigator`, `FinanceNavigator`) updated from dark (`Colors.primary` bg + `'#fff'` tint) to white (`Colors.surface` bg + `Colors.text` tint); `AppNavigator` badge `color` likewise. Zero raw white literals remain in screens, components, or navigation layer.
