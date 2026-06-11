@@ -436,7 +436,7 @@ const taStyles = StyleSheet.create({
   trackWrap: {
     flex: 1,
     height: 6,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.borderLight,
     borderRadius: Radius.full,
     overflow: 'hidden',
   },
