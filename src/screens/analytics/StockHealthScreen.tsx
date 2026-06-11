@@ -642,11 +642,13 @@ function ItemDetailModal({
   allStock,
   companyId,
   onClose,
+  onViewLedger,
 }: {
   item: StockBalance;
   allStock: StockBalance[];
   companyId?: string | number;
   onClose: () => void;
+  onViewLedger?: () => void;
 }) {
   const [ledger, setLedger] = useState<StockLedgerEntry[]>([]);
   const [ledgerLoading, setLedgerLoading] = useState(true);
@@ -787,6 +789,14 @@ function ItemDetailModal({
               </View>
             )}
 
+            {onViewLedger && (
+              <TouchableOpacity style={modalStyles.ledgerBtn} onPress={onViewLedger} activeOpacity={0.7}>
+                <Feather name="list" size={14} color={Colors.text} />
+                <Text style={modalStyles.ledgerBtnText}>View Full Ledger</Text>
+                <Feather name="chevron-right" size={14} color={Colors.textMuted} />
+              </TouchableOpacity>
+            )}
+
             <View style={{ height: 24 }} />
           </ScrollView>
         </View>
@@ -886,6 +896,20 @@ const modalStyles = StyleSheet.create({
   qtyIn: { color: Colors.text },
   qtyOut: { color: Colors.textSecondary },
   ledgerBal: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
+  ledgerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    paddingVertical: Spacing.sm + 4,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  ledgerBtnText: { flex: 1, fontSize: 13, fontWeight: '600', color: Colors.text },
 });
 
 // ─── Threshold Edit Modal ─────────────────────────────────────────────────────
@@ -1348,6 +1372,13 @@ export default function StockHealthScreen() {
           allStock={allStock}
           companyId={companyId ?? undefined}
           onClose={() => setSelectedItem(null)}
+          onViewLedger={selectedItem.item_id != null ? () => {
+            setSelectedItem(null);
+            (navigation as any).navigate('Inventory', {
+              screen: 'ItemLedger',
+              params: { item_id: selectedItem.item_id, item_name: selectedItem.item_name, item_code: selectedItem.item_code },
+            });
+          } : undefined}
         />
       )}
 

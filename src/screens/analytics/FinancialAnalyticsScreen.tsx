@@ -979,6 +979,7 @@ export default function FinancialAnalyticsScreen() {
   const [exporting, setExporting] = useState(false);
   const [prevSnapshot, setPrevSnapshot] = useState<AgingSnapshot | null>(null);
   const [agingHistory, setAgingHistory] = useState<AgingHistoryEntry[]>([]);
+  const [historyPeriod, setHistoryPeriod] = useState<7 | 14 | 30>(14);
 
   const cacheKey = `financial-analytics:${companyId ?? 'all'}`;
 
@@ -1235,14 +1236,36 @@ export default function FinancialAnalyticsScreen() {
         </View>
 
         {/* Aging History Trend */}
-        {agingHistory.length >= 2 && (
-          <>
-            <SectionHeader title="AP vs AR History" meta="daily outstanding · up to 30 days" />
-            <AgingHistoryChart history={agingHistory} />
-            <SectionHeader title="Net Working Capital" meta="AR − AP daily" />
-            <NWCTrendCard history={agingHistory} />
-          </>
-        )}
+        {agingHistory.length >= 2 && (() => {
+          const periodHistory = agingHistory.slice(-historyPeriod);
+          const periodChips = (
+            <View style={faStyles.periodChips}>
+              {([7, 14, 30] as const).map((p) => (
+                <TouchableOpacity
+                  key={p}
+                  style={[faStyles.periodChip, historyPeriod === p && faStyles.periodChipActive]}
+                  onPress={() => setHistoryPeriod(p)}
+                >
+                  <Text style={[faStyles.periodChipText, historyPeriod === p && faStyles.periodChipTextActive]}>
+                    {p}d
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          );
+          return (
+            <>
+              <SectionHeader
+                title="AP vs AR History"
+                meta={`${periodHistory.length} days recorded`}
+                action={periodChips}
+              />
+              <AgingHistoryChart history={periodHistory} />
+              <SectionHeader title="Net Working Capital" meta="AR − AP daily" />
+              <NWCTrendCard history={periodHistory} />
+            </>
+          );
+        })()}
 
         {/* Top Customers */}
         {top5Customers.length > 0 && (
@@ -1328,6 +1351,21 @@ export default function FinancialAnalyticsScreen() {
     </SafeAreaView>
   );
 }
+
+const faStyles = StyleSheet.create({
+  periodChips: { flexDirection: 'row', gap: 4 },
+  periodChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  periodChipActive: { backgroundColor: Colors.text, borderColor: Colors.text },
+  periodChipText: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary },
+  periodChipTextActive: { color: Colors.surface },
+});
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
