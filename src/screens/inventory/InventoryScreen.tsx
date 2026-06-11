@@ -612,7 +612,7 @@ function GroupedStockCard({
             <View style={styles.groupedMeta}>
               {multiWarehouse && (
                 <View style={styles.warehouseBadge}>
-                  <Feather name="layers" size={10} color={Colors.textMuted} />
+                  <Feather name="layers" size={10} color={Colors.textSecondary} />
                   <Text style={styles.warehouseBadgeText}>{group.warehouses.length} warehouses</Text>
                 </View>
               )}
@@ -992,10 +992,10 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: Radius.full,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
     backgroundColor: Colors.background,
   },
-  warehouseBadgeText: { fontSize: 10, fontWeight: '500', color: Colors.textMuted },
+  warehouseBadgeText: { fontSize: 11, fontWeight: '500', color: Colors.textSecondary },
 
   whSubRow: {
     flexDirection: 'row',

@@ -1061,7 +1061,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     backgroundColor: Colors.background,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.borderLight,
+    borderBottomColor: Colors.border,
     gap: 6,
   },
   statsStripCount: { fontSize: 13, fontWeight: '700', color: Colors.text },
