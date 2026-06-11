@@ -358,10 +358,11 @@ function fmtAvg(val: number): string {
 }
 
 /** Ranked bar list (vendors / customers) */
-function RankedBarList({ rows, valueKey, countKey }: {
+function RankedBarList({ rows, valueKey, countKey, onPress }: {
   rows: (VendorRow | CustomerRow)[];
   valueKey: 'total';
   countKey: 'poCount' | 'soCount';
+  onPress?: (row: VendorRow | CustomerRow) => void;
 }) {
   if (rows.length === 0) {
     return (
@@ -375,8 +376,9 @@ function RankedBarList({ rows, valueKey, countKey }: {
     <View style={rankedStyles.card}>
       {rows.map((row, i) => {
         const pct = row[valueKey] / maxVal;
-        return (
-          <View key={row.name} style={rankedStyles.row}>
+        const isLast = i === rows.length - 1;
+        const inner = (
+          <>
             <View style={rankedStyles.rankBadge}>
               <Text style={rankedStyles.rankText}>{i + 1}</Text>
             </View>
@@ -393,6 +395,21 @@ function RankedBarList({ rows, valueKey, countKey }: {
                 <Text style={rankedStyles.avg}>{fmtAvg(row.avgValue)}</Text>
               )}
             </View>
+            {onPress && <Feather name="bar-chart-2" size={14} color={Colors.textMuted} />}
+          </>
+        );
+        return onPress ? (
+          <TouchableOpacity
+            key={row.name}
+            style={[rankedStyles.row, !isLast && rankedStyles.rowBorder]}
+            onPress={() => onPress(row)}
+            activeOpacity={0.7}
+          >
+            {inner}
+          </TouchableOpacity>
+        ) : (
+          <View key={row.name} style={[rankedStyles.row, !isLast && rankedStyles.rowBorder]}>
+            {inner}
           </View>
         );
       })}
@@ -418,9 +435,11 @@ const rankedStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  rowBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
-    gap: Spacing.sm,
   },
   rankBadge: {
     width: 24,
@@ -447,6 +466,235 @@ const rankedStyles = StyleSheet.create({
   amount: { fontSize: 13, fontWeight: '700', color: Colors.text },
   count: { fontSize: 10, color: Colors.textMuted, marginTop: 2 },
   avg: { fontSize: 10, color: Colors.textSecondary, marginTop: 1 },
+});
+
+// ─── Ranked compare modal ─────────────────────────────────────────────────────
+
+interface RankedCompareModalProps {
+  primary: VendorRow | CustomerRow;
+  allRows: (VendorRow | CustomerRow)[];
+  countKey: 'poCount' | 'soCount';
+  monthlyValues: { label: string; value: number }[];
+  compareRow: VendorRow | CustomerRow | null;
+  compareMonthlyValues: { label: string; value: number }[];
+  onSelectCompare: (row: VendorRow | CustomerRow) => void;
+  onClearCompare: () => void;
+  onClose: () => void;
+}
+
+function RankedCompareModal({
+  primary, allRows, countKey, monthlyValues, compareRow,
+  compareMonthlyValues, onSelectCompare, onClearCompare, onClose,
+}: RankedCompareModalProps) {
+  const [showPicker, setShowPicker] = useState(false);
+  const orderLabel = countKey === 'poCount' ? 'POs' : 'SOs';
+
+  const maxMonthly = Math.max(
+    ...monthlyValues.map((m) => m.value),
+    ...compareMonthlyValues.map((m) => m.value),
+    1,
+  );
+
+  const allLabels = monthlyValues.map((m) => m.label);
+  const compareMap = new Map(compareMonthlyValues.map((m) => [m.label, m.value]));
+
+  const countField: 'poCount' | 'soCount' = countKey;
+  const primaryCount = 'poCount' in primary ? (primary as VendorRow).poCount : (primary as CustomerRow).soCount;
+  const compareCount = compareRow
+    ? ('poCount' in compareRow ? (compareRow as VendorRow).poCount : (compareRow as CustomerRow).soCount)
+    : 0;
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={rcmStyles.overlay} activeOpacity={1} onPress={onClose}>
+        <View style={rcmStyles.sheet} onStartShouldSetResponder={() => true}>
+          <View style={rcmStyles.handle} />
+
+          {/* Header */}
+          <View style={rcmStyles.headerRow}>
+            <View style={rcmStyles.headerInfo}>
+              <Text style={rcmStyles.headerTitle} numberOfLines={1}>
+                {compareRow ? `${primary.name} vs ${compareRow.name}` : primary.name}
+              </Text>
+              <Text style={rcmStyles.headerSub}>
+                {compareRow ? 'Value comparison · last 6 months' : `${orderLabel} · tap compare for side-by-side`}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={onClose} style={rcmStyles.closeBtn}>
+              <Feather name="x" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Stats tiles */}
+          <View style={rcmStyles.tilesRow}>
+            {/* Primary */}
+            <View style={rcmStyles.tileGroup}>
+              <Text style={rcmStyles.tileGroupLabel} numberOfLines={1}>{primary.name}</Text>
+              <Text style={rcmStyles.tileValue}>{formatCurrency(primary.total)}</Text>
+              <Text style={rcmStyles.tileSub}>{primaryCount} {orderLabel}</Text>
+              {primary.avgValue > 0 && (
+                <Text style={rcmStyles.tileSub}>{fmtAvg(primary.avgValue)}</Text>
+              )}
+            </View>
+
+            {compareRow ? (
+              <>
+                {/* Divider with vs */}
+                <View style={rcmStyles.vsDivider}>
+                  <Text style={rcmStyles.vsText}>vs</Text>
+                </View>
+                {/* Compare */}
+                <TouchableOpacity style={rcmStyles.tileGroup} onPress={onClearCompare} activeOpacity={0.7}>
+                  <Text style={rcmStyles.tileGroupLabel} numberOfLines={1}>{compareRow.name}</Text>
+                  <Text style={rcmStyles.tileValue}>{formatCurrency(compareRow.total)}</Text>
+                  <Text style={rcmStyles.tileSub}>{compareCount} {orderLabel}</Text>
+                  {compareRow.avgValue > 0 && (
+                    <Text style={rcmStyles.tileSub}>{fmtAvg(compareRow.avgValue)}</Text>
+                  )}
+                  <Text style={rcmStyles.clearHint}>tap to clear</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity
+                style={rcmStyles.compareBtn}
+                onPress={() => setShowPicker(true)}
+                activeOpacity={0.7}
+              >
+                <Feather name="git-merge" size={14} color={Colors.textMuted} />
+                <Text style={rcmStyles.compareBtnLabel}>Compare</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Monthly bars */}
+          <View style={rcmStyles.chartArea}>
+            {allLabels.map((label) => {
+              const priVal = monthlyValues.find((m) => m.label === label)?.value ?? 0;
+              const cmpVal = compareMap.get(label) ?? 0;
+              const priH = Math.max(3, (priVal / maxMonthly) * 48);
+              const cmpH = Math.max(3, (cmpVal / maxMonthly) * 48);
+              return (
+                <View key={label} style={rcmStyles.monthCol}>
+                  <View style={rcmStyles.barsGroup}>
+                    <View style={[rcmStyles.barPrimary, { height: priH }]} />
+                    {compareRow && <View style={[rcmStyles.barCompare, { height: cmpH }]} />}
+                  </View>
+                  <Text style={rcmStyles.monthLabel}>{label}</Text>
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Legend */}
+          {compareRow && (
+            <View style={rcmStyles.legendRow}>
+              <View style={rcmStyles.legendItem}>
+                <View style={[rcmStyles.legendDot, rcmStyles.legendDotPrimary]} />
+                <Text style={rcmStyles.legendLabel} numberOfLines={1}>{primary.name}</Text>
+              </View>
+              <View style={rcmStyles.legendItem}>
+                <View style={[rcmStyles.legendDot, rcmStyles.legendDotCompare]} />
+                <Text style={rcmStyles.legendLabel} numberOfLines={1}>{compareRow.name}</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Picker for compare selection */}
+          {showPicker && !compareRow && (
+            <View style={rcmStyles.pickerArea}>
+              <Text style={rcmStyles.pickerTitle}>Compare with:</Text>
+              <FlatList
+                data={allRows.filter((r) => r.name !== primary.name)}
+                keyExtractor={(r) => r.name}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={rcmStyles.pickerRow}
+                    onPress={() => { onSelectCompare(item); setShowPicker(false); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={rcmStyles.pickerRowLabel} numberOfLines={1}>{item.name}</Text>
+                    <Text style={rcmStyles.pickerRowValue}>{formatCurrency(item.total)}</Text>
+                  </TouchableOpacity>
+                )}
+                style={rcmStyles.pickerList}
+                showsVerticalScrollIndicator={false}
+              />
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
+const rcmStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xxl,
+    paddingHorizontal: Spacing.md,
+  },
+  handle: {
+    width: 36, height: 4, borderRadius: Radius.full,
+    backgroundColor: Colors.border, alignSelf: 'center', marginBottom: Spacing.md,
+  },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, marginBottom: Spacing.md },
+  headerInfo: { flex: 1 },
+  headerTitle: { fontSize: 15, fontWeight: '700', color: Colors.text },
+  headerSub: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  closeBtn: { padding: 4 },
+  tilesRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.borderLight,
+    paddingVertical: Spacing.md,
+  },
+  tileGroup: { flex: 1, gap: 3 },
+  tileGroupLabel: { fontSize: 11, fontWeight: '600', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
+  tileValue: { fontSize: 16, fontWeight: '800', color: Colors.text },
+  tileSub: { fontSize: 10, color: Colors.textMuted },
+  clearHint: { fontSize: 9, color: Colors.textMuted, marginTop: 2, fontStyle: 'italic' },
+  vsDivider: {
+    width: 28, alignItems: 'center', justifyContent: 'center',
+    borderLeftWidth: StyleSheet.hairlineWidth, borderRightWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.borderLight,
+  },
+  vsText: { fontSize: 10, color: Colors.textMuted, fontWeight: '700' },
+  compareBtn: {
+    flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: Colors.border,
+    borderRadius: Radius.md, borderStyle: 'dashed',
+  },
+  compareBtnLabel: { fontSize: 11, color: Colors.textMuted, fontWeight: '600' },
+  chartArea: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginBottom: Spacing.sm },
+  monthCol: { flex: 1, alignItems: 'center', gap: 4 },
+  barsGroup: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
+  barPrimary: { width: 10, backgroundColor: Colors.text, borderRadius: Radius.sm },
+  barCompare: { width: 10, backgroundColor: Colors.textSecondary, borderRadius: Radius.sm },
+  monthLabel: { fontSize: 9, color: Colors.textMuted },
+  legendRow: { flexDirection: 'row', gap: Spacing.md, marginTop: 2, marginBottom: Spacing.sm },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot: { width: 8, height: 8, borderRadius: Radius.full },
+  legendDotPrimary: { backgroundColor: Colors.text },
+  legendDotCompare: { backgroundColor: Colors.textSecondary },
+  legendLabel: { fontSize: 11, color: Colors.textMuted, maxWidth: 100 },
+  pickerArea: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: Colors.border, paddingTop: Spacing.md, maxHeight: 160 },
+  pickerTitle: { fontSize: 11, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: Spacing.sm },
+  pickerList: { flexGrow: 0 },
+  pickerRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: Spacing.sm + 2,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight,
+  },
+  pickerRowLabel: { flex: 1, fontSize: 13, color: Colors.text, fontWeight: '500' },
+  pickerRowValue: { fontSize: 12, color: Colors.textSecondary },
 });
 
 /** Status chips grid */
@@ -656,6 +904,34 @@ function computeVendorMonthlyTrend(pos: PurchaseOrder[], vendorName: string): Mo
     avgDays: b.days.length > 0 ? Math.round(b.days.reduce((s, d) => s + d, 0) / b.days.length) : 0,
     poCount: b.days.length,
     isCurrent: b.isCurrent,
+  }));
+}
+
+function computeEntityMonthlyValues(
+  items: { vendor?: string; customer?: string; dt?: string; date?: string; total?: number }[],
+  nameField: 'vendor' | 'customer',
+  entityName: string,
+): { label: string; value: number }[] {
+  const now = new Date();
+  const buckets = new Map<string, number>();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    buckets.set(key, 0);
+  }
+  for (const item of items) {
+    if ((item[nameField] ?? '') !== entityName) continue;
+    const rawDate = item.dt ?? item.date;
+    if (!rawDate) continue;
+    const d = new Date(rawDate);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (buckets.has(key)) {
+      buckets.set(key, (buckets.get(key) ?? 0) + (item.total ?? 0));
+    }
+  }
+  return Array.from(buckets.entries()).map(([key, value]) => ({
+    label: key.slice(5),
+    value,
   }));
 }
 
@@ -1470,6 +1746,36 @@ export default function ProcurementAnalyticsScreen() {
   const [compareLeadTimeVendor, setCompareLeadTimeVendor] = useState<string | null>(null);
   const [compareLeadTrend, setCompareLeadTrend] = useState<MonthLeadTime[]>([]);
 
+  // Ranked list compare state
+  const [selectedRankedVendor, setSelectedRankedVendor] = useState<VendorRow | null>(null);
+  const [compareRankedVendor, setCompareRankedVendor] = useState<VendorRow | null>(null);
+  const [selectedRankedCustomer, setSelectedRankedCustomer] = useState<CustomerRow | null>(null);
+  const [compareRankedCustomer, setCompareRankedCustomer] = useState<CustomerRow | null>(null);
+
+  const rankedVendorMonthly = useMemo(() =>
+    selectedRankedVendor && rawData
+      ? computeEntityMonthlyValues(rawData.pos, 'vendor', selectedRankedVendor.name)
+      : [],
+  [selectedRankedVendor, rawData]);
+
+  const compareVendorMonthly = useMemo(() =>
+    compareRankedVendor && rawData
+      ? computeEntityMonthlyValues(rawData.pos, 'vendor', compareRankedVendor.name)
+      : [],
+  [compareRankedVendor, rawData]);
+
+  const rankedCustomerMonthly = useMemo(() =>
+    selectedRankedCustomer && rawData
+      ? computeEntityMonthlyValues(rawData.sos, 'customer', selectedRankedCustomer.name)
+      : [],
+  [selectedRankedCustomer, rawData]);
+
+  const compareCustomerMonthly = useMemo(() =>
+    compareRankedCustomer && rawData
+      ? computeEntityMonthlyValues(rawData.sos, 'customer', compareRankedCustomer.name)
+      : [],
+  [compareRankedCustomer, rawData]);
+
   const cacheKey = `procurement-analytics:${companyId ?? 'all'}`;
 
   const isDateActive = !!(dateRange.from || dateRange.to);
@@ -1680,12 +1986,28 @@ export default function ProcurementAnalyticsScreen() {
           <MonthlyTrendChart months={analytics.months} mode={chartMode} />
 
           {/* Top vendors */}
-          <SectionHeader title="Top Vendors" subtitle="By purchase order value" />
-          <RankedBarList rows={analytics.topVendors} valueKey="total" countKey="poCount" />
+          <SectionHeader title="Top Vendors" subtitle="By purchase order value · tap to compare" />
+          <RankedBarList
+            rows={analytics.topVendors}
+            valueKey="total"
+            countKey="poCount"
+            onPress={(row) => {
+              setSelectedRankedVendor(row as VendorRow);
+              setCompareRankedVendor(null);
+            }}
+          />
 
           {/* Top customers */}
-          <SectionHeader title="Top Customers" subtitle="By sales order value" />
-          <RankedBarList rows={analytics.topCustomers} valueKey="total" countKey="soCount" />
+          <SectionHeader title="Top Customers" subtitle="By sales order value · tap to compare" />
+          <RankedBarList
+            rows={analytics.topCustomers}
+            valueKey="total"
+            countKey="soCount"
+            onPress={(row) => {
+              setSelectedRankedCustomer(row as CustomerRow);
+              setCompareRankedCustomer(null);
+            }}
+          />
 
           {/* Status breakdown */}
           <SectionHeader title="Purchase Order Status" />
@@ -1724,6 +2046,34 @@ export default function ProcurementAnalyticsScreen() {
           onSelectCompare={handleCompareVendorSelect}
           onClearCompare={() => { setCompareLeadTimeVendor(null); setCompareLeadTrend([]); }}
           onClose={() => { setSelectedLeadTimeVendor(null); setCompareLeadTimeVendor(null); setCompareLeadTrend([]); }}
+        />
+      )}
+
+      {selectedRankedVendor != null && (
+        <RankedCompareModal
+          primary={selectedRankedVendor}
+          allRows={analytics?.topVendors ?? []}
+          countKey="poCount"
+          monthlyValues={rankedVendorMonthly}
+          compareRow={compareRankedVendor}
+          compareMonthlyValues={compareVendorMonthly}
+          onSelectCompare={(row) => setCompareRankedVendor(row as VendorRow)}
+          onClearCompare={() => setCompareRankedVendor(null)}
+          onClose={() => { setSelectedRankedVendor(null); setCompareRankedVendor(null); }}
+        />
+      )}
+
+      {selectedRankedCustomer != null && (
+        <RankedCompareModal
+          primary={selectedRankedCustomer}
+          allRows={analytics?.topCustomers ?? []}
+          countKey="soCount"
+          monthlyValues={rankedCustomerMonthly}
+          compareRow={compareRankedCustomer}
+          compareMonthlyValues={compareCustomerMonthly}
+          onSelectCompare={(row) => setCompareRankedCustomer(row as CustomerRow)}
+          onClearCompare={() => setCompareRankedCustomer(null)}
+          onClose={() => { setSelectedRankedCustomer(null); setCompareRankedCustomer(null); }}
         />
       )}
     </SafeAreaView>
