@@ -39,6 +39,15 @@ import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 type Tab = 'stock' | 'ledger' | 'warehouses';
 type StockFilter = 'all' | 'low' | 'out';
 
+interface GroupedStock {
+  item_id?: number;
+  item_name: string;
+  item_code?: string;
+  totalQty: number;
+  unit?: string;
+  warehouses: StockBalance[];
+}
+
 export default function InventoryScreen() {
   const { companyId, selectedCompany } = useCompany();
   const { setLowStock } = useOverdue();
@@ -55,6 +64,8 @@ export default function InventoryScreen() {
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
   const [stockSort, setStockSort] = useState<'name' | 'qty-asc' | 'qty-desc'>('name');
   const [stockWarehouse, setStockWarehouse] = useState<string | null>(null);
+  const [stockGrouped, setStockGrouped] = useState(false);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [lowStockThreshold, setLowStockThreshold] = useState(100);
 
   useEffect(() => {
@@ -147,6 +158,41 @@ export default function InventoryScreen() {
       return (a.item_name ?? '').localeCompare(b.item_name ?? '');
     });
 
+  const groupedStock = useMemo<GroupedStock[]>(() => {
+    const map = new Map<string, GroupedStock>();
+    for (const s of filteredStock) {
+      const existing = map.get(s.item_name);
+      if (existing) {
+        existing.totalQty += s.qty ?? 0;
+        existing.warehouses.push(s);
+      } else {
+        map.set(s.item_name, {
+          item_id: s.item_id,
+          item_name: s.item_name,
+          item_code: s.item_code,
+          totalQty: s.qty ?? 0,
+          unit: s.unit,
+          warehouses: [s],
+        });
+      }
+    }
+    const items = Array.from(map.values());
+    return items.sort((a, b) => {
+      if (stockSort === 'qty-asc') return a.totalQty - b.totalQty;
+      if (stockSort === 'qty-desc') return b.totalQty - a.totalQty;
+      return a.item_name.localeCompare(b.item_name);
+    });
+  }, [filteredStock, stockSort]);
+
+  const toggleItemExpand = (name: string) => {
+    setExpandedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
   const outOfStockCount = stockData.filter((s) => (s.qty ?? 0) <= 0).length;
   const lowStockCount = stockData.filter((s) => { const q = s.qty ?? 0; return q > 0 && q < lowStockThreshold; }).length;
 
@@ -214,6 +260,12 @@ export default function InventoryScreen() {
         {!loading && <Text style={styles.headerSub}>{tabMeta[activeTab]}</Text>}
         {!loading && activeTab === 'stock' && filteredStock.length > 0 && (
           <>
+            <TouchableOpacity
+              style={[styles.exportBtn, stockGrouped && styles.exportBtnActive]}
+              onPress={() => setStockGrouped((g) => !g)}
+            >
+              <Feather name={stockGrouped ? 'layers' : 'list'} size={13} color={stockGrouped ? Colors.surface : Colors.text} />
+            </TouchableOpacity>
             <TouchableOpacity style={styles.exportBtn} onPress={cycleStockSort}>
               <Feather
                 name={stockSort === 'qty-desc' ? 'arrow-down' : stockSort === 'qty-asc' ? 'arrow-up' : 'menu'}
@@ -368,7 +420,11 @@ export default function InventoryScreen() {
           <>
             <SectionHeader
               title="Current Stock"
-              meta={`${filteredStock.length} records${stockFilter !== 'all' ? ' (filtered)' : ''}`}
+              meta={
+                stockGrouped
+                  ? `${groupedStock.length} items · ${filteredStock.length} rows${stockFilter !== 'all' ? ' (filtered)' : ''}`
+                  : `${filteredStock.length} records${stockFilter !== 'all' ? ' (filtered)' : ''}`
+              }
             />
             {filteredStock.length === 0 ? (
               <EmptyState message={
@@ -376,6 +432,23 @@ export default function InventoryScreen() {
                 stockFilter === 'low' ? 'No low-stock items' :
                 'No stock balances found'
               } />
+            ) : stockGrouped ? (
+              <View style={styles.cardList}>
+                {groupedStock.map((group) => (
+                  <GroupedStockCard
+                    key={group.item_name}
+                    group={group}
+                    lowThreshold={lowStockThreshold}
+                    expanded={expandedItems.has(group.item_name)}
+                    onToggle={() => toggleItemExpand(group.item_name)}
+                    onNavigate={group.item_id != null ? () => navigation.navigate('ItemLedger', {
+                      item_id: group.item_id!,
+                      item_name: group.item_name,
+                      item_code: group.item_code,
+                    }) : undefined}
+                  />
+                ))}
+              </View>
             ) : (
               <View style={styles.cardList}>
                 {filteredStock.map((item, idx) => (
@@ -506,6 +579,95 @@ function StockCard({
   return <View style={styles.card}>{inner}</View>;
 }
 
+function GroupedStockCard({
+  group,
+  lowThreshold,
+  expanded,
+  onToggle,
+  onNavigate,
+}: {
+  group: GroupedStock;
+  lowThreshold: number;
+  expanded: boolean;
+  onToggle: () => void;
+  onNavigate?: () => void;
+}) {
+  const qty = group.totalQty;
+  const isOut = qty <= 0;
+  const isLow = qty > 0 && qty < lowThreshold;
+  const statusLabel = isOut ? 'Out' : isLow ? 'Low' : null;
+  const multiWarehouse = group.warehouses.length > 1;
+
+  return (
+    <View>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={multiWarehouse ? onToggle : onNavigate}
+        activeOpacity={0.75}
+      >
+        <View style={styles.cardRow}>
+          <View style={styles.cardLeft}>
+            <Text style={styles.cardTitle} numberOfLines={1}>{group.item_name}</Text>
+            {group.item_code && <Text style={styles.cardCode}>{group.item_code}</Text>}
+            <View style={styles.groupedMeta}>
+              {multiWarehouse && (
+                <View style={styles.warehouseBadge}>
+                  <Feather name="layers" size={10} color={Colors.textMuted} />
+                  <Text style={styles.warehouseBadgeText}>{group.warehouses.length} warehouses</Text>
+                </View>
+              )}
+              {!multiWarehouse && group.warehouses[0]?.warehouse_name && (
+                <Text style={styles.cardSub}>{group.warehouses[0].warehouse_name}</Text>
+              )}
+            </View>
+          </View>
+          <View style={styles.cardRight}>
+            <Text style={styles.qtyValue}>{qty.toLocaleString()}</Text>
+            <View style={styles.qtyMeta}>
+              {group.unit && <Text style={styles.qtyUnit}>{group.unit}</Text>}
+              {statusLabel && (
+                <View style={styles.statusPill}>
+                  <Text style={styles.statusPillText}>{statusLabel}</Text>
+                </View>
+              )}
+            </View>
+            <Feather
+              name={multiWarehouse ? (expanded ? 'chevron-up' : 'chevron-down') : 'chevron-right'}
+              size={14}
+              color={Colors.textMuted}
+              style={{ marginTop: 4 }}
+            />
+          </View>
+        </View>
+      </TouchableOpacity>
+      {expanded && multiWarehouse && group.warehouses.map((wh, i) => {
+        const whQty = wh.qty ?? 0;
+        const whOut = whQty <= 0;
+        const whLow = whQty > 0 && whQty < lowThreshold;
+        const whStatus = whOut ? 'Out' : whLow ? 'Low' : null;
+        return (
+          <TouchableOpacity
+            key={`${wh.warehouse_name ?? i}`}
+            style={styles.whSubRow}
+            onPress={onNavigate}
+            activeOpacity={0.65}
+          >
+            <Feather name="corner-down-right" size={11} color={Colors.textMuted} style={styles.whSubIcon} />
+            <Text style={styles.whSubName} numberOfLines={1}>{wh.warehouse_name ?? '—'}</Text>
+            <Text style={styles.whSubQty}>{whQty.toLocaleString()}</Text>
+            {whStatus && (
+              <View style={styles.statusPill}>
+                <Text style={styles.statusPillText}>{whStatus}</Text>
+              </View>
+            )}
+            {onNavigate && <Feather name="chevron-right" size={12} color={Colors.textMuted} />}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 function LedgerCard({ entry }: { entry: StockLedgerEntry }) {
   const vtype = entry.voucher_type ?? '';
   const qtyIn = entry.qty_in ?? 0;
@@ -628,6 +790,10 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
     backgroundColor: Colors.background,
+  },
+  exportBtnActive: {
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
   },
   exportBtnText: { fontSize: 12, fontWeight: '600', color: Colors.text },
 
@@ -816,6 +982,35 @@ const styles = StyleSheet.create({
   ledgerSummaryLabel: { fontSize: 10, fontWeight: '600', color: Colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
   ledgerSummaryValue: { fontSize: 15, fontWeight: '700', color: Colors.text, marginTop: 2 },
   ledgerSummaryNeg: { color: Colors.textSecondary },
+
+  groupedMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  warehouseBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.background,
+  },
+  warehouseBadgeText: { fontSize: 10, fontWeight: '500', color: Colors.textMuted },
+
+  whSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingLeft: Spacing.lg + Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+    backgroundColor: Colors.background,
+  },
+  whSubIcon: { marginRight: 2 },
+  whSubName: { flex: 1, fontSize: 13, fontWeight: '500', color: Colors.textSecondary },
+  whSubQty: { fontSize: 14, fontWeight: '700', color: Colors.text },
 
   emptyState: {
     marginHorizontal: Spacing.md,
