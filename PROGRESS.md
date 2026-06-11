@@ -1,5 +1,51 @@
 # Mobile App Progress
 
+## Session 58 — 2026-06-11
+
+### Completed This Session
+
+**FinancialAnalytics — AgingHistoryChart Dual Polyline Upgrade** (`src/screens/analytics/FinancialAnalyticsScreen.tsx`)
+- Replaced grouped bar chart in `AgingHistoryChart` with dual connected polylines: AP = `Colors.textSecondary`, AR = `Colors.text`
+- New `AgingHistoryPolylines` component using same `position:absolute` + `rotate(θdeg)` segment technique as `NWCPolyline`
+- `AGING_CHART_H = 64`, `AGING_DOT_R = 3` constants; `getY(v) = CHART_H * (1 - v/maxVal)` coordinate system
+- Segments via `renderSegments(pts, color, key)` — each segment centred at midpoint, width=length, rotated by atan2 angle
+- Filled dots at each data point with 1.5px white border ring for both AP and AR series
+- `polylineContainer` replaces bar styles; `dateRow` shows first/last date below chart
+- Removed bar-specific styles: `barsRow`, `dayCol`, `track`, `barsBottom`, `bar`
+- Legend and Over-90 row unchanged
+
+**Inventory — Grouped/Aggregate Stock View** (`src/screens/inventory/InventoryScreen.tsx`)
+- New `GroupedStock` interface: `{ item_id, item_name, item_code, totalQty, unit, warehouses: StockBalance[] }`
+- `stockGrouped` boolean state + `expandedItems: Set<string>` state for accordion expansion
+- `groupedStock` useMemo: groups `filteredStock` by `item_name`, sums qty, collects per-warehouse rows, applies same sort as flat view
+- `toggleItemExpand(name)` helper: toggles item name in `expandedItems` Set
+- Header toggle button: `layers`/`list` Feather icon, dark fill when active (`exportBtnActive` style)
+- `GroupedStockCard` component:
+  - Shows item name + code, total qty, unit, Out/Low status based on total qty
+  - When single warehouse: shows warehouse name as subtitle + chevron-right for ItemLedger nav
+  - When multi-warehouse: shows "N warehouses" badge with `layers` icon + chevron-down/up accordion chevron
+  - On accordion expand: per-warehouse sub-rows with `corner-down-right` icon, warehouse name, individual qty, Out/Low pill, chevron-right
+  - Sub-rows navigate to `ItemLedger` for the parent item
+- SectionHeader meta updated: shows `N items · M rows (filtered)` in grouped mode
+- New styles: `exportBtnActive`, `groupedMeta`, `warehouseBadge`, `warehouseBadgeText`, `whSubRow`, `whSubIcon`, `whSubName`, `whSubQty`
+
+**JournalEntries — Sticky Filter Stats Strip** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- `filteredDebit` + `filteredCredit` computed inline from `filtered` array (reduce on `total_debit` / `total_credit`)
+- Compact `statsStrip` view inserted between type-chips ScrollView and main content ScrollView (always-visible while scrolling)
+- Shows: `N vouchers · Dr X · Cr X` with hairline dividers between segments
+- Balance-check icon at right: `check-circle` (muted) when Dr ≈ Cr (within 0.01); `alert-circle` (secondary) when imbalanced
+- Only rendered when `filtered.length > 0`; hidden during loading
+- New styles: `statsStrip`, `statsStripCount`, `statsStripLabel`, `statsStripDivider`, `statsStripKey`, `statsStripVal`, `statsStripCheck`
+
+### Next Session
+- Consider: Dashboard — Pending Approvals card: count of open POs/SOs needing action, shown prominently at top of dashboard when non-zero
+- Consider: ProcurementAnalytics — value distribution comparison (similar to vendor lead-time compare, for the top-items chart)
+- Consider: FinancialAnalytics — AgingHistoryChart interactive: tap a data point dot to see that day's snapshot values
+- Consider: Inventory — ItemLedger cross-navigation: from any item in grouped view, shortcut to ItemLedger directly
+- Consider: JournalEntries — per-type running balance: when filtering by account, show running Dr/Cr balance per row
+
+---
+
 ## Session 57 — 2026-06-11
 
 ### Completed This Session
