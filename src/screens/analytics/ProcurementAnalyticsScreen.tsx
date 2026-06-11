@@ -660,7 +660,7 @@ const rcmStyles = StyleSheet.create({
   tileGroupLabel: { fontSize: 11, fontWeight: '600', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
   tileValue: { fontSize: 16, fontWeight: '800', color: Colors.text },
   tileSub: { fontSize: 10, color: Colors.textMuted },
-  clearHint: { fontSize: 9, color: Colors.textMuted, marginTop: 2, fontStyle: 'italic' },
+  clearHint: { fontSize: 10, color: Colors.textMuted, marginTop: 2, fontStyle: 'italic' },
   vsDivider: {
     width: 28, alignItems: 'center', justifyContent: 'center',
     borderLeftWidth: StyleSheet.hairlineWidth, borderRightWidth: StyleSheet.hairlineWidth,
@@ -678,7 +678,7 @@ const rcmStyles = StyleSheet.create({
   barsGroup: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
   barPrimary: { width: 10, backgroundColor: Colors.text, borderRadius: Radius.sm },
   barCompare: { width: 10, backgroundColor: Colors.textSecondary, borderRadius: Radius.sm },
-  monthLabel: { fontSize: 9, color: Colors.textMuted },
+  monthLabel: { fontSize: 10, color: Colors.textMuted },
   legendRow: { flexDirection: 'row', gap: Spacing.md, marginTop: 2, marginBottom: Spacing.sm },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot: { width: 8, height: 8, borderRadius: Radius.full },
@@ -1498,8 +1498,8 @@ const vltModalStyles = StyleSheet.create({
   clearCompareText: { fontSize: 11, color: Colors.textMuted },
 
   compareValueRow: { flexDirection: 'row', gap: 2, alignItems: 'flex-end', marginBottom: 2 },
-  compareValuePrimary: { fontSize: 9, fontWeight: '700', color: Colors.text },
-  compareValueSecondary: { fontSize: 9, fontWeight: '600', color: Colors.textMuted },
+  compareValuePrimary: { fontSize: 10, fontWeight: '700', color: Colors.text },
+  compareValueSecondary: { fontSize: 10, fontWeight: '600', color: Colors.textMuted },
 
   compareBarGroup: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, justifyContent: 'center' },
   compareBarPrimary: { backgroundColor: Colors.text },

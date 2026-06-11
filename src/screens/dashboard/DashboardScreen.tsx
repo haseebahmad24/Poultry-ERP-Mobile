@@ -1887,7 +1887,7 @@ const qsStyles = StyleSheet.create({
     alignItems: 'center',
     gap: 3,
     backgroundColor: Colors.background,
-    borderRadius: 10,
+    borderRadius: Radius.full,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderWidth: StyleSheet.hairlineWidth,
@@ -1938,7 +1938,7 @@ const qsStyles = StyleSheet.create({
     backgroundColor: Colors.textSecondary,
   },
   dateLabel: {
-    fontSize: 9,
+    fontSize: 10,
     color: Colors.textMuted,
     textAlign: 'center',
   },
