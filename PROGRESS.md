@@ -1,5 +1,39 @@
 # Mobile App Progress
 
+## Session 59 — 2026-06-11
+
+### Completed This Session
+
+**JournalEntries — Per-Account Running Balance** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- When an account filter (`pickedAccount`) is active, `filteredWithBalance` useMemo sorts filtered entries chronologically and computes a cumulative Dr−Cr running balance per entry
+- JECard gains optional `runningBalance?: number` prop; when provided, renders a third "Balance" column in the amount row (right-aligned) with sign-aware `−` prefix and muted negative colour (`runningBalanceNeg` style)
+- When running balance is shown, a footer row beneath the amount row shows the lines-hint and chevron-right (replaced from the original amount row position)
+- New styles: `runningBalanceCol`, `runningBalanceVal`, `runningBalanceNeg`, `runningBalanceFooter`
+
+**Inventory — ItemLedger Per-Warehouse Navigation** (`src/screens/inventory/InventoryScreen.tsx`, `ItemLedgerScreen.tsx`, `InventoryNavigator.tsx`)
+- `InventoryStackParamList.ItemLedger` gains optional `warehouse_id?: number` and `warehouse_name?: string` params
+- `ItemLedgerScreen` extracts these params and passes `warehouseId` to `fetchStockLedger`, so the API filters entries to that warehouse only
+- Header now shows a `map-pin` + warehouse name pill when filtered: `headerSubRow` / `headerSubDot` / `headerSubWarehouse` styles
+- `GroupedStockCard` gains `onNavigateWarehouse?: (warehouseId, warehouseName) => void` prop
+- Expanded accordion sub-rows call `onNavigateWarehouse` when `wh.warehouse_id` is set, navigating to ItemLedger filtered for that specific warehouse; falls back to `onNavigate` (item-level) when warehouse_id unavailable
+- Call site in InventoryScreen passes `onNavigateWarehouse` with proper params
+
+**Dashboard — Pending Approvals Card** (`src/screens/dashboard/DashboardScreen.tsx`, `src/api/dashboard.ts`)
+- `SupplyChainSnapshot` gains `pendingApprovalPOs` and `pendingApprovalSOs` counts
+- `fetchSupplyChainSnapshot` filters `openPOList` / `openSOList` for entries with status in `{draft, submitted, pending, pending_approval}` (case-insensitive)
+- `PendingApprovalsCard` component: header row with clock icon and total badge, tile row with PO/SO counts (each tappable), italic hint text
+- Rendered between the Supply Chain row and Upcoming Deliveries when `pendingApprovalPOs + pendingApprovalSOs > 0`
+- New `pendingStyles` StyleSheet
+
+### Next Session
+- Consider: JournalEntries — highlight the earliest entry where running balance crosses zero (debt becomes credit)
+- Consider: ProcurementAnalytics — value distribution comparison for top-items chart
+- Consider: FinancialAnalytics — AgingHistoryChart interactive: tap a data point dot to see that snapshot's values
+- Consider: Dashboard — "Today's Activity" compact summary (JEs posted today, voucher type breakdown)
+- Consider: Inventory — StockLedger inline running-balance recalculation when API doesn't provide `balance` field
+
+---
+
 ## Session 58 — 2026-06-11
 
 ### Completed This Session
