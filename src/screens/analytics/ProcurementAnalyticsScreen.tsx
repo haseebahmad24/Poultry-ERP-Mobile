@@ -1403,6 +1403,7 @@ function VendorLeadTimeModal({
   onSelectCompare,
   onClearCompare,
   onClose,
+  onViewAllPOs,
 }: {
   vendor: string;
   trend: MonthLeadTime[];
@@ -1413,6 +1414,7 @@ function VendorLeadTimeModal({
   onSelectCompare: (vendor: string) => void;
   onClearCompare: () => void;
   onClose: () => void;
+  onViewAllPOs?: (vendorName: string) => void;
 }) {
   const [showPicker, setShowPicker] = useState(false);
 
@@ -1681,6 +1683,16 @@ function VendorLeadTimeModal({
                   </View>
                 );
               })}
+              {onViewAllPOs && (
+                <TouchableOpacity
+                  style={vltModalStyles.viewAllBtn}
+                  onPress={() => { onClose(); onViewAllPOs(vendor); }}
+                >
+                  <Feather name="list" size={13} color={Colors.primary} />
+                  <Text style={vltModalStyles.viewAllText}>View all POs for {vendor}</Text>
+                  <Feather name="chevron-right" size={13} color={Colors.primary} />
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -1870,6 +1882,16 @@ const vltModalStyles = StyleSheet.create({
     paddingVertical: 1,
     borderRadius: Radius.sm,
   },
+  viewAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
+  },
+  viewAllText: { flex: 1, fontSize: 13, fontWeight: '600', color: Colors.primary },
 });
 
 const ltStyles = StyleSheet.create({
@@ -2394,6 +2416,7 @@ export default function ProcurementAnalyticsScreen() {
           onSelectCompare={handleCompareVendorSelect}
           onClearCompare={() => { setCompareLeadTimeVendor(null); setCompareLeadTrend([]); }}
           onClose={() => { setSelectedLeadTimeVendor(null); setCompareLeadTimeVendor(null); setCompareLeadTrend([]); setVendorPOs([]); }}
+          onViewAllPOs={(vendorName) => navigation.navigate('PurchaseOrders', { initialVendor: vendorName })}
         />
       )}
 

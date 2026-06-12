@@ -37,7 +37,7 @@ export type MoreStackParamList = {
     materialStatus?: string;
     materialDescription?: string;
   };
-  PurchaseOrders: undefined;
+  PurchaseOrders: { initialVendor?: string } | undefined;
   PurchaseOrderDetail: { id: number };
   SalesOrders: undefined;
   SalesOrderDetail: { id: number };

@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchPurchaseOrders, PurchaseOrder } from '@/api/purchaseOrders';
 import ErrorView from '@/components/ErrorView';
@@ -29,6 +29,7 @@ import { MoreStackParamList } from '@/navigation/MoreNavigator';
 import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 
 type Nav = NativeStackNavigationProp<MoreStackParamList, 'PurchaseOrders'>;
+type RouteType = RouteProp<MoreStackParamList, 'PurchaseOrders'>;
 
 type DeliveryUrgency = 'overdue' | 'today' | 'urgent' | 'soon' | null;
 interface DeliveryStatus { label: string; urgency: DeliveryUrgency }
@@ -58,11 +59,13 @@ const STATUS_TABS: { key: StatusTab; label: string }[] = [
 
 export default function PurchaseOrdersScreen() {
   const navigation = useNavigation<Nav>();
+  const route = useRoute<RouteType>();
+  const initialVendor = route.params?.initialVendor ?? '';
   const [activeTab, setActiveTab] = useState<StatusTab>('all');
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialVendor);
   const [error, setError] = useState<string | null>(null);
   const [isStale, setIsStale] = useState(false);
   const [exporting, setExporting] = useState(false);

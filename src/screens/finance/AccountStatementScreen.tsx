@@ -11,10 +11,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
-import { useRoute, RouteProp } from '@react-navigation/native';
+import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
-import { fetchJournalEntries } from '@/api/journalEntries';
+import { fetchJournalEntries, JournalEntry } from '@/api/journalEntries';
 import { fetchTrialBalance } from '@/api/trialBalance';
 import BackButton from '@/components/BackButton';
 import SectionHeader from '@/components/SectionHeader';
@@ -27,6 +28,7 @@ import { exportAccountStatementPDF } from '@/utils/pdfExport';
 import { useCompany } from '@/context/CompanyContext';
 
 type RouteType = RouteProp<FinanceStackParamList, 'AccountStatement'>;
+type NavProp = NativeStackNavigationProp<FinanceStackParamList>;
 
 export type AccountStatementLine = {
   date: string;
@@ -36,6 +38,7 @@ export type AccountStatementLine = {
   debit: number;
   credit: number;
   balance: number;
+  _entry?: JournalEntry;
 };
 
 function todayISO(): string {
@@ -73,6 +76,7 @@ const VOUCHER_TYPE_LABELS: Record<string, string> = {
 
 export default function AccountStatementScreen() {
   const route = useRoute<RouteType>();
+  const navigation = useNavigation<NavProp>();
   const { accountCode = '', accountName = '', accountType } = route.params ?? {};
   const { companyId, selectedCompany } = useCompany();
 
@@ -154,7 +158,8 @@ export default function AccountStatementScreen() {
             narration: line.narration ?? entry.narration ?? '',
             debit: Number(line.debit) || 0,
             credit: Number(line.credit) || 0,
-            balance: 0, // computed below
+            balance: 0,
+            _entry: entry,
           });
         }
       }
@@ -353,9 +358,12 @@ export default function AccountStatementScreen() {
               )}
 
               {lines.map((line, idx) => (
-                <View
+                <TouchableOpacity
                   key={idx}
                   style={[styles.tableRow, idx < lines.length - 1 && styles.tableRowBorder]}
+                  onPress={() => line._entry && navigation.navigate('JournalEntryDetail', { entry: line._entry })}
+                  disabled={!line._entry}
+                  activeOpacity={line._entry ? 0.65 : 1}
                 >
                   <View style={styles.colDate}>
                     <Text style={styles.dateText}>{formatShortDate(line.date)}</Text>
@@ -377,11 +385,14 @@ export default function AccountStatementScreen() {
                   <Text style={[styles.colAmount, styles.amountText]}>
                     {line.credit > 0 ? formatCurrency(line.credit) : '—'}
                   </Text>
-                  <Text style={[styles.colBalance, styles.balanceText, line.balance < 0 && styles.negative]}>
-                    {formatCurrency(Math.abs(line.balance))}
-                    {line.balance < 0 ? '\nCr' : ''}
-                  </Text>
-                </View>
+                  <View style={[styles.colBalance, styles.balanceCell]}>
+                    <Text style={[styles.balanceText, line.balance < 0 && styles.negative]}>
+                      {formatCurrency(Math.abs(line.balance))}
+                      {line.balance < 0 ? '\nCr' : ''}
+                    </Text>
+                    {line._entry && <Feather name="chevron-right" size={10} color={Colors.textMuted} style={styles.rowChevron} />}
+                  </View>
+                </TouchableOpacity>
               ))}
 
               {/* Totals row */}
@@ -542,7 +553,9 @@ const styles = StyleSheet.create({
   voucherNo: { fontSize: 11, color: Colors.text, fontWeight: '500' },
   narration: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
   amountText: { fontSize: 11, color: Colors.text },
-  balanceText: { fontSize: 11, color: Colors.text, fontWeight: '600' },
+  balanceCell: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2 },
+  rowChevron: { marginTop: 1 },
+  balanceText: { fontSize: 11, color: Colors.text, fontWeight: '600', textAlign: 'right' },
 
   openingRow: {
     backgroundColor: Colors.surfaceHover,

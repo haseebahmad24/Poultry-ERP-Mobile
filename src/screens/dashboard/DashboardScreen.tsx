@@ -887,6 +887,8 @@ export default function DashboardScreen() {
   const [exportingCombined, setExportingCombined] = useState(false);
   const [dueSoonBills, setDueSoonBills] = useState<APBill[]>([]);
   const [dueSoonInvoices, setDueSoonInvoices] = useState<ARInvoice[]>([]);
+  const [overdueBills, setOverdueBills] = useState<APBill[]>([]);
+  const [overdueInvoices, setOverdueInvoices] = useState<ARInvoice[]>([]);
   const [topVendors, setTopVendors] = useState<Array<{ name: string; outstanding: number; billCount: number }>>([]);
   const [topCustomers, setTopCustomers] = useState<Array<{ name: string; outstanding: number; invoiceCount: number }>>([]);
   const [dueSoonDays, setDueSoonDays] = useState(7);
@@ -989,18 +991,28 @@ export default function DashboardScreen() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const filterDueSoon = (dueDate: string | undefined, status: string | undefined) => {
-        if (!dueDate) return false;
+      const isActiveStatus = (status: string | undefined) => {
         const st = (status ?? '').toUpperCase();
-        if (st === 'PAID' || st === 'RECEIVED' || st === 'CLOSED' || st === 'CANCELLED') return false;
+        return st !== 'PAID' && st !== 'RECEIVED' && st !== 'CLOSED' && st !== 'CANCELLED';
+      };
+      const filterDueSoon = (dueDate: string | undefined, status: string | undefined) => {
+        if (!dueDate || !isActiveStatus(status)) return false;
         const due = new Date(dueDate);
         due.setHours(0, 0, 0, 0);
         const d = Math.floor((due.getTime() - today.getTime()) / 86_400_000);
         return d >= 0 && d <= dsd;
       };
+      const filterOverdue = (dueDate: string | undefined, status: string | undefined) => {
+        if (!dueDate || !isActiveStatus(status)) return false;
+        const due = new Date(dueDate);
+        due.setHours(0, 0, 0, 0);
+        return due.getTime() < today.getTime();
+      };
 
       setDueSoonBills((bills ?? []).filter((b) => filterDueSoon(b.due_date, b.status)));
       setDueSoonInvoices((invoices ?? []).filter((inv) => filterDueSoon(inv.due_date, inv.status)));
+      setOverdueBills((bills ?? []).filter((b) => filterOverdue(b.due_date, b.status)));
+      setOverdueInvoices((invoices ?? []).filter((inv) => filterOverdue(inv.due_date, inv.status)));
 
       // Top vendors by outstanding balance (across all unpaid bills)
       const vendorMap = new Map<string, { outstanding: number; billCount: number }>();
@@ -1232,6 +1244,40 @@ export default function DashboardScreen() {
           <View style={styles.inlineError}>
             <Feather name="alert-circle" size={14} color={Colors.text} style={{ marginRight: 6 }} />
             <Text style={styles.inlineErrorText}>{error}</Text>
+          </View>
+        )}
+
+        {/* Overdue payments banner */}
+        {(overdueBills.length > 0 || overdueInvoices.length > 0) && (
+          <View style={styles.overdueBanner}>
+            <Feather name="alert-triangle" size={14} color="#b45309" style={{ marginTop: 1 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.overdueBannerTitle}>Overdue Payments</Text>
+              <Text style={styles.overdueBannerSub}>
+                {[
+                  overdueBills.length > 0 && `${overdueBills.length} bill${overdueBills.length !== 1 ? 's' : ''} payable`,
+                  overdueInvoices.length > 0 && `${overdueInvoices.length} invoice${overdueInvoices.length !== 1 ? 's' : ''} receivable`,
+                ].filter(Boolean).join(' · ')}
+              </Text>
+            </View>
+            <View style={styles.overdueBannerActions}>
+              {overdueBills.length > 0 && (
+                <TouchableOpacity
+                  style={styles.overdueBannerBtn}
+                  onPress={() => navigation.navigate('Finance', { screen: 'AccountsPayable' } as any)}
+                >
+                  <Text style={styles.overdueBannerBtnText}>AP</Text>
+                </TouchableOpacity>
+              )}
+              {overdueInvoices.length > 0 && (
+                <TouchableOpacity
+                  style={styles.overdueBannerBtn}
+                  onPress={() => navigation.navigate('Finance', { screen: 'AccountsReceivable' } as any)}
+                >
+                  <Text style={styles.overdueBannerBtnText}>AR</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         )}
 
@@ -2368,6 +2414,29 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   inlineErrorText: { color: Colors.text, fontSize: 13, flex: 1 },
+
+  overdueBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    backgroundColor: '#fffbeb',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#fcd34d',
+    marginHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+    padding: Spacing.sm + 2,
+    marginBottom: Spacing.sm,
+  },
+  overdueBannerTitle: { fontSize: 12, fontWeight: '700', color: '#92400e', marginBottom: 2 },
+  overdueBannerSub: { fontSize: 11, color: '#b45309' },
+  overdueBannerActions: { flexDirection: 'row', gap: Spacing.xs, alignItems: 'center' },
+  overdueBannerBtn: {
+    backgroundColor: '#b45309',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radius.sm,
+  },
+  overdueBannerBtnText: { fontSize: 11, fontWeight: '700', color: '#fff' },
 
   sectionHeaderRow: {
     flexDirection: 'row',
