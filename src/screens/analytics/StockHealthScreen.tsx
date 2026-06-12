@@ -1075,34 +1075,55 @@ function parseThresholdCSV(text: string): { rows: ParsedThresholdRow[]; errors: 
   return { rows, errors };
 }
 
+type DiffRow = ParsedThresholdRow & { kind: 'new' | 'changed' | 'same'; current?: number };
+
+function buildDiff(rows: ParsedThresholdRow[], current: Map<string, number>): DiffRow[] {
+  return rows.map((r) => {
+    const cur = current.get(r.name);
+    if (cur === undefined) return { ...r, kind: 'new' };
+    if (cur !== r.threshold) return { ...r, kind: 'changed', current: cur };
+    return { ...r, kind: 'same', current: cur };
+  });
+}
+
 function ThresholdImportModal({
   visible,
   onClose,
   onImport,
+  currentThresholds,
 }: {
   visible: boolean;
   onClose: () => void;
   onImport: (rows: ParsedThresholdRow[]) => Promise<void>;
+  currentThresholds: Map<string, number>;
 }) {
   const [text, setText] = useState('');
   const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<{ imported: number; errors: number } | null>(null);
+  const [result, setResult] = useState<{ imported: number; skipped: number; errors: number } | null>(null);
 
   const { rows, errors } = parseThresholdCSV(text);
+  const diff = React.useMemo(() => buildDiff(rows, currentThresholds), [rows, currentThresholds]);
+  const actionable = diff.filter((r) => r.kind !== 'same');
 
   const handleImport = async () => {
-    if (rows.length === 0) return;
+    if (actionable.length === 0) return;
     setImporting(true);
     setResult(null);
     try {
-      await onImport(rows);
-      setResult({ imported: rows.length, errors });
+      await onImport(actionable);
+      setResult({ imported: actionable.length, skipped: diff.filter((r) => r.kind === 'same').length, errors });
       setText('');
     } catch {
-      setResult({ imported: 0, errors: rows.length });
+      setResult({ imported: 0, skipped: 0, errors: actionable.length });
     } finally {
       setImporting(false);
     }
+  };
+
+  const diffKindColor = (kind: DiffRow['kind']) => {
+    if (kind === 'new') return '#1a7f37';
+    if (kind === 'changed') return '#b45309';
+    return Colors.textMuted;
   };
 
   return (
@@ -1120,52 +1141,80 @@ function ThresholdImportModal({
           </TouchableOpacity>
         </View>
 
-        <Text style={importStyles.hint}>
-          Paste CSV with two columns: <Text style={importStyles.hintCode}>item_name,threshold</Text>
-          {'\n'}Header row is optional. One row per item.
-        </Text>
+        <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+          <Text style={importStyles.hint}>
+            Paste CSV with two columns: <Text style={importStyles.hintCode}>item_name,threshold</Text>
+            {'\n'}Header row is optional. Unchanged rows are skipped automatically.
+          </Text>
 
-        <TextInput
-          style={importStyles.input}
-          multiline
-          value={text}
-          onChangeText={(t) => { setText(t); setResult(null); }}
-          placeholder={'item_name,threshold\nChick Feed,50\nLayer Mash,30'}
-          placeholderTextColor={Colors.textMuted}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
+          <TextInput
+            style={importStyles.input}
+            multiline
+            value={text}
+            onChangeText={(t) => { setText(t); setResult(null); }}
+            placeholder={'item_name,threshold\nChick Feed,50\nLayer Mash,30'}
+            placeholderTextColor={Colors.textMuted}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
 
-        {text.trim().length > 0 && (
-          <View style={importStyles.previewRow}>
-            <Feather name={errors > 0 ? 'alert-circle' : 'check-circle'} size={13} color={errors > 0 ? Colors.textSecondary : Colors.textMuted} />
-            <Text style={importStyles.previewText}>
-              {rows.length} row{rows.length !== 1 ? 's' : ''} parsed
-              {errors > 0 ? ` · ${errors} error${errors !== 1 ? 's' : ''}` : ''}
-            </Text>
-          </View>
-        )}
+          {text.trim().length > 0 && rows.length > 0 && (
+            <>
+              <View style={importStyles.previewRow}>
+                <Feather name={errors > 0 ? 'alert-circle' : 'check-circle'} size={13} color={errors > 0 ? Colors.textSecondary : Colors.textMuted} />
+                <Text style={importStyles.previewText}>
+                  {rows.length} parsed · {actionable.length} will change
+                  {errors > 0 ? ` · ${errors} error${errors !== 1 ? 's' : ''}` : ''}
+                </Text>
+              </View>
 
-        {result && (
-          <View style={importStyles.resultRow}>
-            <Feather name="check-circle" size={13} color={Colors.textMuted} />
-            <Text style={importStyles.resultText}>
-              Imported {result.imported} threshold{result.imported !== 1 ? 's' : ''}
-              {result.errors > 0 ? ` · ${result.errors} skipped` : ''}
-            </Text>
-          </View>
-        )}
+              <View style={importStyles.diffCard}>
+                {diff.map((r, i) => (
+                  <View key={i} style={[importStyles.diffRow, i < diff.length - 1 && importStyles.diffRowBorder]}>
+                    <View style={[importStyles.diffKindPill, { backgroundColor: diffKindColor(r.kind) + '22' }]}>
+                      <Text style={[importStyles.diffKindText, { color: diffKindColor(r.kind) }]}>
+                        {r.kind === 'new' ? 'NEW' : r.kind === 'changed' ? 'CHG' : 'SAME'}
+                      </Text>
+                    </View>
+                    <Text style={importStyles.diffName} numberOfLines={1}>{r.name}</Text>
+                    <Text style={importStyles.diffVal}>
+                      {r.kind === 'changed'
+                        ? `${r.current} → ${r.threshold}`
+                        : r.kind === 'new'
+                        ? `→ ${r.threshold}`
+                        : `${r.threshold}`}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
 
-        <TouchableOpacity
-          style={[importStyles.importBtn, (rows.length === 0 || importing) && importStyles.importBtnDisabled]}
-          onPress={handleImport}
-          disabled={rows.length === 0 || importing}
-        >
-          {importing
-            ? <ActivityIndicator size="small" color={Colors.surface} />
-            : <Text style={importStyles.importBtnText}>Import {rows.length > 0 ? `${rows.length} rows` : ''}</Text>
-          }
-        </TouchableOpacity>
+          {result && (
+            <View style={importStyles.resultRow}>
+              <Feather name="check-circle" size={13} color={Colors.textMuted} />
+              <Text style={importStyles.resultText}>
+                Applied {result.imported} change{result.imported !== 1 ? 's' : ''}
+                {result.skipped > 0 ? ` · ${result.skipped} unchanged` : ''}
+                {result.errors > 0 ? ` · ${result.errors} error${result.errors !== 1 ? 's' : ''}` : ''}
+              </Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[importStyles.importBtn, (actionable.length === 0 || importing) && importStyles.importBtnDisabled]}
+            onPress={handleImport}
+            disabled={actionable.length === 0 || importing}
+          >
+            {importing
+              ? <ActivityIndicator size="small" color={Colors.surface} />
+              : <Text style={importStyles.importBtnText}>
+                  {actionable.length > 0 ? `Apply ${actionable.length} change${actionable.length !== 1 ? 's' : ''}` : 'No changes to apply'}
+                </Text>
+            }
+          </TouchableOpacity>
+          <View style={{ height: Spacing.xl }} />
+        </ScrollView>
       </SafeAreaView>
     </Modal>
   );
@@ -1230,6 +1279,37 @@ const importStyles = StyleSheet.create({
   },
   importBtnDisabled: { opacity: 0.4 },
   importBtnText: { fontSize: 14, fontWeight: '700', color: Colors.surface },
+
+  diffCard: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
+    overflow: 'hidden',
+  },
+  diffRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.xs + 2,
+    paddingHorizontal: Spacing.sm,
+  },
+  diffRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight ?? Colors.border,
+  },
+  diffKindPill: {
+    borderRadius: Radius.sm,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    minWidth: 38,
+    alignItems: 'center',
+  },
+  diffKindText: { fontSize: 9, fontWeight: '700', letterSpacing: 0.3 },
+  diffName: { flex: 1, fontSize: 11, color: Colors.text },
+  diffVal: { fontSize: 11, color: Colors.textSecondary, fontWeight: '600' },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -1603,6 +1683,7 @@ export default function StockHealthScreen() {
       <ThresholdImportModal
         visible={showThresholdImport}
         onClose={() => setShowThresholdImport(false)}
+        currentThresholds={perItemThresholds}
         onImport={async (rows) => {
           for (const { name, threshold } of rows) {
             await setItemThreshold(name, threshold);
