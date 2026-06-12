@@ -214,6 +214,17 @@ export default function AccountStatementScreen() {
   const closingBalance = lines.length > 0 ? lines[lines.length - 1].balance : openingBalance;
   const netMovement = totalDebit - totalCredit;
 
+  // First index where running balance changes sign (crosses zero)
+  const zeroCrossingIdx = React.useMemo(() => {
+    if (lines.length < 2) return -1;
+    for (let i = 1; i < lines.length; i++) {
+      const prev = lines[i - 1].balance;
+      const curr = lines[i].balance;
+      if ((prev > 0 && curr <= 0) || (prev < 0 && curr >= 0)) return i;
+    }
+    return -1;
+  }, [lines]);
+
   if (error && lines.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
   return (
@@ -358,8 +369,15 @@ export default function AccountStatementScreen() {
               )}
 
               {lines.map((line, idx) => (
+                <React.Fragment key={idx}>
+                  {idx === zeroCrossingIdx && (
+                    <View style={styles.zeroCrossMarker}>
+                      <View style={styles.zeroCrossLine} />
+                      <Text style={styles.zeroCrossText}>balance crosses zero</Text>
+                      <View style={styles.zeroCrossLine} />
+                    </View>
+                  )}
                 <TouchableOpacity
-                  key={idx}
                   style={[styles.tableRow, idx < lines.length - 1 && styles.tableRowBorder]}
                   onPress={() => line._entry && navigation.navigate('JournalEntryDetail', { entry: line._entry })}
                   disabled={!line._entry}
@@ -393,6 +411,7 @@ export default function AccountStatementScreen() {
                     {line._entry && <Feather name="chevron-right" size={10} color={Colors.textMuted} style={styles.rowChevron} />}
                   </View>
                 </TouchableOpacity>
+                </React.Fragment>
               ))}
 
               {/* Totals row */}
@@ -574,4 +593,14 @@ const styles = StyleSheet.create({
   openingBadgeText: { fontSize: 10, fontWeight: '700', color: Colors.surface },
   openingLabel: { fontSize: 11, color: Colors.textSecondary, fontWeight: '600' },
   openingBalText: { fontSize: 11, color: Colors.text, fontWeight: '700' },
+
+  zeroCrossMarker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+  },
+  zeroCrossLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
+  zeroCrossText: { fontSize: 10, color: Colors.textMuted, fontStyle: 'italic' },
 });
