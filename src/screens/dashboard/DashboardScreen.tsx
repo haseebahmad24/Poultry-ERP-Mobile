@@ -514,6 +514,8 @@ function HealthScoreSparkline({ history }: { history: HealthHistoryEntry[] }) {
   );
 }
 
+const GRADE_ORDER: Record<string, number> = { A: 5, B: 4, C: 3, D: 2, F: 1 };
+
 function FinancialHealthCard({ apBuckets, arBuckets, onPress, history }: {
   apBuckets: AgingMicroBucket[];
   arBuckets: AgingMicroBucket[];
@@ -542,6 +544,13 @@ function FinancialHealthCard({ apBuckets, arBuckets, onPress, history }: {
 
   const gradeScale = gradeAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] });
 
+  // Detect grade change vs. most recent previous day
+  const today = new Date().toISOString().slice(0, 10);
+  const prevEntry = history?.slice().reverse().find((e) => e.date < today);
+  const prevGrade = prevEntry?.grade;
+  const gradeChanged = prevGrade != null && prevGrade !== hs.grade;
+  const gradeImproved = gradeChanged && (GRADE_ORDER[hs.grade] ?? 0) > (GRADE_ORDER[prevGrade!] ?? 0);
+
   const cardInner = (
     <>
       <View style={healthStyles.topRow}>
@@ -558,6 +567,20 @@ function FinancialHealthCard({ apBuckets, arBuckets, onPress, history }: {
         </View>
         {onPress && <Feather name="chevron-right" size={16} color={Colors.textMuted} />}
       </View>
+
+      {gradeChanged && (
+        <View style={[healthStyles.gradeAlert, gradeImproved ? healthStyles.gradeAlertUp : healthStyles.gradeAlertDown]}>
+          <Feather
+            name={gradeImproved ? 'trending-up' : 'trending-down'}
+            size={12}
+            color={gradeImproved ? '#1a7f37' : '#c0392b'}
+          />
+          <Text style={[healthStyles.gradeAlertText, { color: gradeImproved ? '#1a7f37' : '#c0392b' }]}>
+            Grade {gradeImproved ? 'improved' : 'dropped'}: {prevGrade} → {hs.grade}
+          </Text>
+        </View>
+      )}
+
       <View style={healthStyles.barsSection}>
         <View style={healthStyles.barRow}>
           <Text style={healthStyles.barLabel}>AP</Text>
@@ -631,6 +654,18 @@ const healthStyles = StyleSheet.create({
   barFill: { height: '100%', backgroundColor: Colors.text, borderRadius: Radius.full },
   barPct: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary, width: 32, textAlign: 'right' },
   hint: { fontSize: 10, color: Colors.textMuted },
+  gradeAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.sm,
+    alignSelf: 'flex-start',
+  },
+  gradeAlertUp: { backgroundColor: '#eafbee' },
+  gradeAlertDown: { backgroundColor: '#fdf0ef' },
+  gradeAlertText: { fontSize: 11, fontWeight: '700' },
   sparklineWrap: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.borderLight,
