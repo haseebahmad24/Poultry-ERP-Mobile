@@ -1646,9 +1646,13 @@ function VendorLeadTimeModal({
                 const leadDays = (po.dt && po.delivery_date)
                   ? Math.round((new Date(po.delivery_date).getTime() - new Date(po.dt).getTime()) / 86400000)
                   : null;
-                const statusColors: Record<string, string> = {
-                  approved: '#1a7f37', closed: Colors.textSecondary,
-                  cancelled: '#c0392b', draft: Colors.textMuted,
+                const statusColor = (s: string): string => {
+                  switch (s.toLowerCase()) {
+                    case 'approved': return Colors.text;
+                    case 'closed': return Colors.textSecondary;
+                    case 'cancelled': return Colors.textMuted;
+                    default: return Colors.textMuted;
+                  }
                 };
                 return (
                   <View
@@ -1665,7 +1669,7 @@ function VendorLeadTimeModal({
                       <Text style={vltModalStyles.poAmount}>{formatCurrency(po.total ?? 0)}</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                         {po.status && (
-                          <Text style={[vltModalStyles.poStatus, { color: statusColors[po.status.toLowerCase()] ?? Colors.textSecondary }]}>
+                          <Text style={[vltModalStyles.poStatus, { color: statusColor(po.status) }]}>
                             {po.status}
                           </Text>
                         )}

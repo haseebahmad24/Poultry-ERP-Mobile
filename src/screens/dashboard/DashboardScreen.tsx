@@ -569,13 +569,13 @@ function FinancialHealthCard({ apBuckets, arBuckets, onPress, history }: {
       </View>
 
       {gradeChanged && (
-        <View style={[healthStyles.gradeAlert, gradeImproved ? healthStyles.gradeAlertUp : healthStyles.gradeAlertDown]}>
+        <View style={healthStyles.gradeAlert}>
           <Feather
             name={gradeImproved ? 'trending-up' : 'trending-down'}
             size={12}
-            color={gradeImproved ? '#1a7f37' : '#c0392b'}
+            color={Colors.textSecondary}
           />
-          <Text style={[healthStyles.gradeAlertText, { color: gradeImproved ? '#1a7f37' : '#c0392b' }]}>
+          <Text style={healthStyles.gradeAlertText}>
             Grade {gradeImproved ? 'improved' : 'dropped'}: {prevGrade} → {hs.grade}
           </Text>
         </View>
@@ -662,10 +662,9 @@ const healthStyles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: Radius.sm,
     alignSelf: 'flex-start',
+    backgroundColor: Colors.background,
   },
-  gradeAlertUp: { backgroundColor: '#eafbee' },
-  gradeAlertDown: { backgroundColor: '#fdf0ef' },
-  gradeAlertText: { fontSize: 11, fontWeight: '700' },
+  gradeAlertText: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary },
   sparklineWrap: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.borderLight,
