@@ -14,7 +14,8 @@ import { Feather } from '@expo/vector-icons';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { Colors, Radius, Spacing, Typography } from '@/theme';
 import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
-import { fetchJournalEntries, JournalEntry } from '@/api/journalEntries';
+import { fetchJournalEntries } from '@/api/journalEntries';
+import { fetchTrialBalance } from '@/api/trialBalance';
 import BackButton from '@/components/BackButton';
 import SectionHeader from '@/components/SectionHeader';
 import ErrorView from '@/components/ErrorView';
@@ -46,6 +47,12 @@ function startOfMonthISO(): string {
   return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
 }
 
+function dayBefore(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 // Determine if an account is debit-normal (balance increases with debits)
 function isDebitNormal(accountCode: string): boolean {
   const code = String(accountCode ?? '').trim();
@@ -74,6 +81,8 @@ export default function AccountStatementScreen() {
     to: todayISO(),
   });
   const [lines, setLines] = useState<AccountStatementLine[]>([]);
+  const [openingBalance, setOpeningBalance] = useState<number>(0);
+  const [hasOpeningBalance, setHasOpeningBalance] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +104,35 @@ export default function AccountStatementScreen() {
       }
     }
     setError(null);
+    setOpeningBalance(0);
+    setHasOpeningBalance(false);
     try {
+      const debitNormal = isDebitNormal(accountCode);
+
+      // Fetch opening balance from trial balance (as of day before period start)
+      let openingBal = 0;
+      let foundOpening = false;
+      if (dateRange.from) {
+        try {
+          const tbResult = await fetchTrialBalance(companyId, dayBefore(dateRange.from));
+          const tbRow = tbResult.rows.find(
+            (r) => r.account_code === accountCode ||
+              (r.account_code && accountCode.includes(r.account_code)) ||
+              (r.account_name && r.account_name === accountCode),
+          );
+          if (tbRow) {
+            openingBal = debitNormal
+              ? (tbRow.debit - tbRow.credit)
+              : (tbRow.credit - tbRow.debit);
+            foundOpening = true;
+          }
+        } catch {
+          // Non-fatal: fallback to 0 if trial balance unavailable
+        }
+      }
+      setOpeningBalance(openingBal);
+      setHasOpeningBalance(foundOpening);
+
       const entries = await fetchJournalEntries({
         companyId,
         account: accountCode,
@@ -103,7 +140,6 @@ export default function AccountStatementScreen() {
         to: dateRange.to || undefined,
       });
 
-      const debitNormal = isDebitNormal(accountCode);
       const rawLines: AccountStatementLine[] = [];
 
       for (const entry of entries) {
@@ -123,10 +159,10 @@ export default function AccountStatementScreen() {
         }
       }
 
-      // Sort by date ascending, then compute running balance
+      // Sort by date ascending, then compute running balance starting from opening balance
       rawLines.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
-      let balance = 0;
+      let balance = openingBal;
       for (const ln of rawLines) {
         if (debitNormal) {
           balance += ln.debit - ln.credit;
@@ -170,7 +206,8 @@ export default function AccountStatementScreen() {
 
   const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
   const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
-  const closingBalance = lines.length > 0 ? lines[lines.length - 1].balance : 0;
+  const closingBalance = lines.length > 0 ? lines[lines.length - 1].balance : openingBalance;
+  const netMovement = totalDebit - totalCredit;
 
   if (error && lines.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
@@ -225,23 +262,52 @@ export default function AccountStatementScreen() {
         >
           {/* Summary tiles */}
           <View style={styles.tilesRow}>
-            <View style={styles.tile}>
-              <Text style={styles.tileLabel}>Total Debits</Text>
-              <Text style={styles.tileValue}>{formatCurrency(totalDebit)}</Text>
-            </View>
-            <View style={styles.tileDivider} />
-            <View style={styles.tile}>
-              <Text style={styles.tileLabel}>Total Credits</Text>
-              <Text style={styles.tileValue}>{formatCurrency(totalCredit)}</Text>
-            </View>
-            <View style={styles.tileDivider} />
-            <View style={styles.tile}>
-              <Text style={styles.tileLabel}>Closing Balance</Text>
-              <Text style={[styles.tileValue, closingBalance < 0 && styles.negative]}>
-                {formatCurrency(Math.abs(closingBalance))}
-                {closingBalance < 0 && ' Cr'}
-              </Text>
-            </View>
+            {hasOpeningBalance ? (
+              <>
+                <View style={styles.tile}>
+                  <Text style={styles.tileLabel}>Opening Bal</Text>
+                  <Text style={[styles.tileValue, openingBalance < 0 && styles.negative]}>
+                    {formatCurrency(Math.abs(openingBalance))}
+                    {openingBalance < 0 ? '\nCr' : ''}
+                  </Text>
+                </View>
+                <View style={styles.tileDivider} />
+                <View style={styles.tile}>
+                  <Text style={styles.tileLabel}>Net Movement</Text>
+                  <Text style={[styles.tileValue, netMovement < 0 && styles.negative]}>
+                    {netMovement >= 0 ? '+' : '−'}{formatCurrency(Math.abs(netMovement))}
+                  </Text>
+                </View>
+                <View style={styles.tileDivider} />
+                <View style={styles.tile}>
+                  <Text style={styles.tileLabel}>Closing Bal</Text>
+                  <Text style={[styles.tileValue, closingBalance < 0 && styles.negative]}>
+                    {formatCurrency(Math.abs(closingBalance))}
+                    {closingBalance < 0 ? '\nCr' : ''}
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.tile}>
+                  <Text style={styles.tileLabel}>Total Debits</Text>
+                  <Text style={styles.tileValue}>{formatCurrency(totalDebit)}</Text>
+                </View>
+                <View style={styles.tileDivider} />
+                <View style={styles.tile}>
+                  <Text style={styles.tileLabel}>Total Credits</Text>
+                  <Text style={styles.tileValue}>{formatCurrency(totalCredit)}</Text>
+                </View>
+                <View style={styles.tileDivider} />
+                <View style={styles.tile}>
+                  <Text style={styles.tileLabel}>Closing Balance</Text>
+                  <Text style={[styles.tileValue, closingBalance < 0 && styles.negative]}>
+                    {formatCurrency(Math.abs(closingBalance))}
+                    {closingBalance < 0 && ' Cr'}
+                  </Text>
+                </View>
+              </>
+            )}
           </View>
 
           <SectionHeader
@@ -264,6 +330,27 @@ export default function AccountStatementScreen() {
                 <Text style={[styles.colAmount, styles.headerText]}>Credit</Text>
                 <Text style={[styles.colBalance, styles.headerText]}>Balance</Text>
               </View>
+
+              {/* Opening balance row */}
+              {hasOpeningBalance && (
+                <View style={[styles.tableRow, styles.openingRow]}>
+                  <View style={styles.colDate}>
+                    <Text style={styles.openingDateText}>{dateRange.from ? formatShortDate(dayBefore(dateRange.from)) : '—'}</Text>
+                  </View>
+                  <View style={styles.colVoucher}>
+                    <View style={styles.openingBadge}>
+                      <Text style={styles.openingBadgeText}>OB</Text>
+                    </View>
+                    <Text style={styles.openingLabel}>Opening Balance</Text>
+                  </View>
+                  <Text style={[styles.colAmount, styles.amountText]}>—</Text>
+                  <Text style={[styles.colAmount, styles.amountText]}>—</Text>
+                  <Text style={[styles.colBalance, styles.openingBalText, openingBalance < 0 && styles.negative]}>
+                    {formatCurrency(Math.abs(openingBalance))}
+                    {openingBalance < 0 ? '\nCr' : ''}
+                  </Text>
+                </View>
+              )}
 
               {lines.map((line, idx) => (
                 <View
@@ -456,4 +543,22 @@ const styles = StyleSheet.create({
   narration: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
   amountText: { fontSize: 11, color: Colors.text },
   balanceText: { fontSize: 11, color: Colors.text, fontWeight: '600' },
+
+  openingRow: {
+    backgroundColor: Colors.surfaceHover,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  openingDateText: { fontSize: 10, color: Colors.textMuted },
+  openingBadge: {
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.text,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    alignSelf: 'flex-start',
+    marginBottom: 2,
+  },
+  openingBadgeText: { fontSize: 10, fontWeight: '700', color: Colors.surface },
+  openingLabel: { fontSize: 11, color: Colors.textSecondary, fontWeight: '600' },
+  openingBalText: { fontSize: 11, color: Colors.text, fontWeight: '700' },
 });
