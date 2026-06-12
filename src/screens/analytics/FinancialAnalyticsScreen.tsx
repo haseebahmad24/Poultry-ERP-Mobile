@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import {
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -918,8 +919,17 @@ function NWCPolyline({
   );
 }
 
-function NWCTrendCard({ history }: { history: AgingHistoryEntry[] }) {
+function NWCTrendCard({
+  history,
+  bills,
+  invoices,
+}: {
+  history: AgingHistoryEntry[];
+  bills?: APBill[];
+  invoices?: ARInvoice[];
+}) {
   const [selectedIdx, setSelectedIdx] = React.useState<number | null>(null);
+  const [drillDownVisible, setDrillDownVisible] = React.useState(false);
   if (history.length < 2) return null;
 
   const visible = history.slice(-10);
@@ -939,6 +949,8 @@ function NWCTrendCard({ history }: { history: AgingHistoryEntry[] }) {
     return abs.toFixed(0);
   };
 
+  const canDrillDown = !!(bills?.length || invoices?.length);
+
   return (
     <View style={nwcStyles.card}>
       <View style={nwcStyles.headerRow}>
@@ -950,12 +962,19 @@ function NWCTrendCard({ history }: { history: AgingHistoryEntry[] }) {
 
       {/* Summary tiles */}
       <View style={nwcStyles.tileRow}>
-        <View style={nwcStyles.tile}>
+        <TouchableOpacity
+          style={nwcStyles.tile}
+          activeOpacity={canDrillDown ? 0.6 : 1}
+          onPress={canDrillDown ? () => setDrillDownVisible(true) : undefined}
+        >
           <Text style={[nwcStyles.tileValue, currentNWC < 0 && nwcStyles.negative]}>
             {currentNWC < 0 ? '−' : ''}{fmtK(currentNWC)}
           </Text>
-          <Text style={nwcStyles.tileLabel}>{currentNWC >= 0 ? 'Surplus' : 'Deficit'}</Text>
-        </View>
+          <View style={nwcStyles.tileLabelRow}>
+            <Text style={nwcStyles.tileLabel}>{currentNWC >= 0 ? 'Surplus' : 'Deficit'}</Text>
+            {canDrillDown && <Feather name="info" size={9} color={Colors.textMuted} style={{ marginLeft: 2 }} />}
+          </View>
+        </TouchableOpacity>
         <View style={[nwcStyles.tile, nwcStyles.tileMid]}>
           <Text style={[nwcStyles.tileValue, delta >= 0 ? nwcStyles.positive : nwcStyles.negative]}>
             {delta >= 0 ? '+' : '−'}{fmtK(delta)}
@@ -967,6 +986,16 @@ function NWCTrendCard({ history }: { history: AgingHistoryEntry[] }) {
           <Text style={nwcStyles.tileLabel}>Days</Text>
         </View>
       </View>
+
+      {canDrillDown && (
+        <NWCDrillDownModal
+          visible={drillDownVisible}
+          onClose={() => setDrillDownVisible(false)}
+          bills={bills ?? []}
+          invoices={invoices ?? []}
+          currentNWC={currentNWC}
+        />
+      )}
 
       {/* Polyline chart */}
       <NWCPolyline
@@ -1046,6 +1075,7 @@ const nwcStyles = StyleSheet.create({
   },
   tileValue: { fontSize: 18, fontWeight: '800', color: Colors.text },
   tileLabel: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  tileLabelRow: { flexDirection: 'row', alignItems: 'center' },
   positive: { color: Colors.text },
   negative: { color: Colors.textSecondary },
   polylineContainer: {
@@ -1082,6 +1112,201 @@ const nwcStyles = StyleSheet.create({
   },
   snapLabel: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
   snapVal: { fontSize: 13, fontWeight: '700', color: Colors.text },
+});
+
+// ─── NWC Drill-Down Modal ────────────────────────────────────────────────────
+
+function NWCDrillDownModal({
+  visible,
+  onClose,
+  bills,
+  invoices,
+  currentNWC,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  bills: APBill[];
+  invoices: ARInvoice[];
+  currentNWC: number;
+}) {
+  const fmtCurrency = (v: number) => {
+    const abs = Math.abs(v);
+    if (abs >= 1_000_000) return `${(v < 0 ? '−' : '')}${(abs / 1_000_000).toFixed(1)}M`;
+    if (abs >= 1_000) return `${(v < 0 ? '−' : '')}${(abs / 1_000).toFixed(0)}K`;
+    return `${v < 0 ? '−' : ''}${abs.toLocaleString()}`;
+  };
+
+  const topBills = [...bills]
+    .filter((b) => {
+      const s = (b.status ?? '').toUpperCase();
+      return s !== 'PAID' && s !== 'CANCELLED';
+    })
+    .sort((a, b) => (b.outstanding ?? b.amount ?? 0) - (a.outstanding ?? a.amount ?? 0))
+    .slice(0, 6);
+
+  const topInvoices = [...invoices]
+    .filter((inv) => {
+      const s = (inv.status ?? '').toUpperCase();
+      return s !== 'PAID' && s !== 'RECEIVED' && s !== 'CLOSED' && s !== 'CANCELLED';
+    })
+    .sort((a, b) => (b.outstanding ?? b.amount ?? 0) - (a.outstanding ?? a.amount ?? 0))
+    .slice(0, 6);
+
+  const surplus = currentNWC >= 0;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={nwcDrillStyles.overlay}>
+        <TouchableOpacity style={nwcDrillStyles.backdrop} activeOpacity={1} onPress={onClose} />
+        <View style={nwcDrillStyles.sheet}>
+          {/* Header */}
+          <View style={nwcDrillStyles.sheetHeader}>
+            <View style={nwcDrillStyles.handle} />
+            <View style={nwcDrillStyles.titleRow}>
+              <View>
+                <Text style={nwcDrillStyles.title}>
+                  {surplus ? 'Surplus Breakdown' : 'Deficit Breakdown'}
+                </Text>
+                <Text style={nwcDrillStyles.subtitle}>
+                  NWC {surplus ? '+' : '−'}{fmtCurrency(Math.abs(currentNWC))} · AR − AP
+                </Text>
+              </View>
+              <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Feather name="x" size={20} color={Colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Outstanding AR Invoices */}
+            <View style={nwcDrillStyles.section}>
+              <Text style={nwcDrillStyles.sectionLabel}>TOP AR INVOICES (outstanding)</Text>
+              {topInvoices.length === 0 ? (
+                <Text style={nwcDrillStyles.empty}>No outstanding invoices</Text>
+              ) : (
+                topInvoices.map((inv, i) => {
+                  const amt = inv.outstanding ?? inv.amount ?? 0;
+                  const isOverdue = inv.due_date && new Date(inv.due_date) < new Date();
+                  return (
+                    <View
+                      key={inv.id ?? i}
+                      style={[nwcDrillStyles.row, i < topInvoices.length - 1 && nwcDrillStyles.rowBorder]}
+                    >
+                      <View style={nwcDrillStyles.rowInfo}>
+                        <Text style={nwcDrillStyles.rowName} numberOfLines={1}>
+                          {inv.customer ?? inv.invoice_number ?? `INV-${inv.id}`}
+                        </Text>
+                        <Text style={nwcDrillStyles.rowSub}>
+                          {inv.invoice_number ?? (inv.dt ? `Due ${inv.due_date ?? ''}` : '')}
+                          {isOverdue ? ' · overdue' : ''}
+                        </Text>
+                      </View>
+                      <Text style={[nwcDrillStyles.rowAmt, nwcDrillStyles.arAmt]}>
+                        +{fmtCurrency(amt)}
+                      </Text>
+                    </View>
+                  );
+                })
+              )}
+            </View>
+
+            {/* Outstanding AP Bills */}
+            <View style={nwcDrillStyles.section}>
+              <Text style={nwcDrillStyles.sectionLabel}>TOP AP BILLS (outstanding)</Text>
+              {topBills.length === 0 ? (
+                <Text style={nwcDrillStyles.empty}>No outstanding bills</Text>
+              ) : (
+                topBills.map((bill, i) => {
+                  const amt = bill.outstanding ?? bill.amount ?? 0;
+                  const isOverdue = bill.due_date && new Date(bill.due_date) < new Date();
+                  return (
+                    <View
+                      key={bill.id ?? i}
+                      style={[nwcDrillStyles.row, i < topBills.length - 1 && nwcDrillStyles.rowBorder]}
+                    >
+                      <View style={nwcDrillStyles.rowInfo}>
+                        <Text style={nwcDrillStyles.rowName} numberOfLines={1}>
+                          {bill.vendor ?? bill.bill_number ?? `BILL-${bill.id}`}
+                        </Text>
+                        <Text style={nwcDrillStyles.rowSub}>
+                          {bill.bill_number ?? (bill.due_date ? `Due ${bill.due_date}` : '')}
+                          {isOverdue ? ' · overdue' : ''}
+                        </Text>
+                      </View>
+                      <Text style={[nwcDrillStyles.rowAmt, nwcDrillStyles.apAmt]}>
+                        −{fmtCurrency(amt)}
+                      </Text>
+                    </View>
+                  );
+                })
+              )}
+            </View>
+            <View style={{ height: Spacing.xl }} />
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const nwcDrillStyles = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
+  sheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    maxHeight: '80%',
+    paddingBottom: Spacing.xl,
+  },
+  sheetHeader: { padding: Spacing.md, paddingBottom: 0 },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.borderLight,
+    alignSelf: 'center',
+    marginBottom: Spacing.sm,
+  },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingBottom: Spacing.sm },
+  title: { fontSize: 17, fontWeight: '700', color: Colors.text },
+  subtitle: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  section: {
+    marginTop: Spacing.sm,
+    marginHorizontal: Spacing.md,
+    backgroundColor: Colors.background,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+    marginBottom: Spacing.sm,
+  },
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    backgroundColor: Colors.borderLight,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  empty: { fontSize: 13, color: Colors.textMuted, padding: Spacing.md, fontStyle: 'italic' },
+  row: { flexDirection: 'row', alignItems: 'center', padding: Spacing.sm, paddingHorizontal: Spacing.md, gap: Spacing.sm },
+  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border },
+  rowInfo: { flex: 1 },
+  rowName: { fontSize: 13, fontWeight: '600', color: Colors.text },
+  rowSub: { fontSize: 11, color: Colors.textMuted, marginTop: 1 },
+  rowAmt: { fontSize: 13, fontWeight: '700' },
+  arAmt: { color: Colors.text },
+  apAmt: { color: Colors.textSecondary },
 });
 
 // ─── DSO / DPO / CCC Turnover Card ───────────────────────────────────────────
@@ -1497,8 +1722,12 @@ export default function FinancialAnalyticsScreen() {
                 action={periodChips}
               />
               <AgingHistoryChart history={periodHistory} />
-              <SectionHeader title="Net Working Capital" meta="AR − AP daily" />
-              <NWCTrendCard history={periodHistory} />
+              <SectionHeader title="Net Working Capital" meta="AR − AP daily · tap Surplus/Deficit for breakdown" />
+              <NWCTrendCard
+                history={periodHistory}
+                bills={apBills ?? []}
+                invoices={arInvoices ?? []}
+              />
             </>
           );
         })()}
