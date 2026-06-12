@@ -39,6 +39,7 @@ import { getRecentlyViewed, RecentItem } from '@/utils/recentlyViewed';
 import { getFlaggedIds } from '@/utils/flaggedItems';
 import { exportDashboardSummaryPDF, exportUpcomingPaymentsPDF, exportFlaggedCombinedPDF } from '@/utils/pdfExport';
 import { saveKpiSnapshot, loadKpiHistory, KpiHistoryEntry } from '@/utils/kpiHistory';
+import { saveHealthSnapshot, loadHealthHistory, HealthHistoryEntry } from '@/utils/healthHistory';
 import { fetchAPBills, APBill } from '@/api/accountsPayable';
 import { fetchARInvoices, ARInvoice } from '@/api/accountsReceivable';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
@@ -478,10 +479,46 @@ function computeHealthScore(
   return { score, grade, apPct, arPct };
 }
 
-function FinancialHealthCard({ apBuckets, arBuckets, onPress }: {
+/** Mini sparkline for health score history — bar-based, no SVG dependency */
+function HealthScoreSparkline({ history }: { history: HealthHistoryEntry[] }) {
+  if (history.length < 2) return null;
+  const last14 = history.slice(-14);
+  const maxScore = 100;
+  const BAR_MAX_H = 20;
+  return (
+    <View style={healthStyles.sparklineWrap}>
+      <View style={healthStyles.sparklineRow}>
+        {last14.map((entry, i) => {
+          const isLast = i === last14.length - 1;
+          const barH = Math.max(2, Math.round((entry.score / maxScore) * BAR_MAX_H));
+          const opacity = 0.3 + 0.7 * ((i + 1) / last14.length);
+          return (
+            <View key={entry.date} style={healthStyles.sparklineBarWrap}>
+              <View
+                style={[
+                  healthStyles.sparklineBar,
+                  { height: barH, opacity, backgroundColor: isLast ? Colors.text : Colors.textSecondary },
+                ]}
+              />
+            </View>
+          );
+        })}
+      </View>
+      <View style={healthStyles.sparklineMeta}>
+        <Text style={healthStyles.sparklineLabel}>
+          {last14[0]?.date?.slice(5) ?? ''} → {last14[last14.length - 1]?.date?.slice(5) ?? ''}
+        </Text>
+        <Text style={healthStyles.sparklineLabel}>{last14.length}d trend</Text>
+      </View>
+    </View>
+  );
+}
+
+function FinancialHealthCard({ apBuckets, arBuckets, onPress, history }: {
   apBuckets: AgingMicroBucket[];
   arBuckets: AgingMicroBucket[];
   onPress?: () => void;
+  history?: HealthHistoryEntry[];
 }) {
   const hs = computeHealthScore(apBuckets, arBuckets);
   const gradeAnim = useRef(new Animated.Value(0)).current;
@@ -537,6 +574,7 @@ function FinancialHealthCard({ apBuckets, arBuckets, onPress }: {
           <Text style={healthStyles.barPct}>{hs.arPct}%</Text>
         </View>
       </View>
+      {history && history.length >= 2 && <HealthScoreSparkline history={history} />}
       <Text style={healthStyles.hint}>
         % of outstanding not yet overdue 30+ days{onPress ? ' · tap for full breakdown' : ''}
       </Text>
@@ -593,6 +631,22 @@ const healthStyles = StyleSheet.create({
   barFill: { height: '100%', backgroundColor: Colors.text, borderRadius: Radius.full },
   barPct: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary, width: 32, textAlign: 'right' },
   hint: { fontSize: 10, color: Colors.textMuted },
+  sparklineWrap: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+    paddingTop: Spacing.xs,
+    gap: 4,
+  },
+  sparklineRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 3,
+    height: 24,
+  },
+  sparklineBarWrap: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: 24 },
+  sparklineBar: { width: '80%', borderRadius: 2, minHeight: 2 },
+  sparklineMeta: { flexDirection: 'row', justifyContent: 'space-between' },
+  sparklineLabel: { fontSize: 9, color: Colors.textMuted },
 });
 
 // ─── Pending Approvals Card ───────────────────────────────────────────────────
@@ -811,6 +865,7 @@ export default function DashboardScreen() {
     thisLabel: string; prevLabel: string;
   } | null>(null);
   const [kpiHistory, setKpiHistory] = useState<KpiHistoryEntry[]>([]);
+  const [healthHistory, setHealthHistory] = useState<HealthHistoryEntry[]>([]);
 
   const cacheKey = `dashboard:${selectedCompany?.id ?? 'all'}`;
 
@@ -866,6 +921,7 @@ export default function DashboardScreen() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     loadKpiHistory(selectedCompany?.id).then(setKpiHistory).catch(() => {});
+    loadHealthHistory(selectedCompany?.id).then(setHealthHistory).catch(() => {});
   }, [selectedCompany]);
 
   // Lazy supply chain fetch — runs after main data, doesn't block render
@@ -949,8 +1005,17 @@ export default function DashboardScreen() {
       setTopCustomers(customers);
 
       // Aging buckets computed client-side from all unpaid bills/invoices
-      setApAgingBuckets(computeClientAging(bills ?? []));
-      setArAgingBuckets(computeClientAging(invoices ?? []));
+      const apBuckets = computeClientAging(bills ?? []);
+      const arBuckets = computeClientAging(invoices ?? []);
+      setApAgingBuckets(apBuckets);
+      setArAgingBuckets(arBuckets);
+
+      // Save daily financial health snapshot for sparkline trend
+      const hs = computeHealthScore(apBuckets, arBuckets);
+      if (hs) {
+        saveHealthSnapshot(selectedCompany?.id, hs).catch(() => {});
+        loadHealthHistory(selectedCompany?.id).then(setHealthHistory).catch(() => {});
+      }
 
       // Month-over-month billing comparison
       const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -1448,6 +1513,7 @@ export default function DashboardScreen() {
               apBuckets={apAgingBuckets}
               arBuckets={arAgingBuckets}
               onPress={() => navigation.navigate('More', { screen: 'FinancialAnalytics' } as any)}
+              history={healthHistory}
             />
           </>
         )}
