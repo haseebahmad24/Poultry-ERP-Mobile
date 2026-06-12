@@ -1,5 +1,41 @@
 # Mobile App Progress
 
+## Session 64 — 2026-06-12
+
+### Completed This Session
+
+**AccountStatement — Tap Row → JournalEntryDetail Navigation** (`src/screens/finance/AccountStatementScreen.tsx`)
+- Added `_entry?: JournalEntry` field to `AccountStatementLine` type
+- `load()` stores the parent `JournalEntry` object on each line as `_entry`
+- Transaction rows wrapped in `TouchableOpacity`; tap navigates to `JournalEntryDetail` with full entry
+- Chevron indicator (`Feather chevron-right`) shown on rows that have an entry reference
+- `balanceCell` View wraps balance text + chevron for proper right-aligned layout
+- `useNavigation<NavProp>()` added; `NativeStackNavigationProp` and `JournalEntry` imports added
+
+**ProcurementAnalytics — VendorLeadTimeModal "View all POs" Button** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`, `src/navigation/MoreNavigator.tsx`, `src/screens/purchaseOrders/PurchaseOrdersScreen.tsx`)
+- `onViewAllPOs?: (vendorName: string) => void` prop added to `VendorLeadTimeModal`
+- "View all POs for {vendor}" button rendered below recent POs list (solo mode only, not compare mode)
+- Button closes modal then navigates to `PurchaseOrders` with `initialVendor: vendorName`
+- `MoreStackParamList.PurchaseOrders` updated to `{ initialVendor?: string } | undefined`
+- `PurchaseOrdersScreen` reads `route.params?.initialVendor` via `useRoute<RouteType>()`, pre-populates `search` state
+
+**Dashboard — Overdue Payments Banner** (`src/screens/dashboard/DashboardScreen.tsx`)
+- New `overdueBills` and `overdueInvoices` state
+- `isActiveStatus()` helper: reusable check for PAID/RECEIVED/CLOSED/CANCELLED exclusion
+- `filterOverdue()`: returns true when `due_date < today` and status is active
+- Amber banner (background `#fffbeb`, border `#fcd34d`) rendered above KPI grid when overdue items exist
+- Shows counts: "N bills payable · M invoices receivable"
+- AP / AR quick-navigate buttons (brown `#b45309` background) for direct drill-down
+
+### Next Session
+- Consider: JournalEntries — narration full-text search (currently only matches account/type/voucher_no)
+- Consider: AccountStatement — highlight the first row where running balance crosses zero
+- Consider: StockHealth — import from last exported CSV (show diff before applying)
+- Consider: ProcurementAnalytics — value distribution comparison for top-items chart
+- Consider: FinancialAnalytics — AgingHistoryChart interactive: tap a data point dot to see that day's snapshot
+
+---
+
 ## Session 63 — 2026-06-12
 
 ### Completed This Session
