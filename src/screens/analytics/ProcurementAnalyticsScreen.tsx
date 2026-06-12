@@ -1399,6 +1399,7 @@ function VendorLeadTimeModal({
   compareVendor,
   compareTrend,
   otherVendors,
+  vendorPOs,
   onSelectCompare,
   onClearCompare,
   onClose,
@@ -1408,11 +1409,20 @@ function VendorLeadTimeModal({
   compareVendor: string | null;
   compareTrend: MonthLeadTime[];
   otherVendors: LeadTimeRow[];
+  vendorPOs?: PurchaseOrder[];
   onSelectCompare: (vendor: string) => void;
   onClearCompare: () => void;
   onClose: () => void;
 }) {
   const [showPicker, setShowPicker] = useState(false);
+
+  const recentPOs = React.useMemo(() => {
+    if (!vendorPOs || vendorPOs.length === 0) return [];
+    return vendorPOs
+      .slice()
+      .sort((a, b) => ((a.dt ?? '') < (b.dt ?? '') ? 1 : -1))
+      .slice(0, 8);
+  }, [vendorPOs]);
 
   const hasAny = trend.some((m) => m.poCount > 0);
   const BAR_H = 72;
@@ -1446,6 +1456,11 @@ function VendorLeadTimeModal({
         <TouchableOpacity style={vltModalStyles.backdropTap} activeOpacity={1} onPress={onClose} />
         <View style={vltModalStyles.sheet}>
           <View style={vltModalStyles.handle} />
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
           <View style={vltModalStyles.header}>
             <View style={{ flex: 1 }}>
               <Text style={vltModalStyles.title} numberOfLines={1}>
@@ -1619,6 +1634,54 @@ function VendorLeadTimeModal({
               />
             </View>
           )}
+
+          {/* Recent POs list — only in solo mode */}
+          {!compareVendor && recentPOs.length > 0 && (
+            <View style={vltModalStyles.poSection}>
+              <View style={vltModalStyles.poSectionHeader}>
+                <Text style={vltModalStyles.poSectionTitle}>Recent Purchase Orders</Text>
+                <Text style={vltModalStyles.poSectionMeta}>{recentPOs.length} shown</Text>
+              </View>
+              {recentPOs.map((po, idx) => {
+                const leadDays = (po.dt && po.delivery_date)
+                  ? Math.round((new Date(po.delivery_date).getTime() - new Date(po.dt).getTime()) / 86400000)
+                  : null;
+                const statusColors: Record<string, string> = {
+                  approved: '#1a7f37', closed: Colors.textSecondary,
+                  cancelled: '#c0392b', draft: Colors.textMuted,
+                };
+                return (
+                  <View
+                    key={po.id}
+                    style={[vltModalStyles.poRow, idx < recentPOs.length - 1 && vltModalStyles.poRowBorder]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={vltModalStyles.poNumber} numberOfLines={1}>
+                        {po.po_number ?? `PO-${po.id}`}
+                      </Text>
+                      <Text style={vltModalStyles.poDate}>{po.dt ? formatShortDate(po.dt) : '—'}</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                      <Text style={vltModalStyles.poAmount}>{formatCurrency(po.total ?? 0)}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        {po.status && (
+                          <Text style={[vltModalStyles.poStatus, { color: statusColors[po.status.toLowerCase()] ?? Colors.textSecondary }]}>
+                            {po.status}
+                          </Text>
+                        )}
+                        {leadDays != null && leadDays >= 0 && (
+                          <Text style={vltModalStyles.poLeadTime}>{leadDays}d</Text>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          <View style={{ height: Spacing.xl }} />
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -1632,7 +1695,7 @@ const vltModalStyles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderTopLeftRadius: Radius.xl,
     borderTopRightRadius: Radius.xl,
-    paddingBottom: Spacing.xxl,
+    maxHeight: '85%',
   },
   handle: {
     width: 36,
@@ -1757,6 +1820,52 @@ const vltModalStyles = StyleSheet.create({
   },
   pickerVendor: { flex: 1, fontSize: 13, color: Colors.text },
   pickerAvg: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary },
+
+  poSection: {
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    overflow: 'hidden',
+  },
+  poSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    backgroundColor: Colors.surfaceHover,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  poSectionTitle: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary },
+  poSectionMeta: { fontSize: 10, color: Colors.textMuted },
+  poRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  poRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  poNumber: { fontSize: 12, fontWeight: '600', color: Colors.text },
+  poDate: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
+  poAmount: { fontSize: 12, fontWeight: '700', color: Colors.text },
+  poStatus: { fontSize: 10, fontWeight: '600', textTransform: 'capitalize' },
+  poLeadTime: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    backgroundColor: Colors.borderLight,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: Radius.sm,
+  },
 });
 
 const ltStyles = StyleSheet.create({
@@ -1950,6 +2059,7 @@ export default function ProcurementAnalyticsScreen() {
   const [chartMode, setChartMode] = useState<ChartMode>('count');
   const [selectedLeadTimeVendor, setSelectedLeadTimeVendor] = useState<string | null>(null);
   const [vendorLeadTrend, setVendorLeadTrend] = useState<MonthLeadTime[]>([]);
+  const [vendorPOs, setVendorPOs] = useState<PurchaseOrder[]>([]);
   const [compareLeadTimeVendor, setCompareLeadTimeVendor] = useState<string | null>(null);
   const [compareLeadTrend, setCompareLeadTrend] = useState<MonthLeadTime[]>([]);
 
@@ -2078,6 +2188,7 @@ export default function ProcurementAnalyticsScreen() {
     const trend = computeVendorMonthlyTrend(rawData.pos, vendor);
     setVendorLeadTrend(trend);
     setSelectedLeadTimeVendor(vendor);
+    setVendorPOs(rawData.pos.filter((po) => po.vendor === vendor));
     setCompareLeadTimeVendor(null);
     setCompareLeadTrend([]);
   }, [rawData]);
@@ -2275,9 +2386,10 @@ export default function ProcurementAnalyticsScreen() {
           compareVendor={compareLeadTimeVendor}
           compareTrend={compareLeadTrend}
           otherVendors={(analytics?.leadTime ?? []).filter((r) => r.vendor !== selectedLeadTimeVendor)}
+          vendorPOs={vendorPOs}
           onSelectCompare={handleCompareVendorSelect}
           onClearCompare={() => { setCompareLeadTimeVendor(null); setCompareLeadTrend([]); }}
-          onClose={() => { setSelectedLeadTimeVendor(null); setCompareLeadTimeVendor(null); setCompareLeadTrend([]); }}
+          onClose={() => { setSelectedLeadTimeVendor(null); setCompareLeadTimeVendor(null); setCompareLeadTrend([]); setVendorPOs([]); }}
         />
       )}
 
