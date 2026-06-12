@@ -644,9 +644,9 @@ const healthStyles = StyleSheet.create({
     height: 24,
   },
   sparklineBarWrap: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: 24 },
-  sparklineBar: { width: '80%', borderRadius: 2, minHeight: 2 },
+  sparklineBar: { width: '80%', borderRadius: Radius.full, minHeight: 2 },
   sparklineMeta: { flexDirection: 'row', justifyContent: 'space-between' },
-  sparklineLabel: { fontSize: 9, color: Colors.textMuted },
+  sparklineLabel: { fontSize: 10, color: Colors.textMuted },
 });
 
 // ─── Pending Approvals Card ───────────────────────────────────────────────────

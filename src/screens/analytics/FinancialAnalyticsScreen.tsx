@@ -972,7 +972,7 @@ function NWCTrendCard({
           </Text>
           <View style={nwcStyles.tileLabelRow}>
             <Text style={nwcStyles.tileLabel}>{currentNWC >= 0 ? 'Surplus' : 'Deficit'}</Text>
-            {canDrillDown && <Feather name="info" size={9} color={Colors.textMuted} style={{ marginLeft: 2 }} />}
+            {canDrillDown && <Feather name="info" size={10} color={Colors.textMuted} style={{ marginLeft: 2 }} />}
           </View>
         </TouchableOpacity>
         <View style={[nwcStyles.tile, nwcStyles.tileMid]}>
