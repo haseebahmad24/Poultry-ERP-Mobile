@@ -84,12 +84,22 @@ interface MonthLeadTime {
   isCurrent: boolean;
 }
 
+interface TopItemRow {
+  itemName: string;
+  itemId?: number;
+  itemCode?: string;
+  poCount: number;
+  totalValue: number;
+  avgValue: number;
+}
+
 type Analytics = ProcurementAnalyticsData & {
   months: MonthBucket[];
   valueDist: ValueDistRow[];
   deliveryPerf: DeliveryPerf;
   leadTime: LeadTimeRow[];
   leadTimeTrend: MonthLeadTime[];
+  topItems: TopItemRow[];
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -244,7 +254,37 @@ function computeAnalytics(
     deliveryPerf: computeDeliveryPerformance(pos),
     leadTime: computeLeadTime(pos),
     leadTimeTrend: computeLeadTimeTrend(pos),
+    topItems: computeTopItems(pos),
   };
+}
+
+function computeTopItems(pos: PurchaseOrder[]): TopItemRow[] {
+  const map = new Map<string, TopItemRow>();
+  for (const po of pos) {
+    if (!po.items?.length) continue;
+    for (const item of po.items) {
+      const name = item.item_name ?? 'Unknown';
+      const amount = item.amount ?? (item.qty_ordered * (item.rate ?? 0));
+      const existing = map.get(name);
+      if (existing) {
+        existing.poCount += 1;
+        existing.totalValue += amount;
+        if (!existing.itemId && item.item_id) existing.itemId = item.item_id;
+      } else {
+        map.set(name, {
+          itemName: name,
+          itemId: item.item_id,
+          poCount: 1,
+          totalValue: amount,
+          avgValue: 0,
+        });
+      }
+    }
+  }
+  return Array.from(map.values())
+    .sort((a, b) => b.totalValue - a.totalValue)
+    .slice(0, 8)
+    .map((r) => ({ ...r, avgValue: r.poCount > 0 ? r.totalValue / r.poCount : 0 }));
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -1199,6 +1239,110 @@ const delivStyles = StyleSheet.create({
   legendLabel: { fontSize: 11, color: Colors.textSecondary },
 });
 
+// ─── Top Items Card ───────────────────────────────────────────────────────────
+
+function TopItemsCard({
+  items,
+  onPressItem,
+}: {
+  items: TopItemRow[];
+  onPressItem: (item: TopItemRow) => void;
+}) {
+  if (items.length === 0) {
+    return (
+      <View style={topItemStyles.empty}>
+        <Text style={topItemStyles.emptyText}>No item-level data — POs may not have line items</Text>
+      </View>
+    );
+  }
+  const maxValue = items[0]?.totalValue ?? 1;
+
+  return (
+    <View style={topItemStyles.card}>
+      {items.map((item, i) => {
+        const isLast = i === items.length - 1;
+        const barPct = maxValue > 0 ? (item.totalValue / maxValue) * 100 : 0;
+        return (
+          <TouchableOpacity
+            key={item.itemName}
+            style={[topItemStyles.row, !isLast && topItemStyles.rowBorder]}
+            activeOpacity={item.itemId != null ? 0.6 : 1}
+            onPress={item.itemId != null ? () => onPressItem(item) : undefined}
+          >
+            <View style={topItemStyles.rankBadge}>
+              <Text style={topItemStyles.rankText}>{i + 1}</Text>
+            </View>
+            <View style={topItemStyles.nameCol}>
+              <Text style={topItemStyles.name} numberOfLines={1}>{item.itemName}</Text>
+              <View style={topItemStyles.barTrack}>
+                <View style={[topItemStyles.bar, { width: `${barPct}%` as any }]} />
+              </View>
+            </View>
+            <View style={topItemStyles.valueCol}>
+              <Text style={topItemStyles.value}>{formatCurrency(item.totalValue)}</Text>
+              <Text style={topItemStyles.sub}>{item.poCount} PO{item.poCount !== 1 ? 's' : ''}</Text>
+            </View>
+            {item.itemId != null && (
+              <Feather name="chevron-right" size={13} color={Colors.textMuted} />
+            )}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+const topItemStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    overflow: 'hidden',
+  },
+  empty: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    padding: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  emptyText: { fontSize: 13, color: Colors.textMuted, fontStyle: 'italic', textAlign: 'center' },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    gap: Spacing.sm,
+  },
+  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight },
+  rankBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.borderLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankText: { fontSize: 10, fontWeight: '700', color: Colors.textSecondary },
+  nameCol: { flex: 1, gap: 4 },
+  name: { fontSize: 13, fontWeight: '600', color: Colors.text },
+  barTrack: {
+    height: 3,
+    backgroundColor: Colors.borderLight,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+  },
+  bar: { height: '100%', backgroundColor: Colors.textSecondary, borderRadius: Radius.full },
+  valueCol: { alignItems: 'flex-end' },
+  value: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  sub: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
+});
+
 // ─── Lead Time Chart ──────────────────────────────────────────────────────────
 
 function LeadTimeChart({ rows, onPress }: { rows: LeadTimeRow[]; onPress?: (vendor: string) => void }) {
@@ -1945,6 +2089,17 @@ export default function ProcurementAnalyticsScreen() {
     setCompareLeadTrend(trend);
   }, [rawData]);
 
+  const handleNavigateItemLedger = useCallback((item: TopItemRow) => {
+    (navigation as any).navigate('Inventory', {
+      screen: 'ItemLedger',
+      params: {
+        item_id: item.itemId,
+        item_name: item.itemName,
+        item_code: item.itemCode,
+      },
+    });
+  }, [navigation]);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar style="dark" />
@@ -2082,6 +2237,20 @@ export default function ProcurementAnalyticsScreen() {
           {/* Order value distribution */}
           <SectionHeader title="Order Value Distribution" subtitle="PO and SO counts by order size" />
           <ValueDistributionChart rows={analytics.valueDist} />
+
+          {/* Top items by order value */}
+          {analytics.topItems.length > 0 && (
+            <>
+              <SectionHeader
+                title="Top Items"
+                subtitle="By total PO value · tap to view ledger"
+              />
+              <TopItemsCard
+                items={analytics.topItems}
+                onPressItem={handleNavigateItemLedger}
+              />
+            </>
+          )}
 
           {/* Delivery performance */}
           <SectionHeader title="Delivery Performance" subtitle="Open PO deadline status" />
