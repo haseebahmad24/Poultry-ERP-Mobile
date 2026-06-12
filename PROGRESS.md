@@ -1,5 +1,41 @@
 # Mobile App Progress
 
+## Session 62 — 2026-06-12
+
+### Completed This Session
+
+**Dashboard — FinancialHealthCard 14-day Score History Sparkline** (`src/screens/dashboard/DashboardScreen.tsx`, `src/utils/healthHistory.ts`)
+- New `src/utils/healthHistory.ts`: `saveHealthSnapshot`/`loadHealthHistory` with AsyncStorage, 30-entry cap, per-company key
+- After aging buckets are computed, `computeHealthScore` result saved daily via `saveHealthSnapshot`
+- `healthHistory` state loaded on mount and on company change (parallel with kpiHistory)
+- `HealthScoreSparkline` component: last-14-entry bar chart with opacity fading older→newer (30%→100%), last bar full-dark
+- `FinancialHealthCard` gains `history?: HealthHistoryEntry[]` prop; sparkline rendered between AP/AR bars and hint text when ≥2 entries
+- Sparkline meta row shows date range (MM-DD → MM-DD) and `Nd trend` label
+
+**ProcurementAnalytics — Top Items Card with ItemLedger Navigation** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- `TopItemRow` interface: `itemName`, `itemId?`, `itemCode?`, `poCount`, `totalValue`, `avgValue`
+- `computeTopItems(pos)`: aggregates PO line items (`po.items[]`) by item name, top 8 by total value; captures `item_id` for navigation
+- `TopItemsCard`: ranked list with proportional fill bar, PO count, value column; rows with `itemId` are tappable
+- `handleNavigateItemLedger`: cross-tab navigation `Inventory > ItemLedger` passing `item_id`/`item_name`
+- Section rendered between Value Distribution chart and Delivery Performance, only when `topItems.length > 0`
+
+**FinancialAnalytics — NWCTrendCard Surplus/Deficit Drill-Down Modal** (`src/screens/analytics/FinancialAnalyticsScreen.tsx`)
+- `NWCDrillDownModal`: bottom-sheet Modal with top-6 outstanding AP bills + top-6 AR invoices
+  - Bills/invoices filtered to exclude paid/cancelled; sorted by outstanding desc
+  - Overdue indicator when `due_date < today`; AR shown as +value, AP as −value (muted)
+- `NWCTrendCard` gains `bills?: APBill[]`, `invoices?: ARInvoice[]` props
+- Surplus/Deficit tile becomes `TouchableOpacity` with ⓘ icon when drill-down data available
+- `NWCDrillDownModal` wired at call site with `apBills`/`arInvoices` from `FinancialData`
+
+### Next Session
+- Consider: StockHealth — import from last exported CSV (read-back verification: show diff before applying)
+- Consider: Dashboard — financial health trend grade change alert (notify when grade drops by one level)
+- Consider: ProcurementAnalytics — Vendor drill-down from lead time chart (already tappable; add PO list for that vendor)
+- Consider: JournalEntries — AccountStatement improvements: opening balance from trial balance
+- Consider: Comparison screen — cross-company health score comparison
+
+---
+
 ## Session 61 — 2026-06-11
 
 ### Completed This Session
