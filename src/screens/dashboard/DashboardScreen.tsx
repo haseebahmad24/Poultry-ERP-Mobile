@@ -1250,7 +1250,7 @@ export default function DashboardScreen() {
         {/* Overdue payments banner */}
         {(overdueBills.length > 0 || overdueInvoices.length > 0) && (
           <View style={styles.overdueBanner}>
-            <Feather name="alert-triangle" size={14} color="#b45309" style={{ marginTop: 1 }} />
+            <Feather name="alert-triangle" size={14} color={Colors.text} style={{ marginTop: 1 }} />
             <View style={{ flex: 1 }}>
               <Text style={styles.overdueBannerTitle}>Overdue Payments</Text>
               <Text style={styles.overdueBannerSub}>
@@ -2419,24 +2419,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Spacing.sm,
-    backgroundColor: '#fffbeb',
+    backgroundColor: Colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#fcd34d',
+    borderColor: Colors.border,
     marginHorizontal: Spacing.md,
     borderRadius: Radius.md,
     padding: Spacing.sm + 2,
     marginBottom: Spacing.sm,
   },
-  overdueBannerTitle: { fontSize: 12, fontWeight: '700', color: '#92400e', marginBottom: 2 },
-  overdueBannerSub: { fontSize: 11, color: '#b45309' },
+  overdueBannerTitle: { fontSize: 12, fontWeight: '700', color: Colors.text, marginBottom: 2 },
+  overdueBannerSub: { fontSize: 11, color: Colors.textSecondary },
   overdueBannerActions: { flexDirection: 'row', gap: Spacing.xs, alignItems: 'center' },
   overdueBannerBtn: {
-    backgroundColor: '#b45309',
+    backgroundColor: Colors.text,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: Radius.sm,
   },
-  overdueBannerBtnText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  overdueBannerBtnText: { fontSize: 11, fontWeight: '700', color: Colors.surface },
 
   sectionHeaderRow: {
     flexDirection: 'row',
