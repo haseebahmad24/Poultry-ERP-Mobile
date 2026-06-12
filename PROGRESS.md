@@ -1,5 +1,41 @@
 # Mobile App Progress
 
+## Session 65 — 2026-06-12
+
+### Completed This Session
+
+**AccountStatement — Balance Zero-Crossing Highlight** (`src/screens/finance/AccountStatementScreen.tsx`)
+- `zeroCrossingIdx` memo: scans `lines` for first index where running balance changes sign
+- `React.Fragment` wrapper around each row allows inserting the marker between rows
+- Dashed "balance crosses zero" separator row rendered at the crossing index
+- Matches the existing JournalEntriesScreen zero-crossing UX pattern exactly
+
+**StockHealth — Threshold Import Diff Preview** (`src/screens/analytics/StockHealthScreen.tsx`)
+- `buildDiff()` helper: compares parsed CSV rows against `currentThresholds` Map
+- Each row tagged as `NEW` (no existing threshold), `CHG` (value differs), or `SAME` (unchanged)
+- Diff card rendered below the CSV input showing all rows with colored kind pills and old→new values
+- Import button label changes to "Apply N changes" and is disabled when nothing actionable
+- Only `NEW` + `CHG` rows are applied; unchanged rows skipped automatically
+- `ThresholdImportModal` gains `currentThresholds: Map<string, number>` prop
+- Result message now reports "Applied N changes · M unchanged · K errors"
+- Modal wrapped in `ScrollView` for natural scrolling when diff list is long
+
+**ProcurementAnalytics — TopItemsCard Sort Toggle** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- `TopItemSortMode` type: `'value' | 'count' | 'avg'`
+- Sort pill bar at top of card with three pills (Value / Count / Avg)
+- Sorted items, bar widths, and primary metric text all update to reflect active sort mode
+- Sub-text shows complementary metric (e.g., when sorted by Count, sub shows total value)
+- Default sort remains 'value' to preserve existing behaviour
+
+### Next Session
+- Consider: JournalEntries — line-level account search (search within JE line items, not just header fields)
+- Consider: AccountStatement — search/filter within statement rows (by narration or voucher type)
+- Consider: FinancialAnalytics — AgingHistoryChart period selector (30 / 60 / 90 / All days)
+- Consider: ProcurementAnalytics — TopItemsCard "compare periods" toggle (this month vs. last month)
+- Consider: Dashboard — sparkline overlay: show both AP and AR on same sparkline card
+
+---
+
 ## Session 64 — 2026-06-12
 
 ### Completed This Session
