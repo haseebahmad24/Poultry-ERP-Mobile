@@ -1,5 +1,50 @@
 # Mobile App Progress
 
+## Session 63 — 2026-06-12
+
+### Completed This Session
+
+**AccountStatement — Opening Balance from Trial Balance** (`src/screens/finance/AccountStatementScreen.tsx`)
+- Import `fetchTrialBalance` from `@/api/trialBalance`
+- `dayBefore(dateStr)` helper: compute YYYY-MM-DD one day before period start
+- On load, fetch trial balance `as_of` day before `dateRange.from` to get opening balance
+- Match account row by `account_code`; fallback to `account_name` equality
+- Opening balance computed with debitNormal convention (debit−credit for 1xx/5xx, credit−debit otherwise)
+- Running balance now starts from opening balance instead of 0
+- Summary tiles switch to **Opening Bal / Net Movement / Closing Bal** when trial balance data found (fallback to Debits/Credits/Balance)
+- **OB row** added at top of transaction table: dark badge, highlight row, formatted balance with Cr indicator
+- Graceful fallback (openingBalance=0, hasOpeningBalance=false) when trial balance API unavailable or account not found
+- State reset on each load to avoid stale values after date range change
+
+**Dashboard — FinancialHealthCard Grade Change Alert** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `GRADE_ORDER` map: A=5, B=4, C=3, D=2, F=1 for ordering comparison
+- Find most recent previous-day history entry: `history.slice().reverse().find(e => e.date < today)`
+- Detect grade change: compare `prevGrade` vs current `hs.grade`
+- Pill banner rendered between topRow and AP/AR bars when grade changed
+- Improved (grade up): green background `#eafbee`, `trending-up` icon, `#1a7f37` text — "Grade improved: B → A"
+- Dropped (grade down): red background `#fdf0ef`, `trending-down` icon, `#c0392b` text — "Grade dropped: A → B"
+- Banner only shown when `history?.length >= 2` and grade actually changed vs previous day
+
+**ProcurementAnalytics — VendorLeadTimeModal Recent POs List** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- `VendorLeadTimeModal` gains `vendorPOs?: PurchaseOrder[]` prop
+- `recentPOs`: top 8 POs sorted descending by date (memoized)
+- "Recent Purchase Orders" card section below compare button in solo (non-compare) mode only
+- Each row: PO number + date (left) | amount + status + lead-time pill (right)
+- Lead time badge computed from `dt → delivery_date` in days
+- Status colors: approved=green, cancelled=red, closed=muted, draft=muted
+- Sheet converted to `maxHeight: '85%'` with `ScrollView` for natural scrolling when POs present
+- `handleLeadTimeVendorPress` filters `rawData.pos` by vendor name and sets `vendorPOs` state
+- `vendorPOs` cleared when modal closes
+
+### Next Session
+- Consider: AccountStatement — navigate to JournalEntryDetail from tapping a voucher row
+- Consider: JournalEntries — AccountStatement from account drill-down shows opening balance (now enabled)
+- Consider: ProcurementAnalytics — VendorLeadTimeModal "View all POs" link navigates to PurchaseOrders screen with vendor pre-filtered
+- Consider: StockHealth — read-back verification: show diff before applying imported CSV
+- Consider: Dashboard — due/overdue payments banner (show if high-priority AP/AR due this week)
+
+---
+
 ## Session 62 — 2026-06-12
 
 ### Completed This Session
