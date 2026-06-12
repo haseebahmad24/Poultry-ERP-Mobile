@@ -1241,6 +1241,14 @@ const delivStyles = StyleSheet.create({
 
 // ─── Top Items Card ───────────────────────────────────────────────────────────
 
+type TopItemSortMode = 'value' | 'count' | 'avg';
+
+const TOP_ITEM_SORT_MODES: { key: TopItemSortMode; label: string }[] = [
+  { key: 'value', label: 'Value' },
+  { key: 'count', label: 'Count' },
+  { key: 'avg', label: 'Avg' },
+];
+
 function TopItemsCard({
   items,
   onPressItem,
@@ -1248,6 +1256,8 @@ function TopItemsCard({
   items: TopItemRow[];
   onPressItem: (item: TopItemRow) => void;
 }) {
+  const [sortMode, setSortMode] = React.useState<TopItemSortMode>('value');
+
   if (items.length === 0) {
     return (
       <View style={topItemStyles.empty}>
@@ -1255,13 +1265,50 @@ function TopItemsCard({
       </View>
     );
   }
-  const maxValue = items[0]?.totalValue ?? 1;
+
+  const sortedItems = [...items].sort((a, b) => {
+    if (sortMode === 'count') return b.poCount - a.poCount;
+    if (sortMode === 'avg') return b.avgValue - a.avgValue;
+    return b.totalValue - a.totalValue;
+  });
+
+  const getMetric = (item: TopItemRow) => {
+    if (sortMode === 'count') return item.poCount;
+    if (sortMode === 'avg') return item.avgValue;
+    return item.totalValue;
+  };
+  const maxMetric = Math.max(...sortedItems.map(getMetric), 1);
+
+  const formatMetric = (item: TopItemRow) => {
+    if (sortMode === 'count') return `${item.poCount} PO${item.poCount !== 1 ? 's' : ''}`;
+    if (sortMode === 'avg') return formatCurrency(item.avgValue);
+    return formatCurrency(item.totalValue);
+  };
+
+  const formatSub = (item: TopItemRow) => {
+    if (sortMode === 'count') return formatCurrency(item.totalValue);
+    if (sortMode === 'avg') return `${item.poCount} PO${item.poCount !== 1 ? 's' : ''}`;
+    return `${item.poCount} PO${item.poCount !== 1 ? 's' : ''}`;
+  };
 
   return (
     <View style={topItemStyles.card}>
-      {items.map((item, i) => {
-        const isLast = i === items.length - 1;
-        const barPct = maxValue > 0 ? (item.totalValue / maxValue) * 100 : 0;
+      <View style={topItemStyles.sortBar}>
+        {TOP_ITEM_SORT_MODES.map(({ key, label }) => (
+          <TouchableOpacity
+            key={key}
+            style={[topItemStyles.sortPill, sortMode === key && topItemStyles.sortPillActive]}
+            onPress={() => setSortMode(key)}
+          >
+            <Text style={[topItemStyles.sortPillText, sortMode === key && topItemStyles.sortPillTextActive]}>
+              {label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      {sortedItems.map((item, i) => {
+        const isLast = i === sortedItems.length - 1;
+        const barPct = maxMetric > 0 ? (getMetric(item) / maxMetric) * 100 : 0;
         return (
           <TouchableOpacity
             key={item.itemName}
@@ -1279,8 +1326,8 @@ function TopItemsCard({
               </View>
             </View>
             <View style={topItemStyles.valueCol}>
-              <Text style={topItemStyles.value}>{formatCurrency(item.totalValue)}</Text>
-              <Text style={topItemStyles.sub}>{item.poCount} PO{item.poCount !== 1 ? 's' : ''}</Text>
+              <Text style={topItemStyles.value}>{formatMetric(item)}</Text>
+              <Text style={topItemStyles.sub}>{formatSub(item)}</Text>
             </View>
             {item.itemId != null && (
               <Feather name="chevron-right" size={13} color={Colors.textMuted} />
@@ -1341,6 +1388,28 @@ const topItemStyles = StyleSheet.create({
   valueCol: { alignItems: 'flex-end' },
   value: { fontSize: 13, fontWeight: '700', color: Colors.text },
   sub: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
+
+  sortBar: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  sortPill: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  sortPillActive: {
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
+  },
+  sortPillText: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary },
+  sortPillTextActive: { color: Colors.surface },
 });
 
 // ─── Lead Time Chart ──────────────────────────────────────────────────────────
@@ -2380,7 +2449,7 @@ export default function ProcurementAnalyticsScreen() {
             <>
               <SectionHeader
                 title="Top Items"
-                subtitle="By total PO value · tap to view ledger"
+                subtitle="Sort by value, count, or avg · tap to view ledger"
               />
               <TopItemsCard
                 items={analytics.topItems}
