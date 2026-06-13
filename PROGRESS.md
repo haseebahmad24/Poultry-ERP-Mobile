@@ -6,6 +6,104 @@
 - **JournalEntriesScreen**: `importError` color `#c0392b` (red) → `Colors.textSecondary`; removes semantic red from parse-error message.
 - **ProcurementAnalyticsScreen**: `newBadge` background `#0a6ed1` (blue) → `Colors.text` (near-black), text → `Colors.surface`; preserves badge weight without semantic hue.
 
+## Session 71 — 2026-06-13
+
+### Completed This Session
+
+**ItemLedger BalanceSparkline — Tap-to-Select Dot** (`src/screens/inventory/ItemLedgerScreen.tsx`)
+- `selectedIdx: number | null` state + `SPARK_DOT_R_SEL = 4.5` constant
+- X button in header right when dot is selected (clears selection)
+- Column-width `TouchableOpacity` hit zones over the full chart height (one per data point)
+- Selected column gets a `Colors.borderLight` highlight rectangle behind the chart
+- Selected dot grows to `SPARK_DOT_R_SEL`, borderWidth 2 (vs 1.5 unselected)
+- Footer shows snap detail row when selected: date · `+N in` · `−N out` · `= balance`
+- Footer shows `tap dot to inspect` hint text (centered) between date labels when idle
+- Consistent with DashMonthlySparkline tap-to-select pattern
+
+**ProcurementAnalytics — TopVendors vs LM Comparison** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- `computeTopVendors(pos)` helper: groups POs by vendor, returns top 8 by total spend
+- `thisMonthTopVendors` + `lastMonthTopVendors` useMemo in parent (same date logic as TopItems)
+- `RankedBarList` enhanced with optional `thisMonthRows` + `lastMonthRows` props
+- When provided: `vs LM` pill in top-right of card (matching TopItemsCard UX)
+- `compareOn` internal state; in compare mode: displayRows = thisMonthRows; prevMap for last month
+- `maxVal` normalizes across both current + prev period for fair bar scale
+- Double-bar rows: primary bar (full height, dark) + secondary bar (2px, `Colors.borderLight`)
+- `NEW` badge for vendors appearing this month but not last month
+- `prev $X` or `new this mo` sub-label in value column when comparing
+- Compare icon/chevron hidden in compareOn mode; tap-to-compare modal disabled while comparing
+- Legend row below pill when compareOn active: dot "This month" · dot "Last month"
+- New styles: `compareBar`, `comparePill`, `compareLegend`, `legendDot`, `newBadge`, `prevMeta`, `noDataRow`
+
+**Dashboard — Quick Insights Card** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `buildInsights()` function: generates up to 6 text bullet insights from KPI data:
+  - Revenue trend (up/down ≥5% vs last month)
+  - Expense spike alert (up ≥20% vs last month)
+  - Net income position (profitable/loss + trend ≥10% change)
+  - Cash coverage in months (cash ÷ monthly expenses)
+  - AR vs AP balance (owed more vs owing more, with fmtK amount)
+  - Overdue bill count + overdue invoice count
+- `QuickInsightsCard` component:
+  - Shows first 3 insights collapsed; "+N more" toggle expands all
+  - "Show less" collapses back; `expanded` state default true
+  - 7px dot per insight: dark=positive, textSecondary=alert, borderLight=neutral
+  - Dots have hairline border so light dots are visible on white surface
+  - Returns null when no insights can be computed
+- Inserted after KPI Grid with `SectionHeader "Quick Insights"` and meta `"auto-generated · tap to expand"`
+
+### Next Session
+- Consider: ProcurementAnalytics — TopCustomers vs LM comparison (apply same pattern to customer sales)
+- Consider: FinancialAnalytics — AgingHistoryChart tap-to-select tooltip showing AP/AR values at selected date
+- Consider: Dashboard — Quick Insights drill navigation (tap insight to go to relevant screen)
+- Consider: JournalEntries — per-voucher-type color-coded amount totals in the SectionHeader
+- Consider: StockHealth — velocity threshold filter (show only fast-moving / slow-moving items in the ranked list)
+
+---
+
+## Session 70 — 2026-06-13
+
+### Completed This Session
+
+**FinancialAnalytics — NWC Dual-Component Overlay** (`src/screens/analytics/FinancialAnalyticsScreen.tsx`)
+- Faint AP and AR component lines (opacity 0.22) rendered behind NWC net line in `NWCPolyline`
+- `apValues` and `arValues` props added to `NWCPolyline`; parent passes `visible.map(e => e.apTotal/arTotal)`
+- Footer legend updated: `faint: AP · AR | bold: NWC`
+- Grid lines + Y-axis label row already from Session 69
+
+**ProcurementAnalytics — TopItemsCard NEW Badge** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- When `compareOn` is active and an item in this month's list has no previous-month counterpart, a `NEW` badge is shown
+- Badge: `backgroundColor: Colors.text` (near-black), `color: Colors.surface`, 9px font — monochrome
+- Renders inline in `nameRow` next to item name
+
+**GRN Screen — Search Bar + Completion Filter Tabs** (`src/screens/grn/GRNScreen.tsx`)
+- `search: string` state with TextInput (PO number or vendor name, case-insensitive)
+- `completionFilter: 'all' | 'partial' | 'complete' | 'notStarted'` state
+- Four filter pills: All / Partial / Complete / Not Started
+  - Partial: 0 < pct < 100; Complete: pct ≥ 100; Not Started: pct = 0
+- `filteredOrders` useMemo applies search then completionFilter
+- Section header meta shows `X of Y` when filtered
+- Empty state adapts to "No results match" vs "No data found"
+
+**ItemLedger — Running Balance Sparkline Chart** (`src/screens/inventory/ItemLedgerScreen.tsx`)
+- `BalanceSparkline` component: polyline chart (56px height) above the ledger entries
+- `entriesWithBalance` useMemo: if all entries lack `balance` field, computes running balance by accumulating `qty_in - qty_out` chronologically
+- `getY` uses `(v - minVal) / range` to scale into chart height, allowing negative balances
+- Zero-line hairline shown when `minVal < 0` (negative balance scenario)
+- Dots: last entry dot larger (+1.5r), full opacity; earlier dots 55% opacity
+- Color: `Colors.textSecondary` when `lastBal < 0`, `Colors.text` when positive
+- Footer row: first date and last date of the visible range
+
+**Three UX Improvements** (`src/screens/dashboard/DashboardScreen.tsx`, `src/screens/finance/AccountStatementScreen.tsx`, `src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- AccountStatement: long-press any data row enters select mode with that row pre-selected (`delayLongPress=400ms`)
+- DashMonthlySparkline: tap column to see exact AP/AR amounts for that month; selected column highlighted; tap X or same column to deselect
+- JournalEntries PresetsModal: share button (↑) per preset exports JSON via native Share sheet; import section at bottom lets users paste exported JSON and save as new preset with validation
+
+### Next Session (Session 71 planned)
+- Consider: ItemLedger BalanceSparkline tap-to-select dot → **Done in Session 71**
+- Consider: ProcurementAnalytics TopVendors vs LM → **Done in Session 71**
+- Consider: Dashboard Quick Insights card → **Done in Session 71**
+
+---
+
 ## Session 69 — 2026-06-13
 
 ### Completed This Session
