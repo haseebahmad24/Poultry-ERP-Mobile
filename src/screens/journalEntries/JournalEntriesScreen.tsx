@@ -124,7 +124,8 @@ export default function JournalEntriesScreen() {
   const filtered = entries.filter((e) => {
     if (!search.trim()) return true;
     const words = search.toLowerCase().split(/\s+/).filter(Boolean);
-    const haystack = [e.voucher_no ?? '', e.narration ?? '', e.voucher_type ?? ''].join(' ').toLowerCase();
+    const lineAccounts = (e.lines ?? []).map((l) => l.account ?? '').join(' ');
+    const haystack = [e.voucher_no ?? '', e.narration ?? '', e.voucher_type ?? '', lineAccounts].join(' ').toLowerCase();
     return words.every((w) => haystack.includes(w));
   });
 
@@ -243,7 +244,7 @@ export default function JournalEntriesScreen() {
             <Feather name="search" size={14} color={Colors.textMuted} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search by voucher, narration, type…"
+              placeholder="Search by voucher, narration, type, account…"
               placeholderTextColor={Colors.textMuted}
               value={search}
               onChangeText={setSearch}
