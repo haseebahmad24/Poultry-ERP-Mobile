@@ -1120,10 +1120,10 @@ function ThresholdImportModal({
     }
   };
 
-  const diffKindColor = (kind: DiffRow['kind']) => {
-    if (kind === 'new') return '#1a7f37';
-    if (kind === 'changed') return '#b45309';
-    return Colors.textMuted;
+  const diffKindStyle = (kind: DiffRow['kind']): { bg: string; fg: string } => {
+    if (kind === 'new') return { bg: Colors.text, fg: Colors.surface };
+    if (kind === 'changed') return { bg: Colors.textSecondary, fg: Colors.surface };
+    return { bg: Colors.borderLight ?? Colors.border, fg: Colors.textMuted };
   };
 
   return (
@@ -1171,8 +1171,8 @@ function ThresholdImportModal({
               <View style={importStyles.diffCard}>
                 {diff.map((r, i) => (
                   <View key={i} style={[importStyles.diffRow, i < diff.length - 1 && importStyles.diffRowBorder]}>
-                    <View style={[importStyles.diffKindPill, { backgroundColor: diffKindColor(r.kind) + '22' }]}>
-                      <Text style={[importStyles.diffKindText, { color: diffKindColor(r.kind) }]}>
+                    <View style={[importStyles.diffKindPill, { backgroundColor: diffKindStyle(r.kind).bg }]}>
+                      <Text style={[importStyles.diffKindText, { color: diffKindStyle(r.kind).fg }]}>
                         {r.kind === 'new' ? 'NEW' : r.kind === 'changed' ? 'CHG' : 'SAME'}
                       </Text>
                     </View>
