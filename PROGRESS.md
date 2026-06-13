@@ -1,5 +1,11 @@
 # Mobile App Progress
 
+## UI Polish Log (Monochrome)
+
+### 2026-06-13 — Session-70 audit
+- **JournalEntriesScreen**: `importError` color `#c0392b` (red) → `Colors.textSecondary`; removes semantic red from parse-error message.
+- **ProcurementAnalyticsScreen**: `newBadge` background `#0a6ed1` (blue) → `Colors.text` (near-black), text → `Colors.surface`; preserves badge weight without semantic hue.
+
 ## Session 69 — 2026-06-13
 
 ### Completed This Session
