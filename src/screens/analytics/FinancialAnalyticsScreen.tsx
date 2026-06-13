@@ -622,6 +622,20 @@ function AgingHistoryPolylines({
       style={historyStyles.polylineContainer}
       onLayout={(e) => setChartW(e.nativeEvent.layout.width)}
     >
+      {/* Horizontal grid lines at 1/3 and 2/3 heights */}
+      {[1 / 3, 2 / 3].map((frac) => (
+        <View
+          key={frac}
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: Math.round(AGING_CHART_H * frac),
+            height: StyleSheet.hairlineWidth,
+            backgroundColor: Colors.borderLight,
+          }}
+        />
+      ))}
       {chartW > 0 && (
         <>
           {renderSegments(apPts, Colors.textSecondary, 'ap')}
@@ -670,13 +684,24 @@ function AgingHistoryChart({ history }: { history: AgingHistoryEntry[] }) {
           {snap ? snap.date.slice(5) : `${history.length} days · tap dot`}
         </Text>
       </View>
-      <AgingHistoryPolylines
-        visible={visible}
-        maxVal={maxVal}
-        selectedIdx={selectedIdx}
-        onSelectIdx={setSelectedIdx}
-      />
-      <View style={historyStyles.dateRow}>
+      {/* Chart row: Y-axis labels + polyline */}
+      <View style={historyStyles.chartRow}>
+        <View style={historyStyles.yAxis}>
+          <Text style={historyStyles.yAxisLabel}>{fmtCompact(maxVal)}</Text>
+          <Text style={[historyStyles.yAxisLabel, { position: 'absolute', top: AGING_CHART_H / 2 - 7 }]}>
+            {fmtCompact(maxVal / 2)}
+          </Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <AgingHistoryPolylines
+            visible={visible}
+            maxVal={maxVal}
+            selectedIdx={selectedIdx}
+            onSelectIdx={setSelectedIdx}
+          />
+        </View>
+      </View>
+      <View style={[historyStyles.dateRow, { marginLeft: 38 }]}>
         <Text style={historyStyles.dateLabel}>{visible[0]?.date.slice(5) ?? ''}</Text>
         <Text style={historyStyles.dateLabel}>{visible[visible.length - 1]?.date.slice(5) ?? ''}</Text>
       </View>
@@ -749,6 +774,19 @@ const historyStyles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: Radius.full },
   legendLabel: { fontSize: 11, color: Colors.textSecondary },
   legendMeta: { fontSize: 10, color: Colors.textMuted, marginLeft: 'auto' },
+  chartRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
+  yAxis: {
+    width: 34,
+    height: AGING_CHART_H,
+    alignItems: 'flex-end',
+    paddingRight: 4,
+    position: 'relative',
+  },
+  yAxisLabel: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    lineHeight: 12,
+  },
   polylineContainer: {
     height: AGING_CHART_H,
     position: 'relative',
