@@ -50,7 +50,7 @@ interface VelocityItem {
 function computeLedgerAnalysis(
   ledger: StockLedgerEntry[],
   stock: StockBalance[],
-): { velocityItems: VelocityItem[]; dusMap: Map<string, number> } {
+): { velocityItems: VelocityItem[]; allVelocityItems: VelocityItem[]; dusMap: Map<string, number> } {
   // Period from first→last ledger date (default 180 days if unknown)
   let minMs = Infinity;
   let maxMs = -Infinity;
@@ -73,14 +73,16 @@ function computeLedgerAnalysis(
     map.set(name, v);
   }
 
-  // Top-8 velocity items (for VelocityCard)
-  const velocityItems = Array.from(map.entries())
+  // All velocity items sorted by movement (used for fast/slow filtering)
+  const allVelocityItems = Array.from(map.entries())
     .map(([itemName, { totalIn, totalOut }]) => ({
       itemName, totalIn, totalOut, totalMovement: totalIn + totalOut,
     }))
     .filter((v) => v.totalMovement > 0)
-    .sort((a, b) => b.totalMovement - a.totalMovement)
-    .slice(0, 8);
+    .sort((a, b) => b.totalMovement - a.totalMovement);
+
+  // Top-8 velocity items (for default view)
+  const velocityItems = allVelocityItems.slice(0, 8);
 
   // Stock qty lookup by item name
   const stockMap = new Map<string, number>();
@@ -99,7 +101,7 @@ function computeLedgerAnalysis(
     if (days < 365) dusMap.set(itemName, days);
   }
 
-  return { velocityItems, dusMap };
+  return { velocityItems, allVelocityItems, dusMap };
 }
 
 type VelocityPeriod = '7d' | '30d' | '90d' | 'all';
@@ -1324,6 +1326,7 @@ export default function StockHealthScreen() {
   const [perItemThresholds, setPerItemThresholds] = useState<Map<string, number>>(new Map());
   const [rawLedger, setRawLedger] = useState<StockLedgerEntry[]>([]);
   const [velocityPeriod, setVelocityPeriod] = useState<VelocityPeriod>('all');
+  const [velocityMode, setVelocityMode] = useState<'all' | 'fast' | 'slow'>('all');
   const [velocityWarehouse, setVelocityWarehouse] = useState<string | null>(null);
   const [showWarehousePicker, setShowWarehousePicker] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -1346,13 +1349,21 @@ export default function StockHealthScreen() {
     return Array.from(names).sort();
   }, [rawLedger]);
 
-  const { velocityItems, dusMap } = useMemo(() => {
+  const { velocityItems, allVelocityItems, dusMap } = useMemo(() => {
     let filtered = filterLedgerByPeriod(rawLedger, velocityPeriod);
     if (velocityWarehouse) {
       filtered = filtered.filter((e) => e.warehouse_name === velocityWarehouse);
     }
     return computeLedgerAnalysis(filtered, allStock);
   }, [rawLedger, velocityPeriod, velocityWarehouse, allStock]);
+
+  const displayedVelocityItems = useMemo(() => {
+    if (velocityMode === 'all') return velocityItems;
+    const mid = Math.ceil(allVelocityItems.length / 2);
+    const fastSet = new Set(allVelocityItems.slice(0, mid).map((v) => v.itemName));
+    if (velocityMode === 'fast') return allVelocityItems.filter((v) => fastSet.has(v.itemName)).slice(0, 8);
+    return allVelocityItems.filter((v) => !fastSet.has(v.itemName)).slice(0, 8);
+  }, [velocityItems, allVelocityItems, velocityMode]);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -1581,6 +1592,20 @@ export default function StockHealthScreen() {
                   </View>
                 }
               />
+              {/* Fast / Slow / All mode pills */}
+              <View style={styles.velocityModeRow}>
+                {(['all', 'fast', 'slow'] as const).map((mode) => (
+                  <TouchableOpacity
+                    key={mode}
+                    style={[styles.periodChip, velocityMode === mode && styles.periodChipActive]}
+                    onPress={() => setVelocityMode(mode)}
+                  >
+                    <Text style={[styles.periodChipText, velocityMode === mode && styles.periodChipTextActive]}>
+                      {mode === 'all' ? 'All' : mode === 'fast' ? 'Fast-movers' : 'Slow-movers'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
               {velocityWarehouses.length > 1 && (
                 <TouchableOpacity
                   style={styles.warehouseFilterRow}
@@ -1594,8 +1619,8 @@ export default function StockHealthScreen() {
                   <Feather name="chevron-down" size={13} color={Colors.textMuted} />
                 </TouchableOpacity>
               )}
-              {velocityItems.length > 0
-                ? <VelocityCard items={velocityItems} />
+              {displayedVelocityItems.length > 0
+                ? <VelocityCard items={displayedVelocityItems} />
                 : <View style={styles.emptyVelocity}><Text style={styles.emptyVelocityText}>No movement in this period</Text></View>
               }
             </>
@@ -1725,6 +1750,13 @@ const styles = StyleSheet.create({
   content: { paddingTop: Spacing.sm },
   footer: { height: Spacing.xxl },
   periodChips: { flexDirection: 'row', gap: 4 },
+  velocityModeRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    flexWrap: 'wrap',
+  },
   periodChip: {
     paddingHorizontal: 8,
     paddingVertical: 3,
