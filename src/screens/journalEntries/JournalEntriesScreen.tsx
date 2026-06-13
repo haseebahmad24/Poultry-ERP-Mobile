@@ -32,6 +32,7 @@ import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import { exportJournalEntriesPDF } from '@/utils/pdfExport';
 import { exportJournalEntriesCSV } from '@/utils/csvExport';
+import { loadJEPresets, saveJEPreset, deleteJEPreset, JEPreset } from '@/utils/jePresets';
 
 type RouteType = RouteProp<FinanceStackParamList, 'JournalEntries'>;
 type NavProp = NativeStackNavigationProp<FinanceStackParamList>;
@@ -60,6 +61,42 @@ export default function JournalEntriesScreen() {
   const [showAccountPicker, setShowAccountPicker] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
+
+  const [presets, setPresets] = useState<JEPreset[]>([]);
+  const [showPresetsModal, setShowPresetsModal] = useState(false);
+
+  useEffect(() => {
+    loadJEPresets(companyId).then(setPresets);
+  }, [companyId]);
+
+  const handleSavePreset = useCallback(async (name: string) => {
+    const newPreset: JEPreset = {
+      id: Date.now().toString(),
+      name,
+      search,
+      selectedType,
+      from: validFrom ?? '',
+      to: validTo ?? '',
+      pickedAccount,
+      pickedAccountName,
+    };
+    const updated = await saveJEPreset(companyId, newPreset);
+    setPresets(updated);
+  }, [companyId, search, selectedType, validFrom, validTo, pickedAccount, pickedAccountName]);
+
+  const handleDeletePreset = useCallback(async (id: string) => {
+    const updated = await deleteJEPreset(companyId, id);
+    setPresets(updated);
+  }, [companyId]);
+
+  const handleApplyPreset = useCallback((preset: JEPreset) => {
+    setSearch(preset.search);
+    setSelectedType(preset.selectedType);
+    setDateRange({ from: preset.from, to: preset.to });
+    setPickedAccount(preset.pickedAccount);
+    setPickedAccountName(preset.pickedAccountName);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, []);
 
   const handleSelectAccount = useCallback((account: string) => {
     navigation.navigate('AccountStatement', { accountCode: account, accountName: account });
@@ -199,6 +236,14 @@ export default function JournalEntriesScreen() {
             </TouchableOpacity>
           </>
         )}
+        <TouchableOpacity
+          style={[styles.exportBtn, presets.length > 0 && styles.exportBtnBookmark]}
+          onPress={() => setShowPresetsModal(true)}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Feather name="bookmark" size={13} color={presets.length > 0 ? Colors.text : Colors.textMuted} />
+          {presets.length > 0 && <Text style={styles.exportBtnText}>{presets.length}</Text>}
+        </TouchableOpacity>
       </View>
 
       {pickedAccount ? (
@@ -364,6 +409,20 @@ export default function JournalEntriesScreen() {
           navigation.navigate('AccountStatement', { accountCode: code, accountName: name });
         }}
         onClose={() => setShowAccountPicker(false)}
+      />
+      <PresetsModal
+        visible={showPresetsModal}
+        presets={presets}
+        currentSearch={search}
+        currentType={selectedType}
+        currentFrom={validFrom ?? ''}
+        currentTo={validTo ?? ''}
+        currentAccount={pickedAccount}
+        currentAccountName={pickedAccountName}
+        onApply={(preset) => { handleApplyPreset(preset); setShowPresetsModal(false); }}
+        onDelete={handleDeletePreset}
+        onSave={handleSavePreset}
+        onClose={() => setShowPresetsModal(false)}
       />
     </SafeAreaView>
   );
@@ -1000,6 +1059,239 @@ function JECard({
   );
 }
 
+function PresetsModal({
+  visible,
+  presets,
+  currentSearch,
+  currentType,
+  currentFrom,
+  currentTo,
+  currentAccount,
+  currentAccountName,
+  onApply,
+  onDelete,
+  onSave,
+  onClose,
+}: {
+  visible: boolean;
+  presets: JEPreset[];
+  currentSearch: string;
+  currentType: string;
+  currentFrom: string;
+  currentTo: string;
+  currentAccount?: string;
+  currentAccountName?: string;
+  onApply: (preset: JEPreset) => void;
+  onDelete: (id: string) => void;
+  onSave: (name: string) => void;
+  onClose: () => void;
+}) {
+  const [saveName, setSaveName] = useState('');
+
+  const hasFilter = !!(
+    currentSearch.trim() ||
+    currentType !== 'All' ||
+    currentFrom ||
+    currentTo ||
+    currentAccount
+  );
+
+  const filterSummary = (preset: JEPreset) => {
+    const parts: string[] = [];
+    if (preset.selectedType !== 'All') parts.push(preset.selectedType);
+    if (preset.search) parts.push(`"${preset.search}"`);
+    if (preset.pickedAccount) parts.push(`@${preset.pickedAccountName ?? preset.pickedAccount}`);
+    if (preset.from) parts.push(`from ${preset.from}`);
+    if (preset.to) parts.push(`to ${preset.to}`);
+    return parts.join(' · ') || 'No filters';
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={psStyles.backdrop} activeOpacity={1} onPress={onClose} />
+      <View style={psStyles.sheet}>
+        <View style={psStyles.handle} />
+        <View style={psStyles.sheetHeader}>
+          <Text style={psStyles.sheetTitle}>Search Presets</Text>
+          <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Feather name="x" size={18} color={Colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+
+        {hasFilter && (
+          <View style={psStyles.saveSection}>
+            <Text style={psStyles.saveSectionLabel}>SAVE CURRENT SEARCH</Text>
+            <View style={psStyles.saveRow}>
+              <TextInput
+                style={psStyles.saveInput}
+                placeholder="Name this search…"
+                placeholderTextColor={Colors.textMuted}
+                value={saveName}
+                onChangeText={setSaveName}
+                autoCapitalize="words"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={() => {
+                  if (saveName.trim()) { onSave(saveName.trim()); setSaveName(''); }
+                }}
+              />
+              <TouchableOpacity
+                style={[psStyles.saveBtn, !saveName.trim() && psStyles.saveBtnDisabled]}
+                onPress={() => {
+                  if (!saveName.trim()) return;
+                  onSave(saveName.trim());
+                  setSaveName('');
+                }}
+                disabled={!saveName.trim()}
+              >
+                <Text style={psStyles.saveBtnText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        <ScrollView style={psStyles.listScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {presets.length === 0 ? (
+            <View style={psStyles.emptyState}>
+              <Feather name="bookmark" size={28} color={Colors.textMuted} />
+              <Text style={psStyles.emptyText}>No saved presets</Text>
+              <Text style={psStyles.emptyHint}>
+                {hasFilter ? 'Enter a name above to save the current search' : 'Set filters then save them for quick access'}
+              </Text>
+            </View>
+          ) : (
+            <>
+              <Text style={psStyles.listLabel}>SAVED PRESETS</Text>
+              {presets.map((preset) => (
+                <View key={preset.id} style={psStyles.presetRow}>
+                  <TouchableOpacity style={psStyles.presetMain} onPress={() => onApply(preset)}>
+                    <Text style={psStyles.presetName} numberOfLines={1}>{preset.name}</Text>
+                    <Text style={psStyles.presetSummary} numberOfLines={1}>{filterSummary(preset)}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={psStyles.presetDelete}
+                    onPress={() => onDelete(preset.id)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Feather name="trash-2" size={14} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </>
+          )}
+          <View style={{ height: Spacing.xxl }} />
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
+const psStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  sheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    maxHeight: '72%',
+    overflow: 'hidden',
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    backgroundColor: Colors.border,
+    borderRadius: Radius.full,
+    alignSelf: 'center',
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  sheetTitle: { ...Typography.h3 },
+  saveSection: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+    gap: Spacing.xs,
+  },
+  saveSectionLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  saveRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' },
+  saveInput: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
+    backgroundColor: Colors.background,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs + 2,
+  },
+  saveBtn: {
+    backgroundColor: Colors.text,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+  },
+  saveBtnDisabled: { opacity: 0.4 },
+  saveBtnText: { fontSize: 13, fontWeight: '600', color: Colors.surface },
+  listScroll: { flex: 1 },
+  listLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xs,
+  },
+  presetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: Spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  presetMain: {
+    flex: 1,
+    paddingVertical: Spacing.sm + 2,
+    gap: 3,
+  },
+  presetName: { fontSize: 14, fontWeight: '600', color: Colors.text },
+  presetSummary: { fontSize: 11, color: Colors.textMuted },
+  presetDelete: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyState: {
+    padding: Spacing.xl,
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  emptyText: { ...Typography.body, color: Colors.textMuted },
+  emptyHint: { fontSize: 12, color: Colors.textMuted, textAlign: 'center', lineHeight: 18 },
+});
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
 
@@ -1027,6 +1319,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   exportBtnText: { fontSize: 11, fontWeight: '500', color: Colors.textSecondary },
+  exportBtnBookmark: { borderColor: Colors.border },
 
   accountFilterBanner: {
     flexDirection: 'row',
