@@ -300,7 +300,7 @@ function DashMonthlySparkline({
                   backgroundColor: Colors.textSecondary,
                   left: pt.x - DASH_SPARK_DOT_R,
                   top: pt.y - DASH_SPARK_DOT_R,
-                  borderWidth: 1,
+                  borderWidth: 1.5,
                   borderColor: Colors.surface,
                 }}
               />
@@ -316,7 +316,7 @@ function DashMonthlySparkline({
                   backgroundColor: Colors.text,
                   left: pt.x - DASH_SPARK_DOT_R,
                   top: pt.y - DASH_SPARK_DOT_R,
-                  borderWidth: 1,
+                  borderWidth: 1.5,
                   borderColor: Colors.surface,
                 }}
               />
