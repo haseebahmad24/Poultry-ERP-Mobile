@@ -222,6 +222,143 @@ const momStyles = StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: '700', color: Colors.text },
 });
 
+// ─── AP/AR 6-Month Billing Sparkline ─────────────────────────────────────────
+
+const DASH_SPARK_H = 52;
+const DASH_SPARK_DOT_R = 2.5;
+
+function DashMonthlySparkline({
+  buckets,
+}: {
+  buckets: Array<{ label: string; apAmount: number; arAmount: number }>;
+}) {
+  const [chartW, setChartW] = React.useState(0);
+  if (buckets.length < 2) return null;
+
+  const maxVal = Math.max(...buckets.flatMap((b) => [b.apAmount, b.arAmount]), 1);
+  const getY = (v: number) => DASH_SPARK_H * (1 - Math.min(v / maxVal, 1));
+
+  const apPts = chartW > 0
+    ? buckets.map((b, i) => ({ x: (i / (buckets.length - 1)) * chartW, y: getY(b.apAmount) }))
+    : [];
+  const arPts = chartW > 0
+    ? buckets.map((b, i) => ({ x: (i / (buckets.length - 1)) * chartW, y: getY(b.arAmount) }))
+    : [];
+
+  const renderSegs = (pts: { x: number; y: number }[], color: string, key: string) =>
+    pts.map((pt, i) => {
+      if (i === 0) return null;
+      const prev = pts[i - 1];
+      const dx = pt.x - prev.x;
+      const dy = pt.y - prev.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+      return (
+        <View
+          key={`${key}-${i}`}
+          style={{
+            position: 'absolute',
+            width: len,
+            height: 1.5,
+            backgroundColor: color,
+            left: (prev.x + pt.x) / 2 - len / 2,
+            top: (prev.y + pt.y) / 2 - 0.75,
+            transform: [{ rotate: `${angle}deg` }],
+          }}
+        />
+      );
+    });
+
+  return (
+    <View style={dashSparkStyles.card}>
+      <View style={dashSparkStyles.legend}>
+        <View style={dashSparkStyles.legendItem}>
+          <View style={[dashSparkStyles.legendDot, { backgroundColor: Colors.textSecondary }]} />
+          <Text style={dashSparkStyles.legendLabel}>AP billed</Text>
+        </View>
+        <View style={dashSparkStyles.legendItem}>
+          <View style={[dashSparkStyles.legendDot, { backgroundColor: Colors.text }]} />
+          <Text style={dashSparkStyles.legendLabel}>AR billed</Text>
+        </View>
+      </View>
+      <View
+        style={dashSparkStyles.chartArea}
+        onLayout={(e) => setChartW(e.nativeEvent.layout.width)}
+      >
+        {chartW > 0 && (
+          <>
+            {renderSegs(apPts, Colors.textSecondary, 'ap')}
+            {renderSegs(arPts, Colors.text, 'ar')}
+            {apPts.map((pt, i) => (
+              <View
+                key={`ap-dot-${i}`}
+                style={{
+                  position: 'absolute',
+                  width: DASH_SPARK_DOT_R * 2,
+                  height: DASH_SPARK_DOT_R * 2,
+                  borderRadius: DASH_SPARK_DOT_R,
+                  backgroundColor: Colors.textSecondary,
+                  left: pt.x - DASH_SPARK_DOT_R,
+                  top: pt.y - DASH_SPARK_DOT_R,
+                  borderWidth: 1,
+                  borderColor: Colors.surface,
+                }}
+              />
+            ))}
+            {arPts.map((pt, i) => (
+              <View
+                key={`ar-dot-${i}`}
+                style={{
+                  position: 'absolute',
+                  width: DASH_SPARK_DOT_R * 2,
+                  height: DASH_SPARK_DOT_R * 2,
+                  borderRadius: DASH_SPARK_DOT_R,
+                  backgroundColor: Colors.text,
+                  left: pt.x - DASH_SPARK_DOT_R,
+                  top: pt.y - DASH_SPARK_DOT_R,
+                  borderWidth: 1,
+                  borderColor: Colors.surface,
+                }}
+              />
+            ))}
+          </>
+        )}
+      </View>
+      <View style={dashSparkStyles.monthRow}>
+        {buckets.map((b, i) => (
+          <Text key={i} style={dashSparkStyles.monthLabel}>{b.label}</Text>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const dashSparkStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  legend: { flexDirection: 'row', gap: Spacing.lg },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot: { width: 8, height: 8, borderRadius: Radius.full },
+  legendLabel: { fontSize: 11, color: Colors.textSecondary },
+  chartArea: {
+    height: DASH_SPARK_H,
+    position: 'relative',
+    overflow: 'visible',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  monthRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  monthLabel: { fontSize: 10, color: Colors.textMuted },
+});
+
 // ─── Week Activity ───────────────────────────────────────────────────────────
 
 interface WeekActivity {
@@ -900,6 +1037,7 @@ export default function DashboardScreen() {
     apThis: number; apPrev: number; arThis: number; arPrev: number;
     thisLabel: string; prevLabel: string;
   } | null>(null);
+  const [dashMonthlyBuckets, setDashMonthlyBuckets] = useState<Array<{ label: string; apAmount: number; arAmount: number }>>([]);
   const [kpiHistory, setKpiHistory] = useState<KpiHistoryEntry[]>([]);
   const [healthHistory, setHealthHistory] = useState<HealthHistoryEntry[]>([]);
 
@@ -1080,6 +1218,19 @@ export default function DashboardScreen() {
           thisLabel: MONTH_SHORT[now2.getMonth()],
           prevLabel: MONTH_SHORT[prevDate.getMonth()],
         });
+      }
+
+      // 6-month AP/AR billed sparkline buckets
+      const buckets6: Array<{ label: string; apAmount: number; arAmount: number }> = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now2.getFullYear(), now2.getMonth() - i, 1);
+        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const apAmt = (bills ?? []).filter((b) => b.dt?.startsWith(ym)).reduce((s, b) => s + (b.amount ?? 0), 0);
+        const arAmt = (invoices ?? []).filter((inv) => inv.dt?.startsWith(ym)).reduce((s, inv) => s + (inv.amount ?? 0), 0);
+        buckets6.push({ label: MONTH_SHORT[d.getMonth()], apAmount: apAmt, arAmount: arAmt });
+      }
+      if (buckets6.some((b) => b.apAmount > 0 || b.arAmount > 0)) {
+        setDashMonthlyBuckets(buckets6);
       }
     }).catch(() => {});
   }, [selectedCompany]));
@@ -1434,6 +1585,16 @@ export default function DashboardScreen() {
                 last
               />
             </View>
+          </>
+        )}
+
+        {dashMonthlyBuckets.length >= 2 && (
+          <>
+            <SectionHeader
+              title="AP vs AR Trend"
+              meta="6-month billed · AP · AR"
+            />
+            <DashMonthlySparkline buckets={dashMonthlyBuckets} />
           </>
         )}
 
