@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -91,6 +92,8 @@ export default function AccountStatementScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [rowSearch, setRowSearch] = useState('');
+  const [rowTypeFilter, setRowTypeFilter] = useState<string | null>(null);
 
   const cacheKey = `account-statement:${companyId ?? 'all'}:${accountCode}:${dateRange.from}:${dateRange.to}`;
 
@@ -214,16 +217,35 @@ export default function AccountStatementScreen() {
   const closingBalance = lines.length > 0 ? lines[lines.length - 1].balance : openingBalance;
   const netMovement = totalDebit - totalCredit;
 
-  // First index where running balance changes sign (crosses zero)
+  const uniqueTypes = useMemo(
+    () => [...new Set(lines.map((l) => l.voucherType).filter(Boolean))],
+    [lines],
+  );
+
+  const filteredLines = useMemo(() => {
+    let result = lines;
+    if (rowTypeFilter) result = result.filter((l) => l.voucherType === rowTypeFilter);
+    const q = rowSearch.trim().toLowerCase();
+    if (q) {
+      const words = q.split(/\s+/).filter(Boolean);
+      result = result.filter((l) => {
+        const hay = [l.narration ?? '', l.voucherNo ?? '', l.voucherType ?? ''].join(' ').toLowerCase();
+        return words.every((w) => hay.includes(w));
+      });
+    }
+    return result;
+  }, [lines, rowTypeFilter, rowSearch]);
+
+  // First index in the filtered view where running balance changes sign (crosses zero)
   const zeroCrossingIdx = React.useMemo(() => {
-    if (lines.length < 2) return -1;
-    for (let i = 1; i < lines.length; i++) {
-      const prev = lines[i - 1].balance;
-      const curr = lines[i].balance;
+    if (filteredLines.length < 2) return -1;
+    for (let i = 1; i < filteredLines.length; i++) {
+      const prev = filteredLines[i - 1].balance;
+      const curr = filteredLines[i].balance;
       if ((prev > 0 && curr <= 0) || (prev < 0 && curr >= 0)) return i;
     }
     return -1;
-  }, [lines]);
+  }, [filteredLines]);
 
   if (error && lines.length === 0) return <ErrorView message={error} onRetry={() => load()} />;
 
@@ -276,6 +298,49 @@ export default function AccountStatementScreen() {
             />
           }
         >
+          {/* Row search + type filter */}
+          {lines.length > 0 && (
+            <View style={styles.rowFilterBar}>
+              <View style={styles.rowSearchWrap}>
+                <Feather name="search" size={13} color={Colors.textMuted} />
+                <TextInput
+                  style={styles.rowSearchInput}
+                  placeholder="Filter rows…"
+                  placeholderTextColor={Colors.textMuted}
+                  value={rowSearch}
+                  onChangeText={setRowSearch}
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  returnKeyType="search"
+                />
+                {rowSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setRowSearch('')}>
+                    <Feather name="x" size={13} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              {uniqueTypes.length > 1 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.typeChips}
+                >
+                  {uniqueTypes.map((t) => (
+                    <TouchableOpacity
+                      key={t}
+                      style={[styles.typeChip, rowTypeFilter === t && styles.typeChipActive]}
+                      onPress={() => setRowTypeFilter(rowTypeFilter === t ? null : t)}
+                    >
+                      <Text style={[styles.typeChipText, rowTypeFilter === t && styles.typeChipTextActive]}>
+                        {t}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+          )}
+
           {/* Summary tiles */}
           <View style={styles.tilesRow}>
             {hasOpeningBalance ? (
@@ -328,7 +393,9 @@ export default function AccountStatementScreen() {
 
           <SectionHeader
             title="Transactions"
-            meta={`${lines.length} entries`}
+            meta={filteredLines.length === lines.length
+              ? `${lines.length} entries`
+              : `${filteredLines.length} of ${lines.length}`}
           />
 
           {lines.length === 0 ? (
@@ -336,6 +403,12 @@ export default function AccountStatementScreen() {
               <Feather name="file-text" size={36} color={Colors.textMuted} />
               <Text style={styles.emptyText}>No transactions found</Text>
               <Text style={styles.emptySubText}>Try adjusting the date range</Text>
+            </View>
+          ) : filteredLines.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Feather name="search" size={36} color={Colors.textMuted} />
+              <Text style={styles.emptyText}>No rows match</Text>
+              <Text style={styles.emptySubText}>Try different search or filter</Text>
             </View>
           ) : (
             <View style={styles.tableCard}>
@@ -347,8 +420,8 @@ export default function AccountStatementScreen() {
                 <Text style={[styles.colBalance, styles.headerText]}>Balance</Text>
               </View>
 
-              {/* Opening balance row */}
-              {hasOpeningBalance && (
+              {/* Opening balance row — only shown when not actively filtering rows */}
+              {hasOpeningBalance && !rowSearch && !rowTypeFilter && (
                 <View style={[styles.tableRow, styles.openingRow]}>
                   <View style={styles.colDate}>
                     <Text style={styles.openingDateText}>{dateRange.from ? formatShortDate(dayBefore(dateRange.from)) : '—'}</Text>
@@ -368,7 +441,7 @@ export default function AccountStatementScreen() {
                 </View>
               )}
 
-              {lines.map((line, idx) => (
+              {filteredLines.map((line, idx) => (
                 <React.Fragment key={idx}>
                   {idx === zeroCrossingIdx && (
                     <View style={styles.zeroCrossMarker}>
@@ -378,7 +451,7 @@ export default function AccountStatementScreen() {
                     </View>
                   )}
                 <TouchableOpacity
-                  style={[styles.tableRow, idx < lines.length - 1 && styles.tableRowBorder]}
+                  style={[styles.tableRow, idx < filteredLines.length - 1 && styles.tableRowBorder]}
                   onPress={() => line._entry && navigation.navigate('JournalEntryDetail', { entry: line._entry })}
                   disabled={!line._entry}
                   activeOpacity={line._entry ? 0.65 : 1}
@@ -414,18 +487,20 @@ export default function AccountStatementScreen() {
                 </React.Fragment>
               ))}
 
-              {/* Totals row */}
+              {/* Totals row — shows filtered totals when a filter is active */}
               <View style={styles.totalsRow}>
-                <Text style={[styles.colDate, styles.totalsText]}>Total</Text>
+                <Text style={[styles.colDate, styles.totalsText]}>
+                  {filteredLines.length < lines.length ? 'Filtered' : 'Total'}
+                </Text>
                 <View style={styles.colVoucher} />
                 <Text style={[styles.colAmount, styles.totalsText]}>
-                  {formatCurrency(totalDebit)}
+                  {formatCurrency(filteredLines.reduce((s, l) => s + l.debit, 0))}
                 </Text>
                 <Text style={[styles.colAmount, styles.totalsText]}>
-                  {formatCurrency(totalCredit)}
+                  {formatCurrency(filteredLines.reduce((s, l) => s + l.credit, 0))}
                 </Text>
                 <Text style={[styles.colBalance, styles.totalsText, closingBalance < 0 && styles.negative]}>
-                  {formatCurrency(Math.abs(closingBalance))}
+                  {formatCurrency(Math.abs(filteredLines[filteredLines.length - 1]?.balance ?? closingBalance))}
                 </Text>
               </View>
             </View>
@@ -603,4 +678,39 @@ const styles = StyleSheet.create({
   },
   zeroCrossLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
   zeroCrossText: { fontSize: 10, color: Colors.textMuted, fontStyle: 'italic' },
+
+  rowFilterBar: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.xs,
+    gap: Spacing.xs,
+  },
+  rowSearchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    gap: Spacing.xs,
+  },
+  rowSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.text,
+    paddingVertical: 0,
+  },
+  typeChips: { flexDirection: 'row', gap: Spacing.xs },
+  typeChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  typeChipActive: { backgroundColor: Colors.text, borderColor: Colors.text },
+  typeChipText: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary },
+  typeChipTextActive: { color: Colors.surface },
 });
