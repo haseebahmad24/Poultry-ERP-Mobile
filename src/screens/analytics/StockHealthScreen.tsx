@@ -1307,7 +1307,7 @@ const importStyles = StyleSheet.create({
     minWidth: 38,
     alignItems: 'center',
   },
-  diffKindText: { fontSize: 9, fontWeight: '700', letterSpacing: 0.3 },
+  diffKindText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
   diffName: { flex: 1, fontSize: 11, color: Colors.text },
   diffVal: { fontSize: 11, color: Colors.textSecondary, fontWeight: '600' },
 });
