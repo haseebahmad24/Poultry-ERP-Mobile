@@ -351,20 +351,23 @@ const kpiStyles = StyleSheet.create({
 
 type ChartMode = 'count' | 'value';
 
+function fmtChartVal(val: number): string {
+  if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
+  if (val >= 1_000) return `${(val / 1_000).toFixed(0)}K`;
+  return String(Math.round(val));
+}
+
 /** Vertical grouped bar chart for monthly trend */
 function MonthlyTrendChart({ months, mode }: { months: MonthBucket[]; mode: ChartMode }) {
+  const [selectedMonth, setSelectedMonth] = React.useState<string | null>(null);
   const poKey: keyof MonthBucket = mode === 'value' ? 'poValue' : 'poCount';
   const soKey: keyof MonthBucket = mode === 'value' ? 'soValue' : 'soCount';
   const maxVal = Math.max(...months.flatMap((m) => [m[poKey] as number, m[soKey] as number]), 1);
   const BAR_HEIGHT = 80;
+  const snap = selectedMonth ? months.find((m) => m.yearMonth === selectedMonth) : null;
 
   function fmtBottom(po: number, so: number): string {
-    if (mode === 'value') {
-      const total = po + so;
-      if (total >= 1_000_000) return `${(total / 1_000_000).toFixed(1)}M`;
-      if (total >= 1_000) return `${(total / 1_000).toFixed(0)}K`;
-      return String(Math.round(total));
-    }
+    if (mode === 'value') return fmtChartVal(po + so);
     return String(po + so);
   }
 
@@ -380,6 +383,11 @@ function MonthlyTrendChart({ months, mode }: { months: MonthBucket[]; mode: Char
           <View style={[chartStyles.legendDot, { backgroundColor: Colors.textMuted }]} />
           <Text style={chartStyles.legendLabel}>Sales Orders</Text>
         </View>
+        {selectedMonth && (
+          <TouchableOpacity onPress={() => setSelectedMonth(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Feather name="x" size={12} color={Colors.textMuted} />
+          </TouchableOpacity>
+        )}
       </View>
       {/* Bars */}
       <View style={chartStyles.barsRow}>
@@ -388,20 +396,59 @@ function MonthlyTrendChart({ months, mode }: { months: MonthBucket[]; mode: Char
           const soVal = m[soKey] as number;
           const poH = maxVal > 0 ? (poVal / maxVal) * BAR_HEIGHT : 0;
           const soH = maxVal > 0 ? (soVal / maxVal) * BAR_HEIGHT : 0;
+          const isSelected = m.yearMonth === selectedMonth;
           return (
-            <View key={m.yearMonth} style={chartStyles.monthCol}>
+            <TouchableOpacity
+              key={m.yearMonth}
+              style={[chartStyles.monthCol, isSelected && chartStyles.monthColSelected]}
+              onPress={() => setSelectedMonth(selectedMonth === m.yearMonth ? null : m.yearMonth)}
+              activeOpacity={0.7}
+            >
               <View style={[chartStyles.barTrack, { height: BAR_HEIGHT }]}>
                 <View style={chartStyles.barsBottom}>
-                  <View style={[chartStyles.bar, { height: Math.max(poH, 2), backgroundColor: Colors.text, marginRight: 2 }]} />
-                  <View style={[chartStyles.bar, { height: Math.max(soH, 2), backgroundColor: Colors.textMuted }]} />
+                  <View style={[chartStyles.bar, { height: Math.max(poH, 2), backgroundColor: Colors.text, marginRight: 2, opacity: isSelected ? 1 : 0.7 }]} />
+                  <View style={[chartStyles.bar, { height: Math.max(soH, 2), backgroundColor: Colors.textMuted, opacity: isSelected ? 1 : 0.7 }]} />
                 </View>
               </View>
-              <Text style={chartStyles.monthLabel}>{m.label}</Text>
+              <Text style={[chartStyles.monthLabel, isSelected && chartStyles.monthLabelSelected]}>{m.label}</Text>
               <Text style={chartStyles.monthCount}>{fmtBottom(poVal, soVal)}</Text>
-            </View>
+            </TouchableOpacity>
           );
         })}
       </View>
+      {/* Tap detail row */}
+      {snap ? (
+        <View style={chartStyles.snapRow}>
+          <Text style={chartStyles.snapMonth}>{snap.label}</Text>
+          <View style={chartStyles.snapDivider} />
+          <View style={chartStyles.snapItem}>
+            <Text style={chartStyles.snapLabel}>PO</Text>
+            <Text style={chartStyles.snapVal}>
+              {mode === 'value' ? formatCurrency(snap.poValue) : `${snap.poCount} orders`}
+            </Text>
+          </View>
+          <View style={chartStyles.snapDivider} />
+          <View style={chartStyles.snapItem}>
+            <Text style={chartStyles.snapLabel}>SO</Text>
+            <Text style={chartStyles.snapVal}>
+              {mode === 'value' ? formatCurrency(snap.soValue) : `${snap.soCount} orders`}
+            </Text>
+          </View>
+          {mode === 'value' && (
+            <>
+              <View style={chartStyles.snapDivider} />
+              <View style={chartStyles.snapItem}>
+                <Text style={chartStyles.snapLabel}>Net</Text>
+                <Text style={[chartStyles.snapVal, snap.soValue > snap.poValue && chartStyles.snapValPos]}>
+                  {snap.soValue >= snap.poValue ? '+' : '−'}{formatCurrency(Math.abs(snap.soValue - snap.poValue))}
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
+      ) : (
+        <Text style={chartStyles.snapHint}>tap a month to inspect</Text>
+      )}
     </View>
   );
 }
@@ -424,7 +471,28 @@ const chartStyles = StyleSheet.create({
   barsBottom: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
   bar: { width: 8, borderRadius: Radius.sm },
   monthLabel: { fontSize: 10, color: Colors.textMuted, marginTop: 2 },
+  monthLabelSelected: { color: Colors.text, fontWeight: '700' },
   monthCount: { fontSize: 11, fontWeight: '700', color: Colors.text },
+  monthColSelected: {
+    backgroundColor: Colors.background,
+    borderRadius: Radius.sm,
+  },
+  snapRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+    gap: Spacing.sm,
+  },
+  snapMonth: { fontSize: 11, fontWeight: '700', color: Colors.text, minWidth: 28 },
+  snapDivider: { width: StyleSheet.hairlineWidth, height: 20, backgroundColor: Colors.borderLight },
+  snapItem: { flex: 1, alignItems: 'center' },
+  snapLabel: { fontSize: 9, color: Colors.textMuted, marginBottom: 1 },
+  snapVal: { fontSize: 11, fontWeight: '600', color: Colors.text },
+  snapValPos: { color: Colors.text },
+  snapHint: { fontSize: 10, color: Colors.textMuted, textAlign: 'center', marginTop: Spacing.xs },
 });
 
 function fmtAvg(val: number): string {
