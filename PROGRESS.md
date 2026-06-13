@@ -1,5 +1,45 @@
 # Mobile App Progress
 
+## Session 66 — 2026-06-13
+
+### Completed This Session
+
+**JournalEntries — Line-Level Account Search** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- Search haystack extended to include `entry.lines[].account` names joined with spaces
+- All search words must still match (AND logic): `words.every(w => haystack.includes(w))`
+- Haystack now: `voucher_no + narration + voucher_type + line account names`
+- Placeholder updated: "Search by voucher, narration, type, account…"
+- No extra API calls or re-renders — pure client-side extension
+
+**AccountStatement — Row Search + Voucher-Type Filter** (`src/screens/finance/AccountStatementScreen.tsx`)
+- `rowSearch: string` state + compact `TextInput` with search icon and clear-X button
+- `rowTypeFilter: string | null` state — `null` = show all types
+- `uniqueTypes` useMemo: distinct voucher types from all loaded `lines`
+- Horizontal chips for each unique type (only shown when 2+ types exist); tap toggles filter
+- `filteredLines` useMemo: applies `rowTypeFilter` first, then multi-word `rowSearch` AND logic
+- `SectionHeader` meta shows `N of M` when filtered, `N entries` when not
+- Filtered empty state: search icon + "No rows match / Try different search or filter"
+- Opening balance (OB) row hidden when any row filter active (balance context would be misleading)
+- Totals row label changes to "Filtered" + shows filtered Dr/Cr totals when active
+- `zeroCrossingIdx` recomputed from `filteredLines` so the sign-change marker tracks visible rows
+
+**FinancialAnalytics — AgingHistory 90-Day Cap + Extended Period Chips** (`src/utils/agingSnapshot.ts`, `src/screens/analytics/FinancialAnalyticsScreen.tsx`)
+- `MAX_HISTORY_DAYS` bumped from 30 → 90 in `agingSnapshot.ts` (accumulates up to 90 daily entries going forward)
+- `historyPeriod` type widened: `7 | 14 | 30 | 60 | 90 | 0` (0 = "All")
+- `PERIOD_OPTS` array replaces hardcoded `[7,14,30]` map with 6 labelled options: 7d/14d/30d/60d/90d/All
+- Period `0` skips `.slice()` entirely, showing the full `agingHistory` array
+- SectionHeader meta now shows `N days · M total` (visible count vs. full stored history count)
+- Both `AgingHistoryChart` and `NWCTrendCard` receive the same `periodHistory` slice
+
+### Next Session
+- Consider: AccountStatement — bulk-select rows for export (select multiple rows by checkbox, export to PDF/CSV)
+- Consider: JournalEntries — save/restore named search presets (e.g. "GRN this month", "PAY vendor X")
+- Consider: FinancialAnalytics — AgingHistoryChart Y-axis grid lines + labeled scale (absolute values on left axis)
+- Consider: Dashboard — AP/AR sparkline overlay (dual-line NWC trend on the same monthly chart card)
+- Consider: ProcurementAnalytics — TopItemsCard "compare periods" toggle (this month vs. last month side-by-side)
+
+---
+
 ## Session 65 — 2026-06-12
 
 ### Completed This Session
