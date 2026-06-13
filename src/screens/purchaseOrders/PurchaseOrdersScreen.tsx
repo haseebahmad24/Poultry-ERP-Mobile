@@ -121,6 +121,9 @@ export default function PurchaseOrdersScreen() {
     return true;
   });
 
+  const filteredTotal = filtered.reduce((s, po) => s + (po.total ?? 0), 0);
+  const filteredAvg = filtered.length > 0 ? filteredTotal / filtered.length : 0;
+
   const handleExport = async () => {
     setExporting(true);
     try {
@@ -206,6 +209,16 @@ export default function PurchaseOrdersScreen() {
             }
           >
             <SectionHeader title="Orders" meta={`${filtered.length} total`} />
+
+            {filtered.length > 0 && filteredTotal > 0 && (
+              <View style={styles.statsStrip}>
+                <Text style={styles.statsStripKey}>Total</Text>
+                <Text style={styles.statsStripVal}>{formatCurrency(filteredTotal)}</Text>
+                <View style={styles.statsStripDivider} />
+                <Text style={styles.statsStripKey}>Avg</Text>
+                <Text style={styles.statsStripVal}>{formatCurrency(filteredAvg)}</Text>
+              </View>
+            )}
 
             {filtered.length === 0 ? (
               <View style={styles.emptyState}>
@@ -352,6 +365,23 @@ const styles = StyleSheet.create({
   scrollContent: { paddingTop: Spacing.sm },
 
   cardList: { marginHorizontal: Spacing.md, gap: Spacing.sm },
+
+  statsStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 7,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  statsStripKey: { fontSize: 11, color: Colors.textMuted, fontWeight: '500' },
+  statsStripVal: { fontSize: 12, fontWeight: '700', color: Colors.text },
+  statsStripDivider: { width: StyleSheet.hairlineWidth, height: 14, backgroundColor: Colors.border, marginHorizontal: 2 },
 
   card: {
     backgroundColor: Colors.surface,
