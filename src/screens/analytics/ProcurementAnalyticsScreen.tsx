@@ -258,6 +258,24 @@ function computeAnalytics(
   };
 }
 
+function computeTopVendors(pos: PurchaseOrder[]): VendorRow[] {
+  const map = new Map<string, VendorRow>();
+  for (const po of pos) {
+    const name = po.vendor ?? 'Unknown';
+    const existing = map.get(name);
+    if (existing) {
+      existing.poCount += 1;
+      existing.total += po.total ?? 0;
+    } else {
+      map.set(name, { name, poCount: 1, total: po.total ?? 0, avgValue: 0 });
+    }
+  }
+  return Array.from(map.values())
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 8)
+    .map((v) => ({ ...v, avgValue: v.poCount > 0 ? v.total / v.poCount : 0 }));
+}
+
 function computeTopItems(pos: PurchaseOrder[]): TopItemRow[] {
   const map = new Map<string, TopItemRow>();
   for (const po of pos) {
@@ -398,61 +416,124 @@ function fmtAvg(val: number): string {
 }
 
 /** Ranked bar list (vendors / customers) */
-function RankedBarList({ rows, valueKey, countKey, onPress }: {
+function RankedBarList({ rows, valueKey, countKey, onPress, thisMonthRows, lastMonthRows }: {
   rows: (VendorRow | CustomerRow)[];
   valueKey: 'total';
   countKey: 'poCount' | 'soCount';
   onPress?: (row: VendorRow | CustomerRow) => void;
+  thisMonthRows?: (VendorRow | CustomerRow)[];
+  lastMonthRows?: (VendorRow | CustomerRow)[];
 }) {
-  if (rows.length === 0) {
+  const [compareOn, setCompareOn] = React.useState(false);
+
+  const canCompare = !!(thisMonthRows?.length || lastMonthRows?.length);
+  const prevMap = React.useMemo(
+    () => new Map((lastMonthRows ?? []).map((r) => [r.name, r])),
+    [lastMonthRows],
+  );
+
+  const displayRows = compareOn && thisMonthRows ? thisMonthRows : rows;
+  const allPrevVals = compareOn ? Array.from(prevMap.values()).map((r) => r[valueKey]) : [];
+  const maxVal = Math.max(...displayRows.map((r) => r[valueKey]), ...allPrevVals, 1);
+
+  if (!compareOn && rows.length === 0) {
     return (
       <View style={rankedStyles.empty}>
         <Text style={rankedStyles.emptyText}>No data available</Text>
       </View>
     );
   }
-  const maxVal = Math.max(...rows.map((r) => r[valueKey]), 1);
+
   return (
     <View style={rankedStyles.card}>
-      {rows.map((row, i) => {
-        const pct = row[valueKey] / maxVal;
-        const isLast = i === rows.length - 1;
-        const inner = (
-          <>
-            <View style={rankedStyles.rankBadge}>
-              <Text style={rankedStyles.rankText}>{i + 1}</Text>
-            </View>
-            <View style={rankedStyles.nameCol}>
-              <Text style={rankedStyles.name} numberOfLines={1}>{row.name}</Text>
-              <View style={rankedStyles.barTrack}>
-                <View style={[rankedStyles.barFill, { width: `${pct * 100}%` }]} />
-              </View>
-            </View>
-            <View style={rankedStyles.valueCol}>
-              <Text style={rankedStyles.amount}>{formatCurrency(row[valueKey])}</Text>
-              <Text style={rankedStyles.count}>{row[countKey]} orders</Text>
-              {row.avgValue > 0 && (
-                <Text style={rankedStyles.avg}>{fmtAvg(row.avgValue)}</Text>
-              )}
-            </View>
-            {onPress && <Feather name="bar-chart-2" size={14} color={Colors.textMuted} />}
-          </>
-        );
-        return onPress ? (
-          <TouchableOpacity
-            key={row.name}
-            style={[rankedStyles.row, !isLast && rankedStyles.rowBorder]}
-            onPress={() => onPress(row)}
-            activeOpacity={0.7}
-          >
-            {inner}
-          </TouchableOpacity>
-        ) : (
-          <View key={row.name} style={[rankedStyles.row, !isLast && rankedStyles.rowBorder]}>
-            {inner}
+      {canCompare && (
+        <>
+          <View style={rankedStyles.compareBar}>
+            <TouchableOpacity
+              style={[rankedStyles.comparePill, compareOn && rankedStyles.comparePillActive]}
+              onPress={() => setCompareOn((v) => !v)}
+            >
+              <Text style={[rankedStyles.comparePillText, compareOn && rankedStyles.comparePillTextActive]}>
+                vs LM
+              </Text>
+            </TouchableOpacity>
           </View>
-        );
-      })}
+          {compareOn && (
+            <View style={rankedStyles.compareLegend}>
+              <View style={[rankedStyles.legendDot, { backgroundColor: Colors.textSecondary }]} />
+              <Text style={rankedStyles.legendLabel}>This month</Text>
+              <View style={[rankedStyles.legendDot, { backgroundColor: Colors.borderLight, borderWidth: StyleSheet.hairlineWidth, borderColor: Colors.border }]} />
+              <Text style={rankedStyles.legendLabel}>Last month</Text>
+            </View>
+          )}
+        </>
+      )}
+      {displayRows.length === 0 && compareOn ? (
+        <View style={rankedStyles.noDataRow}>
+          <Text style={rankedStyles.emptyText}>No POs this month</Text>
+        </View>
+      ) : (
+        displayRows.map((row, i) => {
+          const pct = maxVal > 0 ? (row[valueKey] / maxVal) * 100 : 0;
+          const isLast = i === displayRows.length - 1;
+          const prevRow = compareOn ? prevMap.get(row.name) : undefined;
+          const prevPct = prevRow && maxVal > 0 ? (prevRow[valueKey] / maxVal) * 100 : 0;
+          const isNew = compareOn && !prevRow;
+          const inner = (
+            <>
+              <View style={rankedStyles.rankBadge}>
+                <Text style={rankedStyles.rankText}>{i + 1}</Text>
+              </View>
+              <View style={rankedStyles.nameCol}>
+                <View style={rankedStyles.nameRow}>
+                  <Text style={rankedStyles.name} numberOfLines={1}>{row.name}</Text>
+                  {isNew && (
+                    <View style={rankedStyles.newBadge}>
+                      <Text style={rankedStyles.newBadgeText}>NEW</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={rankedStyles.barTrack}>
+                  <View style={[rankedStyles.barFill, { width: `${pct}%` as any }]} />
+                </View>
+                {compareOn && (
+                  <View style={rankedStyles.barTrack}>
+                    <View style={[rankedStyles.barFill, { width: `${prevPct}%` as any, backgroundColor: Colors.borderLight, height: 2 }]} />
+                  </View>
+                )}
+              </View>
+              <View style={rankedStyles.valueCol}>
+                <Text style={rankedStyles.amount}>{formatCurrency(row[valueKey])}</Text>
+                <Text style={rankedStyles.count}>{row[countKey]} orders</Text>
+                {!compareOn && row.avgValue > 0 && (
+                  <Text style={rankedStyles.avg}>{fmtAvg(row.avgValue)}</Text>
+                )}
+                {compareOn && prevRow && (
+                  <Text style={rankedStyles.prevMeta}>prev {formatCurrency(prevRow[valueKey])}</Text>
+                )}
+                {compareOn && !prevRow && (
+                  <Text style={rankedStyles.prevMeta}>new this mo</Text>
+                )}
+              </View>
+              {onPress && !compareOn && <Feather name="bar-chart-2" size={14} color={Colors.textMuted} />}
+            </>
+          );
+          return onPress && !compareOn ? (
+            <TouchableOpacity
+              key={row.name}
+              style={[rankedStyles.row, !isLast && rankedStyles.rowBorder]}
+              onPress={() => onPress(row)}
+              activeOpacity={0.7}
+            >
+              {inner}
+            </TouchableOpacity>
+          ) : (
+            <View key={row.name} style={[rankedStyles.row, !isLast && rankedStyles.rowBorder]}>
+              {inner}
+            </View>
+          );
+        })
+      )}
     </View>
   );
 }
@@ -506,6 +587,47 @@ const rankedStyles = StyleSheet.create({
   amount: { fontSize: 13, fontWeight: '700', color: Colors.text },
   count: { fontSize: 10, color: Colors.textMuted, marginTop: 2 },
   avg: { fontSize: 10, color: Colors.textSecondary, marginTop: 1 },
+  prevMeta: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  newBadge: {
+    backgroundColor: Colors.text,
+    borderRadius: Radius.full,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  newBadgeText: { fontSize: 9, fontWeight: '700', color: Colors.surface, letterSpacing: 0.3 },
+  compareBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: 2,
+  },
+  comparePill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  comparePillActive: {
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
+  },
+  comparePillText: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary },
+  comparePillTextActive: { color: Colors.surface },
+  compareLegend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.xs,
+  },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendLabel: { fontSize: 11, color: Colors.textMuted },
+  noDataRow: { paddingVertical: Spacing.md, paddingHorizontal: Spacing.md },
 });
 
 // ─── Ranked compare modal ─────────────────────────────────────────────────────
@@ -2305,8 +2427,8 @@ export default function ProcurementAnalyticsScreen() {
     );
   }, [rawData, dateRange, isDateActive]);
 
-  const { thisMonthTopItems, lastMonthTopItems } = React.useMemo(() => {
-    if (!rawData) return { thisMonthTopItems: [], lastMonthTopItems: [] };
+  const { thisMonthTopItems, lastMonthTopItems, thisMonthTopVendors, lastMonthTopVendors } = React.useMemo(() => {
+    if (!rawData) return { thisMonthTopItems: [], lastMonthTopItems: [], thisMonthTopVendors: [], lastMonthTopVendors: [] };
     const now = new Date();
     const thisStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -2323,6 +2445,8 @@ export default function ProcurementAnalyticsScreen() {
     return {
       thisMonthTopItems: computeTopItems(thisPos),
       lastMonthTopItems: computeTopItems(lastPos),
+      thisMonthTopVendors: computeTopVendors(thisPos),
+      lastMonthTopVendors: computeTopVendors(lastPos),
     };
   }, [rawData]);
 
@@ -2523,6 +2647,8 @@ export default function ProcurementAnalyticsScreen() {
               setSelectedRankedVendor(row as VendorRow);
               setCompareRankedVendor(null);
             }}
+            thisMonthRows={thisMonthTopVendors}
+            lastMonthRows={lastMonthTopVendors}
           />
 
           {/* Top customers */}
