@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -97,6 +99,12 @@ export default function JournalEntriesScreen() {
     setPickedAccountName(preset.pickedAccountName);
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, []);
+
+  const handleImportPreset = useCallback(async (preset: JEPreset) => {
+    const updated = await saveJEPreset(companyId, preset);
+    setPresets(updated);
+    Alert.alert('Imported', `"${preset.name}" has been added to your presets.`);
+  }, [companyId]);
 
   const handleSelectAccount = useCallback((account: string) => {
     navigation.navigate('AccountStatement', { accountCode: account, accountName: account });
@@ -422,6 +430,7 @@ export default function JournalEntriesScreen() {
         onApply={(preset) => { handleApplyPreset(preset); setShowPresetsModal(false); }}
         onDelete={handleDeletePreset}
         onSave={handleSavePreset}
+        onImport={handleImportPreset}
         onClose={() => setShowPresetsModal(false)}
       />
     </SafeAreaView>
@@ -1071,6 +1080,7 @@ function PresetsModal({
   onApply,
   onDelete,
   onSave,
+  onImport,
   onClose,
 }: {
   visible: boolean;
@@ -1084,9 +1094,12 @@ function PresetsModal({
   onApply: (preset: JEPreset) => void;
   onDelete: (id: string) => void;
   onSave: (name: string) => void;
+  onImport: (preset: JEPreset) => void;
   onClose: () => void;
 }) {
   const [saveName, setSaveName] = useState('');
+  const [importText, setImportText] = useState('');
+  const [importError, setImportError] = useState('');
 
   const hasFilter = !!(
     currentSearch.trim() ||
@@ -1104,6 +1117,38 @@ function PresetsModal({
     if (preset.from) parts.push(`from ${preset.from}`);
     if (preset.to) parts.push(`to ${preset.to}`);
     return parts.join(' · ') || 'No filters';
+  };
+
+  const handleSharePreset = async (preset: JEPreset) => {
+    const exportable = { name: preset.name, search: preset.search, selectedType: preset.selectedType, from: preset.from, to: preset.to, pickedAccount: preset.pickedAccount, pickedAccountName: preset.pickedAccountName };
+    await Share.share({ message: JSON.stringify(exportable, null, 2), title: `JE Preset: ${preset.name}` });
+  };
+
+  const handleImport = () => {
+    setImportError('');
+    let parsed: any;
+    try {
+      parsed = JSON.parse(importText.trim());
+    } catch {
+      setImportError('Invalid JSON — paste the exported preset text exactly.');
+      return;
+    }
+    if (typeof parsed.name !== 'string' || !parsed.name.trim()) {
+      setImportError('Preset must have a "name" field.');
+      return;
+    }
+    const imported: JEPreset = {
+      id: Date.now().toString(),
+      name: parsed.name.trim(),
+      search: typeof parsed.search === 'string' ? parsed.search : '',
+      selectedType: typeof parsed.selectedType === 'string' ? parsed.selectedType : 'All',
+      from: typeof parsed.from === 'string' ? parsed.from : '',
+      to: typeof parsed.to === 'string' ? parsed.to : '',
+      pickedAccount: typeof parsed.pickedAccount === 'string' ? parsed.pickedAccount : undefined,
+      pickedAccountName: typeof parsed.pickedAccountName === 'string' ? parsed.pickedAccountName : undefined,
+    };
+    onImport(imported);
+    setImportText('');
   };
 
   return (
@@ -1170,6 +1215,13 @@ function PresetsModal({
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={psStyles.presetDelete}
+                    onPress={() => handleSharePreset(preset)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Feather name="share" size={14} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={psStyles.presetDelete}
                     onPress={() => onDelete(preset.id)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
@@ -1179,6 +1231,33 @@ function PresetsModal({
               ))}
             </>
           )}
+
+          {/* Import section */}
+          <View style={psStyles.importSection}>
+            <Text style={psStyles.listLabel}>IMPORT PRESET</Text>
+            <View style={psStyles.importRow}>
+              <TextInput
+                style={[psStyles.saveInput, psStyles.importInput]}
+                placeholder='Paste exported JSON here…'
+                placeholderTextColor={Colors.textMuted}
+                value={importText}
+                onChangeText={(t) => { setImportText(t); setImportError(''); }}
+                multiline
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+            {importError ? (
+              <Text style={psStyles.importError}>{importError}</Text>
+            ) : null}
+            <TouchableOpacity
+              style={[psStyles.saveBtn, !importText.trim() && psStyles.saveBtnDisabled, psStyles.importBtn]}
+              onPress={handleImport}
+              disabled={!importText.trim()}
+            >
+              <Text style={psStyles.saveBtnText}>Import</Text>
+            </TouchableOpacity>
+          </View>
           <View style={{ height: Spacing.xxl }} />
         </ScrollView>
       </View>
@@ -1278,11 +1357,21 @@ const psStyles = StyleSheet.create({
   presetName: { fontSize: 14, fontWeight: '600', color: Colors.text },
   presetSummary: { fontSize: 11, color: Colors.textMuted },
   presetDelete: {
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  importSection: {
+    paddingHorizontal: Spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+    marginTop: Spacing.sm,
+  },
+  importRow: { marginTop: Spacing.xs },
+  importInput: { height: 72, textAlignVertical: 'top', paddingTop: Spacing.xs + 2, fontFamily: 'monospace', fontSize: 12 },
+  importBtn: { alignSelf: 'flex-end', marginTop: Spacing.xs },
+  importError: { fontSize: 12, color: '#c0392b', marginTop: 4 },
   emptyState: {
     padding: Spacing.xl,
     alignItems: 'center',

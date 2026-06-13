@@ -226,6 +226,7 @@ const momStyles = StyleSheet.create({
 
 const DASH_SPARK_H = 52;
 const DASH_SPARK_DOT_R = 2.5;
+const DASH_SPARK_DOT_R_SEL = 4;
 
 function DashMonthlySparkline({
   buckets,
@@ -233,6 +234,8 @@ function DashMonthlySparkline({
   buckets: Array<{ label: string; apAmount: number; arAmount: number }>;
 }) {
   const [chartW, setChartW] = React.useState(0);
+  const [selectedIdx, setSelectedIdx] = React.useState<number | null>(null);
+
   if (buckets.length < 2) return null;
 
   const maxVal = Math.max(...buckets.flatMap((b) => [b.apAmount, b.arAmount]), 1);
@@ -269,6 +272,9 @@ function DashMonthlySparkline({
       );
     });
 
+  const selBucket = selectedIdx !== null ? buckets[selectedIdx] : null;
+  const colW = chartW > 0 ? chartW / buckets.length : 0;
+
   return (
     <View style={dashSparkStyles.card}>
       <View style={dashSparkStyles.legend}>
@@ -280,6 +286,15 @@ function DashMonthlySparkline({
           <View style={[dashSparkStyles.legendDot, { backgroundColor: Colors.text }]} />
           <Text style={dashSparkStyles.legendLabel}>AR billed</Text>
         </View>
+        {selBucket && (
+          <TouchableOpacity
+            style={dashSparkStyles.selClear}
+            onPress={() => setSelectedIdx(null)}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <Feather name="x" size={11} color={Colors.textMuted} />
+          </TouchableOpacity>
+        )}
       </View>
       <View
         style={dashSparkStyles.chartArea}
@@ -287,48 +302,103 @@ function DashMonthlySparkline({
       >
         {chartW > 0 && (
           <>
+            {/* selected column highlight */}
+            {selectedIdx !== null && (
+              <View
+                style={{
+                  position: 'absolute',
+                  left: apPts[selectedIdx].x - colW / 2,
+                  top: 0,
+                  width: colW,
+                  height: DASH_SPARK_H,
+                  backgroundColor: Colors.borderLight,
+                  borderRadius: 3,
+                }}
+                pointerEvents="none"
+              />
+            )}
             {renderSegs(apPts, Colors.textSecondary, 'ap')}
             {renderSegs(arPts, Colors.text, 'ar')}
-            {apPts.map((pt, i) => (
-              <View
-                key={`ap-dot-${i}`}
+            {apPts.map((pt, i) => {
+              const sel = i === selectedIdx;
+              const r = sel ? DASH_SPARK_DOT_R_SEL : DASH_SPARK_DOT_R;
+              return (
+                <View
+                  key={`ap-dot-${i}`}
+                  style={{
+                    position: 'absolute',
+                    width: r * 2,
+                    height: r * 2,
+                    borderRadius: r,
+                    backgroundColor: Colors.textSecondary,
+                    left: pt.x - r,
+                    top: pt.y - r,
+                    borderWidth: sel ? 2 : 1.5,
+                    borderColor: Colors.surface,
+                  }}
+                />
+              );
+            })}
+            {arPts.map((pt, i) => {
+              const sel = i === selectedIdx;
+              const r = sel ? DASH_SPARK_DOT_R_SEL : DASH_SPARK_DOT_R;
+              return (
+                <View
+                  key={`ar-dot-${i}`}
+                  style={{
+                    position: 'absolute',
+                    width: r * 2,
+                    height: r * 2,
+                    borderRadius: r,
+                    backgroundColor: Colors.text,
+                    left: pt.x - r,
+                    top: pt.y - r,
+                    borderWidth: sel ? 2 : 1.5,
+                    borderColor: Colors.surface,
+                  }}
+                />
+              );
+            })}
+            {/* touch hit zones — one per column, full chart height */}
+            {buckets.map((_, i) => (
+              <TouchableOpacity
+                key={`hit-${i}`}
                 style={{
                   position: 'absolute',
-                  width: DASH_SPARK_DOT_R * 2,
-                  height: DASH_SPARK_DOT_R * 2,
-                  borderRadius: DASH_SPARK_DOT_R,
-                  backgroundColor: Colors.textSecondary,
-                  left: pt.x - DASH_SPARK_DOT_R,
-                  top: pt.y - DASH_SPARK_DOT_R,
-                  borderWidth: 1.5,
-                  borderColor: Colors.surface,
+                  left: apPts[i].x - colW / 2,
+                  top: 0,
+                  width: colW,
+                  height: DASH_SPARK_H,
                 }}
-              />
-            ))}
-            {arPts.map((pt, i) => (
-              <View
-                key={`ar-dot-${i}`}
-                style={{
-                  position: 'absolute',
-                  width: DASH_SPARK_DOT_R * 2,
-                  height: DASH_SPARK_DOT_R * 2,
-                  borderRadius: DASH_SPARK_DOT_R,
-                  backgroundColor: Colors.text,
-                  left: pt.x - DASH_SPARK_DOT_R,
-                  top: pt.y - DASH_SPARK_DOT_R,
-                  borderWidth: 1.5,
-                  borderColor: Colors.surface,
-                }}
+                activeOpacity={1}
+                onPress={() => setSelectedIdx((prev) => (prev === i ? null : i))}
               />
             ))}
           </>
         )}
       </View>
-      <View style={dashSparkStyles.monthRow}>
-        {buckets.map((b, i) => (
-          <Text key={i} style={dashSparkStyles.monthLabel}>{b.label}</Text>
-        ))}
-      </View>
+      {/* selected month detail row */}
+      {selBucket ? (
+        <View style={dashSparkStyles.selRow}>
+          <Text style={dashSparkStyles.selLabel}>{selBucket.label}</Text>
+          <View style={dashSparkStyles.selAmounts}>
+            <View style={dashSparkStyles.selAmountItem}>
+              <View style={[dashSparkStyles.legendDot, { backgroundColor: Colors.textSecondary }]} />
+              <Text style={dashSparkStyles.selAmountText}>AP {formatCurrency(selBucket.apAmount)}</Text>
+            </View>
+            <View style={dashSparkStyles.selAmountItem}>
+              <View style={[dashSparkStyles.legendDot, { backgroundColor: Colors.text }]} />
+              <Text style={dashSparkStyles.selAmountText}>AR {formatCurrency(selBucket.arAmount)}</Text>
+            </View>
+          </View>
+        </View>
+      ) : (
+        <View style={dashSparkStyles.monthRow}>
+          {buckets.map((b, i) => (
+            <Text key={i} style={dashSparkStyles.monthLabel}>{b.label}</Text>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -344,10 +414,11 @@ const dashSparkStyles = StyleSheet.create({
     marginBottom: Spacing.md,
     gap: Spacing.sm,
   },
-  legend: { flexDirection: 'row', gap: Spacing.lg },
+  legend: { flexDirection: 'row', gap: Spacing.lg, alignItems: 'center' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot: { width: 8, height: 8, borderRadius: Radius.full },
   legendLabel: { fontSize: 11, color: Colors.textSecondary },
+  selClear: { marginLeft: 'auto' as any },
   chartArea: {
     height: DASH_SPARK_H,
     position: 'relative',
@@ -357,6 +428,19 @@ const dashSparkStyles = StyleSheet.create({
   },
   monthRow: { flexDirection: 'row', justifyContent: 'space-between' },
   monthLabel: { fontSize: 10, color: Colors.textMuted },
+  selRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.surfaceHover,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 5,
+  },
+  selLabel: { fontSize: 11, fontWeight: '600', color: Colors.text },
+  selAmounts: { flexDirection: 'row', gap: Spacing.md },
+  selAmountItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  selAmountText: { fontSize: 11, color: Colors.text },
 });
 
 // ─── Week Activity ───────────────────────────────────────────────────────────

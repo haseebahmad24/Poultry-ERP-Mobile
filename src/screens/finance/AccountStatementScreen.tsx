@@ -548,6 +548,13 @@ export default function AccountStatementScreen() {
                       navigation.navigate('JournalEntryDetail', { entry: line._entry });
                     }
                   }}
+                  onLongPress={() => {
+                    if (!selectMode) {
+                      toggleSelectMode();
+                      toggleRow(idx);
+                    }
+                  }}
+                  delayLongPress={400}
                   disabled={!selectMode && !line._entry}
                   activeOpacity={selectMode ? 0.7 : (line._entry ? 0.65 : 1)}
                 >
