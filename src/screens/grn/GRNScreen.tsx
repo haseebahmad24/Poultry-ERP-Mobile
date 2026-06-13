@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -27,6 +28,8 @@ import type { MoreStackParamList } from '@/navigation/MoreNavigator';
 
 type GRNNavProp = NativeStackNavigationProp<MoreStackParamList, 'GRN'>;
 
+type CompletionFilter = 'all' | 'partial' | 'complete' | 'not-started';
+
 export default function GRNScreen() {
   const navigation = useNavigation<GRNNavProp>();
   const { selectedCompany } = useCompany();
@@ -35,6 +38,8 @@ export default function GRNScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
+  const [search, setSearch] = useState('');
+  const [completionFilter, setCompletionFilter] = useState<CompletionFilter>('all');
 
   const load = useCallback(async (isRefresh = false) => {
     if (!isRefresh) {
@@ -70,6 +75,27 @@ export default function GRNScreen() {
     ? Math.min((totalReceived / totalOrdered) * 100, 100)
     : 0;
 
+  const filteredOrders = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return orders.filter((po) => {
+      if (q) {
+        const matchSearch =
+          (po.po_number ?? '').toLowerCase().includes(q) ||
+          (po.vendor ?? '').toLowerCase().includes(q);
+        if (!matchSearch) return false;
+      }
+      if (completionFilter !== 'all') {
+        const recv = po.received ?? 0;
+        const total = po.total ?? 0;
+        const pct = total > 0 ? (recv / total) * 100 : 0;
+        if (completionFilter === 'complete' && pct < 100) return false;
+        if (completionFilter === 'partial' && (pct <= 0 || pct >= 100)) return false;
+        if (completionFilter === 'not-started' && pct > 0) return false;
+      }
+      return true;
+    });
+  }, [orders, search, completionFilter]);
+
   const handleExportPDF = async () => {
     await exportGRNPDF({
       companyName: selectedCompany?.name ?? 'All Companies',
@@ -95,6 +121,45 @@ export default function GRNScreen() {
       </View>
 
       <OfflineBanner visible={!!(stale && error)} />
+
+      {!loading && (
+        <>
+          <View style={styles.searchBar}>
+            <Feather name="search" size={15} color={Colors.textMuted} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by PO number or vendor…"
+              placeholderTextColor={Colors.textMuted}
+              value={search}
+              onChangeText={setSearch}
+              autoCapitalize="none"
+              autoCorrect={false}
+              clearButtonMode="while-editing"
+            />
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterRow}
+            contentContainerStyle={styles.filterContent}
+          >
+            {(['all', 'partial', 'complete', 'not-started'] as CompletionFilter[]).map((f) => {
+              const labels: Record<CompletionFilter, string> = { all: 'All', partial: 'Partial', complete: 'Complete', 'not-started': 'Not Started' };
+              const active = completionFilter === f;
+              return (
+                <TouchableOpacity
+                  key={f}
+                  style={[styles.filterPill, active && styles.filterPillActive]}
+                  onPress={() => setCompletionFilter(f)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>{labels[f]}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </>
+      )}
 
       {loading ? <ListScreenSkeleton count={5} showTabs={false} showSearch={false} /> : <ScrollView
         style={styles.scroll}
@@ -129,16 +194,21 @@ export default function GRNScreen() {
           </View>
         )}
 
-        <SectionHeader title="Receipt Status by PO" meta={`${orders.length} records`} />
+        <SectionHeader
+          title="Receipt Status by PO"
+          meta={filteredOrders.length < orders.length ? `${filteredOrders.length} of ${orders.length}` : `${orders.length} records`}
+        />
 
-        {orders.length === 0 ? (
+        {filteredOrders.length === 0 ? (
           <View style={styles.emptyState}>
             <Feather name="truck" size={36} color={Colors.textMuted} />
-            <Text style={styles.emptyText}>No goods receipt data found</Text>
+            <Text style={styles.emptyText}>
+              {orders.length === 0 ? 'No goods receipt data found' : 'No results match your search'}
+            </Text>
           </View>
         ) : (
           <View style={styles.cardList}>
-            {orders.map((po) => (
+            {filteredOrders.map((po) => (
               <GRNCard
                 key={po.id}
                 po={po}
@@ -367,4 +437,45 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   emptyText: { ...Typography.body, color: Colors.textMuted },
+
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    gap: Spacing.xs,
+  },
+  searchIcon: { flexShrink: 0 },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
+    paddingVertical: 2,
+  },
+  filterRow: {
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    flexGrow: 0,
+  },
+  filterContent: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    gap: Spacing.xs,
+    flexDirection: 'row',
+  },
+  filterPill: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  filterPillActive: { backgroundColor: Colors.text, borderColor: Colors.text },
+  filterPillText: { fontSize: 12, color: Colors.textSecondary, fontWeight: '500' },
+  filterPillTextActive: { color: Colors.surface, fontWeight: '600' },
 });
