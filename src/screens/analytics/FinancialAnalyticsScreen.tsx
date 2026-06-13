@@ -1440,7 +1440,7 @@ export default function FinancialAnalyticsScreen() {
   const [exporting, setExporting] = useState(false);
   const [prevSnapshot, setPrevSnapshot] = useState<AgingSnapshot | null>(null);
   const [agingHistory, setAgingHistory] = useState<AgingHistoryEntry[]>([]);
-  const [historyPeriod, setHistoryPeriod] = useState<7 | 14 | 30>(14);
+  const [historyPeriod, setHistoryPeriod] = useState<7 | 14 | 30 | 60 | 90 | 0>(14);
 
   const cacheKey = `financial-analytics:${companyId ?? 'all'}`;
 
@@ -1698,17 +1698,25 @@ export default function FinancialAnalyticsScreen() {
 
         {/* Aging History Trend */}
         {agingHistory.length >= 2 && (() => {
-          const periodHistory = agingHistory.slice(-historyPeriod);
+          const periodHistory = historyPeriod === 0 ? agingHistory : agingHistory.slice(-historyPeriod);
+          const PERIOD_OPTS: Array<{ val: 7 | 14 | 30 | 60 | 90 | 0; label: string }> = [
+            { val: 7, label: '7d' },
+            { val: 14, label: '14d' },
+            { val: 30, label: '30d' },
+            { val: 60, label: '60d' },
+            { val: 90, label: '90d' },
+            { val: 0, label: 'All' },
+          ];
           const periodChips = (
             <View style={faStyles.periodChips}>
-              {([7, 14, 30] as const).map((p) => (
+              {PERIOD_OPTS.map(({ val, label }) => (
                 <TouchableOpacity
-                  key={p}
-                  style={[faStyles.periodChip, historyPeriod === p && faStyles.periodChipActive]}
-                  onPress={() => setHistoryPeriod(p)}
+                  key={val}
+                  style={[faStyles.periodChip, historyPeriod === val && faStyles.periodChipActive]}
+                  onPress={() => setHistoryPeriod(val)}
                 >
-                  <Text style={[faStyles.periodChipText, historyPeriod === p && faStyles.periodChipTextActive]}>
-                    {p}d
+                  <Text style={[faStyles.periodChipText, historyPeriod === val && faStyles.periodChipTextActive]}>
+                    {label}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -1718,7 +1726,7 @@ export default function FinancialAnalyticsScreen() {
             <>
               <SectionHeader
                 title="AP vs AR History"
-                meta={`${periodHistory.length} days recorded`}
+                meta={`${periodHistory.length} day${periodHistory.length !== 1 ? 's' : ''} · ${agingHistory.length} total`}
                 action={periodChips}
               />
               <AgingHistoryChart history={periodHistory} />

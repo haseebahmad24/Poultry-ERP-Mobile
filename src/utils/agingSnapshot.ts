@@ -18,7 +18,7 @@ export interface AgingHistoryEntry {
 
 const KEY_PREFIX = 'aging-snapshot:';
 const HISTORY_KEY_PREFIX = 'aging-history:';
-const MAX_HISTORY_DAYS = 30;
+const MAX_HISTORY_DAYS = 90;
 
 /** Save a snapshot, but only overwrite if the previous one is from a different calendar day. */
 export async function saveAgingSnapshot(snapshot: AgingSnapshot): Promise<void> {
