@@ -1,5 +1,49 @@
 # Mobile App Progress
 
+## Session 67 — 2026-06-13
+
+### Completed This Session
+
+**AccountStatement — Bulk-Select Rows for CSV Export** (`src/screens/finance/AccountStatementScreen.tsx`, `src/utils/csvExport.ts`)
+- `selectMode: boolean` + `selectedRows: Set<number>` state in AccountStatementScreen
+- `toggleSelectMode()` — activates/deactivates selection mode, clears selection on exit
+- `toggleRow(idx)` — adds/removes a filteredLines index from selectedRows
+- `toggleSelectAll()` — selects all filteredLines or clears all
+- Header in select mode: "CSV N" button (N = count of selected rows, "All" when none selected) + dark "Done" button
+- Header outside select mode: PDF + `check-square` icon button to enter select mode
+- `selectAllRow` above the table header in select mode: `square`/`check-square` icon + "Select all"/"Deselect all" + count meta
+- `tableRowSelected` highlight (Colors.surfaceHover) on selected rows
+- Each row shows `square`/`check-square` checkbox (24px column) when selectMode=true; tap toggles selection instead of JE nav
+- `exportAccountStatementCSV` added to csvExport.ts: headers include AccountCode, AccountName, Company, From, To + rows with Date/VoucherType/VoucherNo/Narration/Debit/Credit/Balance
+
+**JournalEntries — Named Search Presets** (`src/screens/journalEntries/JournalEntriesScreen.tsx`, `src/utils/jePresets.ts`)
+- New `src/utils/jePresets.ts`: `JEPreset` type (id, name, search, selectedType, from, to, pickedAccount, pickedAccountName); `loadJEPresets`/`saveJEPreset`/`deleteJEPreset` with AsyncStorage, per-company key `je-presets:<companyId>`, max 10 presets
+- `presets: JEPreset[]` state loaded on mount and on companyId change
+- Bookmark icon button in header (always visible); shows count badge when presets exist
+- `PresetsModal`: bottom-sheet modal (maxHeight 72%) with drag handle
+  - "SAVE CURRENT SEARCH" section shown when any filter active: name TextInput + Save button
+  - "SAVED PRESETS" section: each row shows preset name, filter summary, delete trash icon; tap row to apply
+  - Filter summary: type · "search" · @account · from · to
+  - Empty state with contextual hint (different when filter active vs. not)
+- Applying a preset restores: search, selectedType, dateRange, pickedAccount/pickedAccountName, scrolls to top
+
+**FinancialAnalytics — AgingHistoryChart Y-axis Grid Lines + Labeled Scale** (`src/screens/analytics/FinancialAnalyticsScreen.tsx`)
+- Two horizontal grid lines at 1/3 and 2/3 of AGING_CHART_H (64px) in `AgingHistoryPolylines` — `position: 'absolute'`, `Colors.borderLight`, `StyleSheet.hairlineWidth`
+- Grid lines render BEFORE segments/dots so they appear behind data lines
+- `AgingHistoryChart` chart section wrapped in `chartRow` (flexDirection: 'row'): 34px `yAxis` column + flex-1 polyline wrapper
+- Y-axis column: `fmtCompact(maxVal)` label at top; `fmtCompact(maxVal/2)` label positioned at `AGING_CHART_H/2 - 7` (midpoint)
+- Date row offset by `marginLeft: 38` to align under the polyline only
+- `chartRow`, `yAxis`, `yAxisLabel` added to `historyStyles`
+
+### Next Session
+- Consider: AccountStatement — keyboard shortcut for select-all (shake gesture or long-press anywhere to toggle select mode)
+- Consider: JournalEntries — preset sharing/export as QR code or text (for sharing named filters with teammates)
+- Consider: FinancialAnalytics — NWC trend chart Y-axis (apply same Y-axis treatment to NWCPolyline chart)
+- Consider: Dashboard — AP/AR sparkline overlay (show both AP and AR lines on same NWC monthly chart)
+- Consider: ProcurementAnalytics — TopItemsCard compare-periods toggle (this month vs. last month side-by-side bars)
+
+---
+
 ## Session 66 — 2026-06-13
 
 ### Completed This Session
