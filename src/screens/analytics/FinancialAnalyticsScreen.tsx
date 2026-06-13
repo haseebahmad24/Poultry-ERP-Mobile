@@ -860,6 +860,21 @@ function NWCPolyline({
       style={nwcStyles.polylineContainer}
       onLayout={(e) => setChartW(e.nativeEvent.layout.width)}
     >
+      {/* Horizontal grid lines at 1/3 and 2/3 heights */}
+      {[1 / 3, 2 / 3].map((frac) => (
+        <View
+          key={frac}
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: Math.round(NWC_CHART_H * frac),
+            height: StyleSheet.hairlineWidth,
+            backgroundColor: Colors.borderLight,
+          }}
+        />
+      ))}
+
       {/* Zero line */}
       <View style={[nwcStyles.zeroLine, { top: zeroY }]} />
 
@@ -1035,16 +1050,24 @@ function NWCTrendCard({
         />
       )}
 
-      {/* Polyline chart */}
-      <NWCPolyline
-        values={nwcValues}
-        maxAbs={maxAbs}
-        selectedIdx={selectedIdx}
-        onSelectIdx={setSelectedIdx}
-      />
+      {/* Polyline chart with Y-axis */}
+      <View style={nwcStyles.chartRow}>
+        <View style={nwcStyles.yAxis}>
+          <Text style={nwcStyles.yAxisLabel}>+{fmtK(maxAbs)}</Text>
+          <Text style={[nwcStyles.yAxisLabel, { position: 'absolute', top: NWC_CHART_H / 2 - 6 }]}>
+            0
+          </Text>
+        </View>
+        <NWCPolyline
+          values={nwcValues}
+          maxAbs={maxAbs}
+          selectedIdx={selectedIdx}
+          onSelectIdx={setSelectedIdx}
+        />
+      </View>
 
       {/* Date labels */}
-      <View style={nwcStyles.labelRow}>
+      <View style={[nwcStyles.labelRow, { marginLeft: 38 }]}>
         <Text style={nwcStyles.dateLabel}>{visible[0]?.date.slice(5) ?? ''}</Text>
         <Text style={nwcStyles.centerLabel}>
           {snap ? 'tap same dot to clear' : 'positive = AR > AP'}
@@ -1130,6 +1153,19 @@ const nwcStyles = StyleSheet.create({
     right: 0,
     height: StyleSheet.hairlineWidth,
     backgroundColor: Colors.borderLight,
+  },
+  chartRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
+  yAxis: {
+    width: 34,
+    height: NWC_CHART_H,
+    alignItems: 'flex-end',
+    paddingRight: 4,
+    position: 'relative',
+  },
+  yAxisLabel: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    lineHeight: 12,
   },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dateLabel: { fontSize: 10, color: Colors.textMuted },
