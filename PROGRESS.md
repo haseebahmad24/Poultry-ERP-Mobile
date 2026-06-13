@@ -6,6 +6,56 @@
 - **JournalEntriesScreen**: `importError` color `#c0392b` (red) → `Colors.textSecondary`; removes semantic red from parse-error message.
 - **ProcurementAnalyticsScreen**: `newBadge` background `#0a6ed1` (blue) → `Colors.text` (near-black), text → `Colors.surface`; preserves badge weight without semantic hue.
 
+## Session 72 — 2026-06-13
+
+### Completed This Session
+
+**ProcurementAnalytics — TopCustomers vs LM Comparison** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- Standalone `computeTopCustomers(sos: SalesOrder[]): CustomerRow[]` function (top-8 by SO value, mirroring `computeTopVendors`)
+- `thisSos`/`lastSos` calendar-month filters added to the existing useMemo; computes `thisMonthTopCustomers` + `lastMonthTopCustomers`
+- TopCustomers `RankedBarList` now receives `thisMonthRows={thisMonthTopCustomers}` and `lastMonthRows={lastMonthTopCustomers}`
+- Empty text changed from "No POs this month" to "No data this month" (generic for vendor/customer)
+
+**Dashboard — Quick Insights Drill Navigation** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `nav?: { stack: string; screen?: string }` field added to `Insight` interface
+- `buildInsights()` assigns nav targets: revenue/expense/income → FinancialReports; AR diff → AccountsReceivable; AP diff + overdue bills → AccountsPayable
+- Navigable rows render as `TouchableOpacity` with `chevron-right` Feather icon
+- `QuickInsightsCard` accepts `navigation` prop; each insight row calls `navigation.navigate(stack, {screen})`
+
+**JournalEntries — Per-Voucher-Type Amount Totals** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- `typeAmountSummary` useMemo groups filtered entries by `voucher_type`, tracking count and total debit per type
+- `typeBreakdownRow` renders compact pills between SectionHeader and list: type label · compact amount · count
+- Pills use monochrome design: bold type label, secondary amount, muted count
+
+**StockHealth — Velocity Fast/Slow Mode Filter** (`src/screens/analytics/StockHealthScreen.tsx`)
+- `computeLedgerAnalysis` now returns `allVelocityItems` (all items, no top-8 cap) alongside `velocityItems`
+- `velocityMode: 'all' | 'fast' | 'slow'` state; `displayedVelocityItems` useMemo filters by median movement
+- Three toggle pills below SectionHeader: All / Fast-movers / Slow-movers
+- `VelocityCard` receives `displayedVelocityItems` so it reflects the active mode
+
+**ProcurementAnalytics — Monthly Trend Bars Tap-to-Inspect** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- `selectedMonth: string | null` state in `MonthlyTrendChart`
+- Bar columns wrapped in `TouchableOpacity`; selected column gets background highlight + bold label; non-selected bars at 70% opacity
+- X button in legend clears selection; idle hint "tap a month to inspect"
+- Snap detail row: month · PO (count or value) · SO · Net (shown in value mode)
+
+**FinancialAnalytics — 6-Month AP/AR Chart Tap-to-Inspect** (`src/screens/analytics/FinancialAnalyticsScreen.tsx`)
+- Same pattern as ProcurementAnalytics chart applied to `MonthlyNetChart`
+- Snap row: month · AP · AR · Net; X clear; bars dim to 70% opacity when unselected
+
+**PO and SO List — Total/Avg Value Strip** (`src/screens/purchaseOrders/PurchaseOrdersScreen.tsx`, `src/screens/salesOrders/SalesOrdersScreen.tsx`)
+- `filteredTotal` + `filteredAvg` computed from filtered array
+- Compact `statsStrip` card (Total · Avg) shown below SectionHeader when total > 0; live-updates with search/date filters
+
+### Next Session
+- Consider: InventoryScreen — DUS (Days Until Stockout) column on stock items (requires ledger data)
+- Consider: ProcurementAnalytics — PO/SO net balance KPI card (total PO vs SO value comparison)
+- Consider: JournalEntries — monthly voucher count/value chart (mini bar chart above list)
+- Consider: Dashboard — "Due Today" highlight (bills/invoices due today with urgent styling)
+- Consider: AccountsPayable — payment schedule export (CSV of upcoming payments by week)
+
+---
+
 ## Session 71 — 2026-06-13
 
 ### Completed This Session
