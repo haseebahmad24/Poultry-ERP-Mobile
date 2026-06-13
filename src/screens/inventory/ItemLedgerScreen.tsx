@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   RefreshControl,
   ScrollView,
@@ -148,6 +148,10 @@ export default function ItemLedgerScreen() {
 
       <DateRangeBar value={dateRange} onChange={setDateRange} />
 
+      {entriesWithBalance.length >= 2 && (
+        <BalanceSparkline entries={entriesWithBalance} />
+      )}
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -188,6 +192,147 @@ export default function ItemLedgerScreen() {
     </SafeAreaView>
   );
 }
+
+// ─── Balance Sparkline ────────────────────────────────────────────────────────
+
+const SPARK_H = 56;
+const SPARK_DOT_R = 2.5;
+
+function BalanceSparkline({
+  entries,
+}: {
+  entries: Array<{ entry: StockLedgerEntry; computedBalance: number | null }>;
+}) {
+  const [chartW, setChartW] = React.useState(0);
+
+  const balances = useMemo(
+    () => entries.map(({ entry, computedBalance }) =>
+      entry.balance != null ? entry.balance : (computedBalance ?? 0)
+    ),
+    [entries]
+  );
+
+  const maxVal = Math.max(...balances.map(Math.abs), 1);
+  const minVal = Math.min(...balances, 0);
+  const range = maxVal - minVal;
+  const getY = (v: number) => SPARK_H * (1 - (v - minVal) / (range || 1));
+
+  const pts = chartW > 0
+    ? balances.map((v, i) => ({ x: (i / (balances.length - 1)) * chartW, y: getY(v) }))
+    : [];
+
+  const zeroY = range > 0 ? getY(0) : SPARK_H;
+  const hasNeg = minVal < 0;
+  const lastBal = balances[balances.length - 1] ?? 0;
+
+  return (
+    <View style={sparkStyles.card}>
+      <View style={sparkStyles.headerRow}>
+        <Text style={sparkStyles.label}>BALANCE TREND</Text>
+        <Text style={[sparkStyles.lastVal, lastBal < 0 && sparkStyles.lastValNeg]}>
+          {lastBal >= 0 ? '+' : ''}{lastBal.toLocaleString()} current
+        </Text>
+      </View>
+      <View
+        style={sparkStyles.chartArea}
+        onLayout={(e) => setChartW(e.nativeEvent.layout.width)}
+      >
+        {chartW > 0 && (
+          <>
+            {hasNeg && (
+              <View
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  top: zeroY,
+                  height: StyleSheet.hairlineWidth,
+                  backgroundColor: Colors.borderLight,
+                }}
+              />
+            )}
+            {pts.map((pt, i) => {
+              if (i === 0) return null;
+              const prev = pts[i - 1];
+              const dx = pt.x - prev.x;
+              const dy = pt.y - prev.y;
+              const len = Math.sqrt(dx * dx + dy * dy);
+              const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+              return (
+                <View
+                  key={`seg-${i}`}
+                  style={{
+                    position: 'absolute',
+                    width: len,
+                    height: 1.5,
+                    backgroundColor: lastBal < 0 ? Colors.textSecondary : Colors.text,
+                    left: (prev.x + pt.x) / 2 - len / 2,
+                    top: (prev.y + pt.y) / 2 - 0.75,
+                    transform: [{ rotate: `${angle}deg` }],
+                  }}
+                />
+              );
+            })}
+            {pts.map((pt, i) => {
+              const v = balances[i];
+              const isLast = i === pts.length - 1;
+              const r = isLast ? SPARK_DOT_R + 1.5 : SPARK_DOT_R;
+              return (
+                <View
+                  key={`dot-${i}`}
+                  style={{
+                    position: 'absolute',
+                    width: r * 2,
+                    height: r * 2,
+                    borderRadius: r,
+                    backgroundColor: v < 0 ? Colors.textSecondary : Colors.text,
+                    left: pt.x - r,
+                    top: pt.y - r,
+                    borderWidth: 1.5,
+                    borderColor: Colors.surface,
+                    opacity: isLast ? 1 : 0.55,
+                  }}
+                />
+              );
+            })}
+          </>
+        )}
+      </View>
+      <View style={sparkStyles.footerRow}>
+        <Text style={sparkStyles.footerLabel}>
+          {entries[0]?.entry.dt ? formatShortDate(entries[0].entry.dt) : ''}
+        </Text>
+        <Text style={sparkStyles.footerLabel}>
+          {entries[entries.length - 1]?.entry.dt ? formatShortDate(entries[entries.length - 1].entry.dt) : ''}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+const sparkStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  label: { fontSize: 10, fontWeight: '700', color: Colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
+  lastVal: { fontSize: 12, fontWeight: '700', color: Colors.text },
+  lastValNeg: { color: Colors.textSecondary },
+  chartArea: {
+    height: SPARK_H,
+    position: 'relative',
+    overflow: 'visible',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  footerRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  footerLabel: { fontSize: 10, color: Colors.textMuted },
+});
 
 function LedgerCard({ entry, computedBalance }: { entry: StockLedgerEntry; computedBalance: number | null }) {
   const vtype = entry.voucher_type ?? '';
