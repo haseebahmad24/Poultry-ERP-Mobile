@@ -26,6 +26,7 @@ import DateRangeBar, { DateRangeValue } from '@/components/DateRangeBar';
 import { formatCurrency, formatShortDate } from '@/utils/currency';
 import { getCached, setCached } from '@/utils/cache';
 import { exportAccountStatementPDF } from '@/utils/pdfExport';
+import { exportAccountStatementCSV } from '@/utils/csvExport';
 import { useCompany } from '@/context/CompanyContext';
 
 type RouteType = RouteProp<FinanceStackParamList, 'AccountStatement'>;
@@ -94,6 +95,8 @@ export default function AccountStatementScreen() {
   const [exporting, setExporting] = useState(false);
   const [rowSearch, setRowSearch] = useState('');
   const [rowTypeFilter, setRowTypeFilter] = useState<string | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
 
   const cacheKey = `account-statement:${companyId ?? 'all'}:${accountCode}:${dateRange.from}:${dateRange.to}`;
 
@@ -195,6 +198,28 @@ export default function AccountStatementScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  const toggleSelectMode = () => {
+    setSelectMode((prev) => !prev);
+    setSelectedRows(new Set());
+  };
+
+  const toggleRow = (idx: number) => {
+    setSelectedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedRows.size === filteredLines.length) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(filteredLines.map((_, i) => i)));
+    }
+  };
+
   const handleExportPDF = async () => {
     setExporting(true);
     try {
@@ -206,6 +231,25 @@ export default function AccountStatementScreen() {
         from: dateRange.from,
         to: dateRange.to,
         lines,
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    const toExport = selectedRows.size > 0
+      ? filteredLines.filter((_, i) => selectedRows.has(i))
+      : filteredLines;
+    setExporting(true);
+    try {
+      await exportAccountStatementCSV({
+        accountCode,
+        accountName,
+        companyName: selectedCompany?.name ?? 'All Companies',
+        from: dateRange.from,
+        to: dateRange.to,
+        lines: toExport,
       });
     } finally {
       setExporting(false);
@@ -259,17 +303,42 @@ export default function AccountStatementScreen() {
           <Text style={styles.headerTitle} numberOfLines={1}>Account Statement</Text>
           {accountType && <Text style={styles.headerSub}>{accountType}</Text>}
         </View>
-        {!loading && lines.length > 0 && (
-          <TouchableOpacity
-            style={styles.exportBtn}
-            onPress={handleExportPDF}
-            disabled={exporting}
-          >
-            {exporting
-              ? <ActivityIndicator size="small" color={Colors.text} />
-              : <Feather name="file-text" size={13} color={Colors.text} />}
-            <Text style={styles.exportBtnText}>PDF</Text>
-          </TouchableOpacity>
+        {!loading && filteredLines.length > 0 && selectMode ? (
+          <>
+            <TouchableOpacity
+              style={styles.exportBtn}
+              onPress={handleExportCSV}
+              disabled={exporting}
+            >
+              {exporting
+                ? <ActivityIndicator size="small" color={Colors.text} />
+                : <Feather name="grid" size={13} color={Colors.textSecondary} />}
+              <Text style={styles.exportBtnText}>
+                {selectedRows.size > 0 ? `CSV ${selectedRows.size}` : 'CSV All'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.exportBtn, styles.exportBtnActive]} onPress={toggleSelectMode}>
+              <Text style={[styles.exportBtnText, styles.exportBtnTextActive]}>Done</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          !loading && lines.length > 0 && (
+            <>
+              <TouchableOpacity
+                style={styles.exportBtn}
+                onPress={handleExportPDF}
+                disabled={exporting}
+              >
+                {exporting
+                  ? <ActivityIndicator size="small" color={Colors.text} />
+                  : <Feather name="file-text" size={13} color={Colors.text} />}
+                <Text style={styles.exportBtnText}>PDF</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.exportBtn} onPress={toggleSelectMode}>
+                <Feather name="check-square" size={13} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            </>
+          )
         )}
       </View>
 
@@ -412,7 +481,23 @@ export default function AccountStatementScreen() {
             </View>
           ) : (
             <View style={styles.tableCard}>
+              {selectMode && (
+                <TouchableOpacity style={styles.selectAllRow} onPress={toggleSelectAll}>
+                  <Feather
+                    name={selectedRows.size === filteredLines.length && filteredLines.length > 0 ? 'check-square' : 'square'}
+                    size={14}
+                    color={Colors.textSecondary}
+                  />
+                  <Text style={styles.selectAllText}>
+                    {selectedRows.size === filteredLines.length && filteredLines.length > 0 ? 'Deselect all' : 'Select all'}
+                  </Text>
+                  {selectedRows.size > 0 && (
+                    <Text style={styles.selectAllMeta}>{selectedRows.size} selected</Text>
+                  )}
+                </TouchableOpacity>
+              )}
               <View style={styles.tableHeader}>
+                {selectMode && <View style={styles.checkboxCol} />}
                 <Text style={[styles.colDate, styles.headerText]}>Date</Text>
                 <Text style={[styles.colVoucher, styles.headerText]}>Voucher</Text>
                 <Text style={[styles.colAmount, styles.headerText]}>Debit</Text>
@@ -451,11 +536,30 @@ export default function AccountStatementScreen() {
                     </View>
                   )}
                 <TouchableOpacity
-                  style={[styles.tableRow, idx < filteredLines.length - 1 && styles.tableRowBorder]}
-                  onPress={() => line._entry && navigation.navigate('JournalEntryDetail', { entry: line._entry })}
-                  disabled={!line._entry}
-                  activeOpacity={line._entry ? 0.65 : 1}
+                  style={[
+                    styles.tableRow,
+                    idx < filteredLines.length - 1 && styles.tableRowBorder,
+                    selectMode && selectedRows.has(idx) && styles.tableRowSelected,
+                  ]}
+                  onPress={() => {
+                    if (selectMode) {
+                      toggleRow(idx);
+                    } else if (line._entry) {
+                      navigation.navigate('JournalEntryDetail', { entry: line._entry });
+                    }
+                  }}
+                  disabled={!selectMode && !line._entry}
+                  activeOpacity={selectMode ? 0.7 : (line._entry ? 0.65 : 1)}
                 >
+                  {selectMode && (
+                    <View style={styles.checkboxCol}>
+                      <Feather
+                        name={selectedRows.has(idx) ? 'check-square' : 'square'}
+                        size={14}
+                        color={selectedRows.has(idx) ? Colors.text : Colors.textMuted}
+                      />
+                    </View>
+                  )}
                   <View style={styles.colDate}>
                     <Text style={styles.dateText}>{formatShortDate(line.date)}</Text>
                   </View>
@@ -481,7 +585,7 @@ export default function AccountStatementScreen() {
                       {formatCurrency(Math.abs(line.balance))}
                       {line.balance < 0 ? '\nCr' : ''}
                     </Text>
-                    {line._entry && <Feather name="chevron-right" size={10} color={Colors.textMuted} style={styles.rowChevron} />}
+                    {!selectMode && line._entry && <Feather name="chevron-right" size={10} color={Colors.textMuted} style={styles.rowChevron} />}
                   </View>
                 </TouchableOpacity>
                 </React.Fragment>
@@ -539,7 +643,9 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
   },
+  exportBtnActive: { backgroundColor: Colors.text, borderColor: Colors.text },
   exportBtnText: { fontSize: 12, fontWeight: '600', color: Colors.text },
+  exportBtnTextActive: { color: Colors.surface },
 
   accountCard: {
     backgroundColor: Colors.surface,
@@ -617,6 +723,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
+  tableRowSelected: { backgroundColor: Colors.surfaceHover },
+  checkboxCol: { width: 24, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 2 },
+  selectAllRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs + 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  selectAllText: { fontSize: 12, color: Colors.textSecondary, fontWeight: '500', flex: 1 },
+  selectAllMeta: { fontSize: 11, color: Colors.textMuted },
   totalsRow: {
     flexDirection: 'row',
     alignItems: 'center',

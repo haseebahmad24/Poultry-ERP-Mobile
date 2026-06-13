@@ -132,3 +132,36 @@ export async function exportPartnerNotesCSV(opts: {
   ];
   await Share.share({ message: lines.join('\n'), title: 'partner-notes.csv' });
 }
+
+export async function exportAccountStatementCSV(opts: {
+  accountCode: string;
+  accountName: string;
+  companyName?: string;
+  from?: string;
+  to?: string;
+  lines: Array<{
+    date: string;
+    voucherType: string;
+    voucherNo: string;
+    narration: string;
+    debit: number;
+    credit: number;
+    balance: number;
+  }>;
+}): Promise<void> {
+  const { accountCode, accountName, companyName, from, to, lines } = opts;
+  const csvRows: string[] = [
+    row('Account Code', accountCode),
+    row('Account Name', accountName),
+    row('Company', companyName ?? ''),
+    ...(from ? [row('From', from)] : []),
+    ...(to ? [row('To', to)] : []),
+    '',
+    row('Date', 'Voucher Type', 'Voucher No', 'Narration', 'Debit', 'Credit', 'Balance'),
+    ...lines.map((l) =>
+      row(l.date, l.voucherType, l.voucherNo, l.narration, l.debit, l.credit, l.balance)
+    ),
+  ];
+  const filename = `account-statement-${accountCode}-${from ?? 'export'}.csv`;
+  await Share.share({ message: csvRows.join('\n'), title: filename });
+}
