@@ -1,5 +1,47 @@
 # Mobile App Progress
 
+## Session 69 — 2026-06-13
+
+### Completed This Session
+
+**FinancialAnalytics — NWCTrendCard Y-axis Grid Lines + Labeled Scale** (`src/screens/analytics/FinancialAnalyticsScreen.tsx`)
+- Grid lines at 1/3 and 2/3 of `NWC_CHART_H` inside `NWCPolyline` — `position: 'absolute'`, `Colors.borderLight`, `StyleSheet.hairlineWidth`
+- Grid lines render BEFORE segments/dots so they appear behind data lines
+- `NWCTrendCard` chart section wrapped in `chartRow` (flexDirection: 'row'): 34px `yAxis` column + flex-1 polyline
+- Y-axis column: `+{fmtK(maxAbs)}` label at top; `0` label positioned at `NWC_CHART_H/2 - 6` (zero-line midpoint)
+- Date row offset by `marginLeft: 38` to align only under the polyline, not the Y-axis column
+- New styles added to `nwcStyles`: `chartRow`, `yAxis`, `yAxisLabel` (mirrors AgingHistoryChart pattern)
+
+**ProcurementAnalytics — TopItemsCard Compare-Periods Toggle (vs LM)** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- `thisMonthTopItems` + `lastMonthTopItems` `useMemo` in parent: filters `rawData.pos` to current/previous calendar month → `computeTopItems()`
+- `TopItemsCard` extended with `thisMonthItems` and `lastMonthItems` props
+- Internal `compareOn: boolean` state; **"vs LM"** pill added to sort bar (visible when `canCompare=true`)
+- When `compareOn`: `displayItems = thisMonthItems`; `prevMap = new Map(lastMonthItems by name)`
+- Double bar rows: primary bar (full height, dark) + secondary bar (2px, `Colors.borderLight`) for previous period
+- `maxMetric` includes both current + prev period values for correct scale normalization
+- Compare legend row (below sort bar): two dot labels "This month" / "Last month"
+- Value column shows current metric + `"prev: X"` or `"new this mo"` in `prevMeta` style
+- Chevron-right and item-tap navigation hidden while `compareOn` is true
+
+**Dashboard — AP vs AR 6-Month Billing Sparkline** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `dashMonthlyBuckets: Array<{label, apAmount, arAmount}>` state (6 calendar months)
+- Computed in load effect: loops 6 months back, filters `bills`/`invoices` by YYYY-MM prefix, sums amounts
+- `DashMonthlySparkline` component: polyline chart (`DASH_SPARK_H=52px`) with AP (textSecondary) + AR (text) lines
+- Each series renders line segments + 2.5px radius dots per month with surface-color border for contrast
+- `chartArea`: `position: 'relative'`, `overflow: 'visible'`, `borderBottom` baseline
+- Month labels in `monthRow` (`space-between`)
+- Rendered after "Month vs Month" card with `SectionHeader` "AP vs AR Trend · 6-month billed · AP · AR"
+- Only shown when `dashMonthlyBuckets.length >= 2` and at least one bucket has nonzero data
+
+### Next Session
+- Consider: FinancialAnalytics — NWCTrendCard dual-component overlay (add faint AP and AR component lines behind the NWC net line)
+- Consider: ProcurementAnalytics — TopItemsCard new-item badge (highlight items that appear in this month but not last)
+- Consider: Dashboard — DashMonthlySparkline tap-to-select dot (show exact month amounts when tapping a dot)
+- Consider: JournalEntries — preset sharing as copyable text string (import/export presets as JSON snippet)
+- Consider: AccountStatement — long-press row to toggle select mode (ergonomic shortcut without using header button)
+
+---
+
 ## Session 67 — 2026-06-13
 
 ### Completed This Session
