@@ -197,6 +197,7 @@ export default function ItemLedgerScreen() {
 
 const SPARK_H = 56;
 const SPARK_DOT_R = 2.5;
+const SPARK_DOT_R_SEL = 4.5;
 
 function BalanceSparkline({
   entries,
@@ -204,6 +205,7 @@ function BalanceSparkline({
   entries: Array<{ entry: StockLedgerEntry; computedBalance: number | null }>;
 }) {
   const [chartW, setChartW] = React.useState(0);
+  const [selectedIdx, setSelectedIdx] = React.useState<number | null>(null);
 
   const balances = useMemo(
     () => entries.map(({ entry, computedBalance }) =>
@@ -224,14 +226,26 @@ function BalanceSparkline({
   const zeroY = range > 0 ? getY(0) : SPARK_H;
   const hasNeg = minVal < 0;
   const lastBal = balances[balances.length - 1] ?? 0;
+  const colW = chartW > 0 ? chartW / entries.length : 0;
+  const selEntry = selectedIdx != null ? entries[selectedIdx] : null;
+  const selBalance = selectedIdx != null ? balances[selectedIdx] : null;
 
   return (
     <View style={sparkStyles.card}>
       <View style={sparkStyles.headerRow}>
         <Text style={sparkStyles.label}>BALANCE TREND</Text>
-        <Text style={[sparkStyles.lastVal, lastBal < 0 && sparkStyles.lastValNeg]}>
-          {lastBal >= 0 ? '+' : ''}{lastBal.toLocaleString()} current
-        </Text>
+        {selectedIdx != null ? (
+          <TouchableOpacity
+            onPress={() => setSelectedIdx(null)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Feather name="x" size={11} color={Colors.textMuted} />
+          </TouchableOpacity>
+        ) : (
+          <Text style={[sparkStyles.lastVal, lastBal < 0 && sparkStyles.lastValNeg]}>
+            {lastBal >= 0 ? '+' : ''}{lastBal.toLocaleString()} current
+          </Text>
+        )}
       </View>
       <View
         style={sparkStyles.chartArea}
@@ -239,6 +253,21 @@ function BalanceSparkline({
       >
         {chartW > 0 && (
           <>
+            {/* Selected column highlight */}
+            {selectedIdx !== null && pts[selectedIdx] && (
+              <View
+                style={{
+                  position: 'absolute',
+                  left: pts[selectedIdx].x - colW / 2,
+                  top: 0,
+                  width: colW,
+                  height: SPARK_H,
+                  backgroundColor: Colors.borderLight,
+                  borderRadius: 3,
+                }}
+                pointerEvents="none"
+              />
+            )}
             {hasNeg && (
               <View
                 style={{
@@ -275,8 +304,9 @@ function BalanceSparkline({
             })}
             {pts.map((pt, i) => {
               const v = balances[i];
+              const isSel = i === selectedIdx;
               const isLast = i === pts.length - 1;
-              const r = isLast ? SPARK_DOT_R + 1.5 : SPARK_DOT_R;
+              const r = isSel ? SPARK_DOT_R_SEL : (isLast ? SPARK_DOT_R + 1.5 : SPARK_DOT_R);
               return (
                 <View
                   key={`dot-${i}`}
@@ -288,24 +318,57 @@ function BalanceSparkline({
                     backgroundColor: v < 0 ? Colors.textSecondary : Colors.text,
                     left: pt.x - r,
                     top: pt.y - r,
-                    borderWidth: 1.5,
+                    borderWidth: isSel ? 2 : 1.5,
                     borderColor: Colors.surface,
-                    opacity: isLast ? 1 : 0.55,
+                    opacity: (isSel || isLast) ? 1 : 0.55,
                   }}
                 />
               );
             })}
+            {/* Touch hit zones — one per column */}
+            {pts.map((pt, i) => (
+              <TouchableOpacity
+                key={`hit-${i}`}
+                style={{
+                  position: 'absolute',
+                  left: pt.x - colW / 2,
+                  top: 0,
+                  width: colW,
+                  height: SPARK_H,
+                }}
+                activeOpacity={1}
+                onPress={() => setSelectedIdx((prev) => (prev === i ? null : i))}
+              />
+            ))}
           </>
         )}
       </View>
-      <View style={sparkStyles.footerRow}>
-        <Text style={sparkStyles.footerLabel}>
-          {entries[0]?.entry.dt ? formatShortDate(entries[0].entry.dt) : ''}
-        </Text>
-        <Text style={sparkStyles.footerLabel}>
-          {entries[entries.length - 1]?.entry.dt ? formatShortDate(entries[entries.length - 1].entry.dt) : ''}
-        </Text>
-      </View>
+      {selEntry ? (
+        <View style={sparkStyles.snapRow}>
+          <Text style={sparkStyles.snapDate}>{formatShortDate(selEntry.entry.dt ?? '')}</Text>
+          <View style={sparkStyles.snapAmounts}>
+            {(selEntry.entry.qty_in ?? 0) !== 0 && (
+              <Text style={sparkStyles.snapIn}>+{(selEntry.entry.qty_in ?? 0).toLocaleString()} in</Text>
+            )}
+            {(selEntry.entry.qty_out ?? 0) !== 0 && (
+              <Text style={sparkStyles.snapOut}>−{(selEntry.entry.qty_out ?? 0).toLocaleString()} out</Text>
+            )}
+            <Text style={[sparkStyles.snapBal, (selBalance ?? 0) < 0 && sparkStyles.lastValNeg]}>
+              = {selBalance?.toLocaleString() ?? '?'}
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <View style={sparkStyles.footerRow}>
+          <Text style={sparkStyles.footerLabel}>
+            {entries[0]?.entry.dt ? formatShortDate(entries[0].entry.dt) : ''}
+          </Text>
+          <Text style={sparkStyles.footerLabel}>tap dot to inspect</Text>
+          <Text style={sparkStyles.footerLabel}>
+            {entries[entries.length - 1]?.entry.dt ? formatShortDate(entries[entries.length - 1].entry.dt) : ''}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -332,6 +395,12 @@ const sparkStyles = StyleSheet.create({
   },
   footerRow: { flexDirection: 'row', justifyContent: 'space-between' },
   footerLabel: { fontSize: 10, color: Colors.textMuted },
+  snapRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  snapDate: { fontSize: 11, fontWeight: '600', color: Colors.text },
+  snapAmounts: { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  snapIn: { fontSize: 11, color: Colors.text },
+  snapOut: { fontSize: 11, color: Colors.textSecondary },
+  snapBal: { fontSize: 12, fontWeight: '700', color: Colors.text },
 });
 
 function LedgerCard({ entry, computedBalance }: { entry: StockLedgerEntry; computedBalance: number | null }) {
