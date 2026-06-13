@@ -489,7 +489,7 @@ const chartStyles = StyleSheet.create({
   snapMonth: { fontSize: 11, fontWeight: '700', color: Colors.text, minWidth: 28 },
   snapDivider: { width: StyleSheet.hairlineWidth, height: 20, backgroundColor: Colors.borderLight },
   snapItem: { flex: 1, alignItems: 'center' },
-  snapLabel: { fontSize: 9, color: Colors.textMuted, marginBottom: 1 },
+  snapLabel: { fontSize: 10, color: Colors.textMuted, marginBottom: 1 },
   snapVal: { fontSize: 11, fontWeight: '600', color: Colors.text },
   snapValPos: { color: Colors.text },
   snapHint: { fontSize: 10, color: Colors.textMuted, textAlign: 'center', marginTop: Spacing.xs },
@@ -681,7 +681,7 @@ const rankedStyles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 1,
   },
-  newBadgeText: { fontSize: 9, fontWeight: '700', color: Colors.surface, letterSpacing: 0.3 },
+  newBadgeText: { fontSize: 10, fontWeight: '700', color: Colors.surface, letterSpacing: 0.3 },
   compareBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -711,7 +711,7 @@ const rankedStyles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.xs,
   },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendDot: { width: 8, height: 8, borderRadius: Radius.full },
   legendLabel: { fontSize: 11, color: Colors.textMuted },
   noDataRow: { paddingVertical: Spacing.md, paddingHorizontal: Spacing.md },
 });
@@ -1649,12 +1649,12 @@ const topItemStyles = StyleSheet.create({
   name: { fontSize: 13, fontWeight: '600', color: Colors.text, flexShrink: 1 },
   newBadge: {
     backgroundColor: Colors.text,
-    borderRadius: 3,
+    borderRadius: Radius.sm,
     paddingHorizontal: 4,
     paddingVertical: 1,
     flexShrink: 0,
   },
-  newBadgeText: { fontSize: 9, fontWeight: '800', color: Colors.surface, letterSpacing: 0.3 },
+  newBadgeText: { fontSize: 10, fontWeight: '800', color: Colors.surface, letterSpacing: 0.3 },
   barTrack: {
     height: 3,
     backgroundColor: Colors.borderLight,

@@ -312,7 +312,7 @@ function DashMonthlySparkline({
                   width: colW,
                   height: DASH_SPARK_H,
                   backgroundColor: Colors.borderLight,
-                  borderRadius: 3,
+                  borderRadius: Radius.sm,
                 }}
                 pointerEvents="none"
               />
@@ -656,7 +656,7 @@ const insightStyles = StyleSheet.create({
   dot: {
     width: 7,
     height: 7,
-    borderRadius: 3.5,
+    borderRadius: Radius.full,
     marginTop: 4,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,

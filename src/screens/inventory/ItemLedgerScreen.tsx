@@ -263,7 +263,7 @@ function BalanceSparkline({
                   width: colW,
                   height: SPARK_H,
                   backgroundColor: Colors.borderLight,
-                  borderRadius: 3,
+                  borderRadius: Radius.sm,
                 }}
                 pointerEvents="none"
               />

@@ -497,7 +497,7 @@ const netChartStyles = StyleSheet.create({
   snapMonth: { fontSize: 11, fontWeight: '700', color: Colors.text, minWidth: 28 },
   snapDivider: { width: StyleSheet.hairlineWidth, height: 20, backgroundColor: Colors.borderLight },
   snapItem: { flex: 1, alignItems: 'center' },
-  snapLabel: { fontSize: 9, color: Colors.textMuted, marginBottom: 1 },
+  snapLabel: { fontSize: 10, color: Colors.textMuted, marginBottom: 1 },
   snapVal: { fontSize: 11, fontWeight: '600', color: Colors.text },
   snapValPos: { color: Colors.textSecondary },
   snapValNeg: { color: Colors.text },

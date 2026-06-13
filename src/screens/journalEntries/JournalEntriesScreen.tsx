@@ -1722,5 +1722,5 @@ const styles = StyleSheet.create({
   },
   typeBreakdownLabel: { fontSize: 10, fontWeight: '700', color: Colors.text },
   typeBreakdownAmt: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary },
-  typeBreakdownCount: { fontSize: 9, color: Colors.textMuted },
+  typeBreakdownCount: { fontSize: 10, color: Colors.textMuted },
 });
