@@ -832,11 +832,15 @@ function NWCPolyline({
   maxAbs,
   selectedIdx,
   onSelectIdx,
+  apValues,
+  arValues,
 }: {
   values: number[];
   maxAbs: number;
   selectedIdx: number | null;
   onSelectIdx: (idx: number | null) => void;
+  apValues?: number[];
+  arValues?: number[];
 }) {
   const [chartW, setChartW] = React.useState(0);
   if (values.length < 2) return null;
@@ -851,6 +855,42 @@ function NWCPolyline({
         pos: v >= 0,
       }))
     : [];
+
+  const maxComponent = apValues && arValues
+    ? Math.max(...apValues, ...arValues, 1)
+    : 1;
+  const getCompY = (v: number) => NWC_CHART_H * (1 - v / maxComponent);
+  const apPts = (chartW > 0 && apValues && apValues.length === values.length)
+    ? apValues.map((v, i) => ({ x: (i / (values.length - 1)) * chartW, y: getCompY(v) }))
+    : [];
+  const arPts = (chartW > 0 && arValues && arValues.length === values.length)
+    ? arValues.map((v, i) => ({ x: (i / (values.length - 1)) * chartW, y: getCompY(v) }))
+    : [];
+
+  const renderFaintSegs = (compPts: { x: number; y: number }[], color: string, key: string) =>
+    compPts.map((pt, i) => {
+      if (i === 0) return null;
+      const prev = compPts[i - 1];
+      const dx = pt.x - prev.x;
+      const dy = pt.y - prev.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+      return (
+        <View
+          key={`${key}-${i}`}
+          style={{
+            position: 'absolute',
+            width: len,
+            height: 1,
+            backgroundColor: color,
+            opacity: 0.22,
+            left: (prev.x + pt.x) / 2 - len / 2,
+            top: (prev.y + pt.y) / 2 - 0.5,
+            transform: [{ rotate: `${angle}deg` }],
+          }}
+        />
+      );
+    });
 
   const zeroY = getY(0);
   const HIT = { top: 12, bottom: 12, left: 10, right: 10 };
@@ -880,6 +920,10 @@ function NWCPolyline({
 
       {chartW > 0 && (
         <>
+          {/* Faint component lines (AP and AR raw values) behind NWC */}
+          {apPts.length > 0 && renderFaintSegs(apPts, Colors.textSecondary, 'comp-ap')}
+          {arPts.length > 0 && renderFaintSegs(arPts, Colors.text, 'comp-ar')}
+
           {/* Connecting line segments */}
           {pts.map((pt, i) => {
             if (i === 0) return null;
@@ -1063,6 +1107,8 @@ function NWCTrendCard({
           maxAbs={maxAbs}
           selectedIdx={selectedIdx}
           onSelectIdx={setSelectedIdx}
+          apValues={visible.map((e) => e.apTotal)}
+          arValues={visible.map((e) => e.arTotal)}
         />
       </View>
 
@@ -1070,7 +1116,7 @@ function NWCTrendCard({
       <View style={[nwcStyles.labelRow, { marginLeft: 38 }]}>
         <Text style={nwcStyles.dateLabel}>{visible[0]?.date.slice(5) ?? ''}</Text>
         <Text style={nwcStyles.centerLabel}>
-          {snap ? 'tap same dot to clear' : 'positive = AR > AP'}
+          {snap ? 'tap same dot to clear' : 'faint: AP · AR  |  bold: NWC'}
         </Text>
         <Text style={nwcStyles.dateLabel}>{visible[visible.length - 1]?.date.slice(5) ?? ''}</Text>
       </View>

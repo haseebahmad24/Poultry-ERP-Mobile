@@ -1364,7 +1364,14 @@ function TopItemsCard({
                 <Text style={topItemStyles.rankText}>{i + 1}</Text>
               </View>
               <View style={topItemStyles.nameCol}>
-                <Text style={topItemStyles.name} numberOfLines={1}>{item.itemName}</Text>
+                <View style={topItemStyles.nameRow}>
+                  <Text style={topItemStyles.name} numberOfLines={1}>{item.itemName}</Text>
+                  {compareOn && !prevItem && (
+                    <View style={topItemStyles.newBadge}>
+                      <Text style={topItemStyles.newBadgeText}>NEW</Text>
+                    </View>
+                  )}
+                </View>
                 <View style={topItemStyles.barTrack}>
                   <View style={[topItemStyles.bar, { width: `${barPct}%` as any }]} />
                 </View>
@@ -1377,10 +1384,8 @@ function TopItemsCard({
               <View style={topItemStyles.valueCol}>
                 <Text style={topItemStyles.value}>{formatMetric(item)}</Text>
                 <Text style={topItemStyles.sub}>{formatSub(item)}</Text>
-                {compareOn && (
-                  <Text style={topItemStyles.prevMeta}>
-                    {prevItem ? `prev ${formatMetric(prevItem)}` : 'new this mo'}
-                  </Text>
+                {compareOn && prevItem && (
+                  <Text style={topItemStyles.prevMeta}>prev {formatMetric(prevItem)}</Text>
                 )}
               </View>
               {item.itemId != null && !compareOn && (
@@ -1432,7 +1437,16 @@ const topItemStyles = StyleSheet.create({
   },
   rankText: { fontSize: 10, fontWeight: '700', color: Colors.textSecondary },
   nameCol: { flex: 1, gap: 4 },
-  name: { fontSize: 13, fontWeight: '600', color: Colors.text },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  name: { fontSize: 13, fontWeight: '600', color: Colors.text, flexShrink: 1 },
+  newBadge: {
+    backgroundColor: '#0a6ed1',
+    borderRadius: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    flexShrink: 0,
+  },
+  newBadgeText: { fontSize: 9, fontWeight: '800', color: '#ffffff', letterSpacing: 0.3 },
   barTrack: {
     height: 3,
     backgroundColor: Colors.borderLight,
