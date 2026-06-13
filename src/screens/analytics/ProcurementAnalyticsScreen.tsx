@@ -1251,14 +1251,27 @@ const TOP_ITEM_SORT_MODES: { key: TopItemSortMode; label: string }[] = [
 
 function TopItemsCard({
   items,
+  thisMonthItems,
+  lastMonthItems,
   onPressItem,
 }: {
   items: TopItemRow[];
+  thisMonthItems: TopItemRow[];
+  lastMonthItems: TopItemRow[];
   onPressItem: (item: TopItemRow) => void;
 }) {
   const [sortMode, setSortMode] = React.useState<TopItemSortMode>('value');
+  const [compareOn, setCompareOn] = React.useState(false);
 
-  if (items.length === 0) {
+  const canCompare = thisMonthItems.length > 0 || lastMonthItems.length > 0;
+  const displayItems = compareOn ? thisMonthItems : items;
+
+  const prevMap = React.useMemo(
+    () => new Map(lastMonthItems.map((i) => [i.itemName, i])),
+    [lastMonthItems],
+  );
+
+  if (!compareOn && items.length === 0) {
     return (
       <View style={topItemStyles.empty}>
         <Text style={topItemStyles.emptyText}>No item-level data — POs may not have line items</Text>
@@ -1266,7 +1279,7 @@ function TopItemsCard({
     );
   }
 
-  const sortedItems = [...items].sort((a, b) => {
+  const sortedItems = [...displayItems].sort((a, b) => {
     if (sortMode === 'count') return b.poCount - a.poCount;
     if (sortMode === 'avg') return b.avgValue - a.avgValue;
     return b.totalValue - a.totalValue;
@@ -1277,7 +1290,11 @@ function TopItemsCard({
     if (sortMode === 'avg') return item.avgValue;
     return item.totalValue;
   };
-  const maxMetric = Math.max(...sortedItems.map(getMetric), 1);
+
+  const allPrevMetrics = compareOn
+    ? Array.from(prevMap.values()).map(getMetric)
+    : [];
+  const maxMetric = Math.max(...sortedItems.map(getMetric), ...allPrevMetrics, 1);
 
   const formatMetric = (item: TopItemRow) => {
     if (sortMode === 'count') return `${item.poCount} PO${item.poCount !== 1 ? 's' : ''}`;
@@ -1305,36 +1322,74 @@ function TopItemsCard({
             </Text>
           </TouchableOpacity>
         ))}
-      </View>
-      {sortedItems.map((item, i) => {
-        const isLast = i === sortedItems.length - 1;
-        const barPct = maxMetric > 0 ? (getMetric(item) / maxMetric) * 100 : 0;
-        return (
+        {canCompare && (
           <TouchableOpacity
-            key={item.itemName}
-            style={[topItemStyles.row, !isLast && topItemStyles.rowBorder]}
-            activeOpacity={item.itemId != null ? 0.6 : 1}
-            onPress={item.itemId != null ? () => onPressItem(item) : undefined}
+            style={[topItemStyles.sortPill, compareOn && topItemStyles.sortPillActive, { marginLeft: 'auto' as any }]}
+            onPress={() => setCompareOn((v) => !v)}
           >
-            <View style={topItemStyles.rankBadge}>
-              <Text style={topItemStyles.rankText}>{i + 1}</Text>
-            </View>
-            <View style={topItemStyles.nameCol}>
-              <Text style={topItemStyles.name} numberOfLines={1}>{item.itemName}</Text>
-              <View style={topItemStyles.barTrack}>
-                <View style={[topItemStyles.bar, { width: `${barPct}%` as any }]} />
-              </View>
-            </View>
-            <View style={topItemStyles.valueCol}>
-              <Text style={topItemStyles.value}>{formatMetric(item)}</Text>
-              <Text style={topItemStyles.sub}>{formatSub(item)}</Text>
-            </View>
-            {item.itemId != null && (
-              <Feather name="chevron-right" size={13} color={Colors.textMuted} />
-            )}
+            <Text style={[topItemStyles.sortPillText, compareOn && topItemStyles.sortPillTextActive]}>
+              vs LM
+            </Text>
           </TouchableOpacity>
-        );
-      })}
+        )}
+      </View>
+
+      {compareOn && (
+        <View style={topItemStyles.compareLegend}>
+          <View style={[topItemStyles.legendDotSm, { backgroundColor: Colors.textSecondary }]} />
+          <Text style={topItemStyles.compareLegendLabel}>This month</Text>
+          <View style={[topItemStyles.legendDotSm, { backgroundColor: Colors.borderLight, borderWidth: StyleSheet.hairlineWidth, borderColor: Colors.border }]} />
+          <Text style={topItemStyles.compareLegendLabel}>Last month</Text>
+        </View>
+      )}
+
+      {sortedItems.length === 0 && compareOn ? (
+        <View style={topItemStyles.noData}>
+          <Text style={topItemStyles.noDataText}>No POs this month</Text>
+        </View>
+      ) : (
+        sortedItems.map((item, i) => {
+          const isLast = i === sortedItems.length - 1;
+          const barPct = maxMetric > 0 ? (getMetric(item) / maxMetric) * 100 : 0;
+          const prevItem = compareOn ? prevMap.get(item.itemName) : undefined;
+          const prevBarPct = prevItem && maxMetric > 0 ? (getMetric(prevItem) / maxMetric) * 100 : 0;
+          return (
+            <TouchableOpacity
+              key={item.itemName}
+              style={[topItemStyles.row, !isLast && topItemStyles.rowBorder]}
+              activeOpacity={item.itemId != null && !compareOn ? 0.6 : 1}
+              onPress={item.itemId != null && !compareOn ? () => onPressItem(item) : undefined}
+            >
+              <View style={topItemStyles.rankBadge}>
+                <Text style={topItemStyles.rankText}>{i + 1}</Text>
+              </View>
+              <View style={topItemStyles.nameCol}>
+                <Text style={topItemStyles.name} numberOfLines={1}>{item.itemName}</Text>
+                <View style={topItemStyles.barTrack}>
+                  <View style={[topItemStyles.bar, { width: `${barPct}%` as any }]} />
+                </View>
+                {compareOn && (
+                  <View style={topItemStyles.barTrack}>
+                    <View style={[topItemStyles.bar, { width: `${prevBarPct}%` as any, backgroundColor: Colors.borderLight, height: 2 }]} />
+                  </View>
+                )}
+              </View>
+              <View style={topItemStyles.valueCol}>
+                <Text style={topItemStyles.value}>{formatMetric(item)}</Text>
+                <Text style={topItemStyles.sub}>{formatSub(item)}</Text>
+                {compareOn && (
+                  <Text style={topItemStyles.prevMeta}>
+                    {prevItem ? `prev ${formatMetric(prevItem)}` : 'new this mo'}
+                  </Text>
+                )}
+              </View>
+              {item.itemId != null && !compareOn && (
+                <Feather name="chevron-right" size={13} color={Colors.textMuted} />
+              )}
+            </TouchableOpacity>
+          );
+        })
+      )}
     </View>
   );
 }
@@ -1397,6 +1452,20 @@ const topItemStyles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.borderLight,
   },
+  compareLegend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    gap: Spacing.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  legendDotSm: { width: 10, height: 3, borderRadius: Radius.full },
+  compareLegendLabel: { fontSize: 10, color: Colors.textMuted, marginRight: Spacing.xs },
+  prevMeta: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
+  noData: { padding: Spacing.md, alignItems: 'center' },
+  noDataText: { fontSize: 13, color: Colors.textMuted, fontStyle: 'italic' },
   sortPill: {
     paddingHorizontal: Spacing.sm,
     paddingVertical: 3,
@@ -2222,6 +2291,27 @@ export default function ProcurementAnalyticsScreen() {
     );
   }, [rawData, dateRange, isDateActive]);
 
+  const { thisMonthTopItems, lastMonthTopItems } = React.useMemo(() => {
+    if (!rawData) return { thisMonthTopItems: [], lastMonthTopItems: [] };
+    const now = new Date();
+    const thisStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+    const thisPos = rawData.pos.filter((p) => {
+      if (!p.dt) return false;
+      return new Date(p.dt) >= thisStart;
+    });
+    const lastPos = rawData.pos.filter((p) => {
+      if (!p.dt) return false;
+      const d = new Date(p.dt);
+      return d >= lastStart && d <= lastEnd;
+    });
+    return {
+      thisMonthTopItems: computeTopItems(thisPos),
+      lastMonthTopItems: computeTopItems(lastPos),
+    };
+  }, [rawData]);
+
   const trendSubtitle = isDateActive
     ? `${dateRange.from || '…'} – ${dateRange.to || '…'}`
     : 'Orders placed in the last 6 months';
@@ -2453,6 +2543,8 @@ export default function ProcurementAnalyticsScreen() {
               />
               <TopItemsCard
                 items={analytics.topItems}
+                thisMonthItems={thisMonthTopItems}
+                lastMonthItems={lastMonthTopItems}
                 onPressItem={handleNavigateItemLedger}
               />
             </>
