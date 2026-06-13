@@ -443,6 +443,205 @@ const dashSparkStyles = StyleSheet.create({
   selAmountText: { fontSize: 11, color: Colors.text },
 });
 
+// ─── Quick Insights ──────────────────────────────────────────────────────────
+
+type InsightType = 'positive' | 'alert' | 'neutral';
+
+interface Insight {
+  type: InsightType;
+  text: string;
+}
+
+function buildInsights({
+  kpis,
+  revenueTrend,
+  expensesTrend,
+  netIncome,
+  netIncomeTrend,
+  overdueBillCount,
+  overdueInvoiceCount,
+}: {
+  kpis: KPIs | null;
+  revenueTrend: number | null;
+  expensesTrend: number | null;
+  netIncome: number;
+  netIncomeTrend: number | null;
+  overdueBillCount: number;
+  overdueInvoiceCount: number;
+}): Insight[] {
+  const insights: Insight[] = [];
+  if (!kpis) return insights;
+
+  // Revenue trend
+  if (revenueTrend != null && isFinite(revenueTrend) && Math.abs(revenueTrend) >= 5) {
+    insights.push({
+      type: revenueTrend > 0 ? 'positive' : 'alert',
+      text: `Revenue ${revenueTrend > 0 ? 'up' : 'down'} ${Math.abs(revenueTrend).toFixed(0)}% vs last month`,
+    });
+  }
+
+  // Expense trend (only flag a big spike)
+  if (expensesTrend != null && isFinite(expensesTrend) && expensesTrend >= 20) {
+    insights.push({
+      type: 'alert',
+      text: `Expenses up ${expensesTrend.toFixed(0)}% vs last month`,
+    });
+  }
+
+  // Net income position
+  if (netIncomeTrend != null && isFinite(netIncomeTrend) && Math.abs(netIncomeTrend) >= 10) {
+    insights.push({
+      type: netIncomeTrend > 0 ? 'positive' : 'alert',
+      text: `Net income ${netIncomeTrend > 0 ? 'improved' : 'declined'} ${Math.abs(netIncomeTrend).toFixed(0)}% vs last month`,
+    });
+  } else {
+    insights.push({
+      type: netIncome >= 0 ? 'positive' : 'alert',
+      text: netIncome >= 0
+        ? `Profitable this month · ${fmtK(netIncome)} net income`
+        : `Net loss this month · ${fmtK(Math.abs(netIncome))}`,
+    });
+  }
+
+  // Cash coverage
+  const cash = kpis.cash ?? 0;
+  const expenses = kpis.expenses ?? 0;
+  if (expenses > 0) {
+    const months = cash / expenses;
+    if (months < 0) {
+      insights.push({ type: 'alert', text: 'Cash balance is negative' });
+    } else if (months < 1) {
+      insights.push({ type: 'alert', text: `Cash covers less than 1 month of expenses` });
+    } else {
+      insights.push({ type: 'neutral', text: `Cash covers ~${months.toFixed(1)} months of expenses` });
+    }
+  }
+
+  // AR vs AP balance
+  const ar = kpis.totalAR ?? 0;
+  const ap = kpis.totalAP ?? 0;
+  if (ar > 0 || ap > 0) {
+    const diff = ar - ap;
+    if (diff > 0) {
+      insights.push({ type: 'positive', text: `Owed ${fmtK(diff)} more than you owe (AR > AP)` });
+    } else if (diff < 0) {
+      insights.push({ type: 'alert', text: `Owe ${fmtK(Math.abs(diff))} more than is owed to you (AP > AR)` });
+    }
+  }
+
+  // Overdue
+  if (overdueBillCount > 0) {
+    insights.push({
+      type: 'alert',
+      text: `${overdueBillCount} overdue bill${overdueBillCount > 1 ? 's' : ''} need${overdueBillCount === 1 ? 's' : ''} payment`,
+    });
+  }
+  if (overdueInvoiceCount > 0) {
+    insights.push({
+      type: 'neutral',
+      text: `${overdueInvoiceCount} overdue invoice${overdueInvoiceCount > 1 ? 's' : ''} awaiting collection`,
+    });
+  }
+
+  return insights;
+}
+
+function QuickInsightsCard({
+  kpis,
+  revenueTrend,
+  expensesTrend,
+  netIncome,
+  netIncomeTrend,
+  overdueBillCount,
+  overdueInvoiceCount,
+}: {
+  kpis: KPIs | null;
+  revenueTrend: number | null;
+  expensesTrend: number | null;
+  netIncome: number;
+  netIncomeTrend: number | null;
+  overdueBillCount: number;
+  overdueInvoiceCount: number;
+}) {
+  const [expanded, setExpanded] = React.useState(true);
+  const insights = buildInsights({ kpis, revenueTrend, expensesTrend, netIncome, netIncomeTrend, overdueBillCount, overdueInvoiceCount });
+  if (insights.length === 0) return null;
+
+  const dotColor = (type: InsightType) => {
+    if (type === 'positive') return Colors.text;
+    if (type === 'alert') return Colors.textSecondary;
+    return Colors.borderLight;
+  };
+
+  const displayed = expanded ? insights : insights.slice(0, 3);
+
+  return (
+    <View style={insightStyles.card}>
+      {displayed.map((insight, i) => (
+        <View key={i} style={[insightStyles.row, i < displayed.length - 1 && insightStyles.rowBorder]}>
+          <View style={[insightStyles.dot, { backgroundColor: dotColor(insight.type) }]} />
+          <Text style={insightStyles.text}>{insight.text}</Text>
+        </View>
+      ))}
+      {insights.length > 3 && (
+        <TouchableOpacity
+          style={insightStyles.toggleRow}
+          onPress={() => setExpanded((v) => !v)}
+          activeOpacity={0.7}
+        >
+          <Text style={insightStyles.toggleText}>
+            {expanded ? 'Show less' : `+${insights.length - 3} more insight${insights.length - 3 > 1 ? 's' : ''}`}
+          </Text>
+          <Feather name={expanded ? 'chevron-up' : 'chevron-down'} size={12} color={Colors.textMuted} />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+const insightStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    overflow: 'hidden',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    marginTop: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    flexShrink: 0,
+  },
+  text: { fontSize: 13, color: Colors.text, flex: 1, lineHeight: 18 },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+  },
+  toggleText: { fontSize: 12, color: Colors.textMuted },
+});
+
 // ─── Week Activity ───────────────────────────────────────────────────────────
 
 interface WeekActivity {
@@ -1576,6 +1775,22 @@ export default function DashboardScreen() {
             />
           </View>
         </View>
+
+        {/* Quick Insights */}
+        {kpis && (
+          <>
+            <SectionHeader title="Quick Insights" meta="auto-generated · tap to expand" />
+            <QuickInsightsCard
+              kpis={kpis}
+              revenueTrend={revenueTrend}
+              expensesTrend={expensesTrend}
+              netIncome={netIncome}
+              netIncomeTrend={netIncomeTrend}
+              overdueBillCount={overdueBills.length}
+              overdueInvoiceCount={overdueInvoices.length}
+            />
+          </>
+        )}
 
         {/* Quick Stats — 7-day KPI history sparkline */}
         {kpiHistory.length >= 1 && (
