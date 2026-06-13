@@ -177,6 +177,23 @@ export default function JournalEntriesScreen() {
   const filteredDebit = filtered.reduce((s, e) => s + (e.total_debit ?? 0), 0);
   const filteredCredit = filtered.reduce((s, e) => s + (e.total_credit ?? 0), 0);
 
+  const typeAmountSummary = React.useMemo(() => {
+    const map = new Map<string, { count: number; debit: number }>();
+    for (const e of filtered) {
+      const t = e.voucher_type ?? 'JV';
+      const existing = map.get(t);
+      if (existing) {
+        existing.count += 1;
+        existing.debit += e.total_debit ?? 0;
+      } else {
+        map.set(t, { count: 1, debit: e.total_debit ?? 0 });
+      }
+    }
+    return Array.from(map.entries())
+      .map(([type, { count, debit }]) => ({ type, count, debit }))
+      .sort((a, b) => b.debit - a.debit);
+  }, [filtered]);
+
   // Running balance — only computed when an account filter is active
   const filteredWithBalance = React.useMemo<Array<{ entry: JournalEntry; runningBalance: number }>>(() => {
     if (!pickedAccount) return filtered.map((entry) => ({ entry, runningBalance: 0 }));
@@ -372,6 +389,17 @@ export default function JournalEntriesScreen() {
             />
 
             <SectionHeader title="Vouchers" meta={`${filtered.length} records`} />
+            {typeAmountSummary.length > 0 && (
+              <View style={styles.typeBreakdownRow}>
+                {typeAmountSummary.map((item) => (
+                  <View key={item.type} style={styles.typeBreakdownPill}>
+                    <Text style={styles.typeBreakdownLabel}>{item.type}</Text>
+                    <Text style={styles.typeBreakdownAmt}>{fmtCompactJE(item.debit)}</Text>
+                    <Text style={styles.typeBreakdownCount}>{item.count}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
 
             {filteredWithBalance.length === 0 ? (
               <View style={styles.emptyState}>
@@ -1673,4 +1701,26 @@ const styles = StyleSheet.create({
   },
   zeroCrossLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
   zeroCrossText: { fontSize: 10, color: Colors.textMuted, fontStyle: 'italic' },
+
+  typeBreakdownRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  typeBreakdownPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  typeBreakdownLabel: { fontSize: 10, fontWeight: '700', color: Colors.text },
+  typeBreakdownAmt: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary },
+  typeBreakdownCount: { fontSize: 9, color: Colors.textMuted },
 });

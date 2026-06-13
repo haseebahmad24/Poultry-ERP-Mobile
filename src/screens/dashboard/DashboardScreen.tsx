@@ -450,6 +450,7 @@ type InsightType = 'positive' | 'alert' | 'neutral';
 interface Insight {
   type: InsightType;
   text: string;
+  nav?: { stack: string; screen?: string };
 }
 
 function buildInsights({
@@ -472,11 +473,16 @@ function buildInsights({
   const insights: Insight[] = [];
   if (!kpis) return insights;
 
+  const finReports = { stack: 'Finance', screen: 'FinancialReports' };
+  const ap = { stack: 'Finance', screen: 'AccountsPayable' };
+  const ar = { stack: 'Finance', screen: 'AccountsReceivable' };
+
   // Revenue trend
   if (revenueTrend != null && isFinite(revenueTrend) && Math.abs(revenueTrend) >= 5) {
     insights.push({
       type: revenueTrend > 0 ? 'positive' : 'alert',
       text: `Revenue ${revenueTrend > 0 ? 'up' : 'down'} ${Math.abs(revenueTrend).toFixed(0)}% vs last month`,
+      nav: finReports,
     });
   }
 
@@ -485,6 +491,7 @@ function buildInsights({
     insights.push({
       type: 'alert',
       text: `Expenses up ${expensesTrend.toFixed(0)}% vs last month`,
+      nav: finReports,
     });
   }
 
@@ -493,6 +500,7 @@ function buildInsights({
     insights.push({
       type: netIncomeTrend > 0 ? 'positive' : 'alert',
       text: `Net income ${netIncomeTrend > 0 ? 'improved' : 'declined'} ${Math.abs(netIncomeTrend).toFixed(0)}% vs last month`,
+      nav: finReports,
     });
   } else {
     insights.push({
@@ -500,6 +508,7 @@ function buildInsights({
       text: netIncome >= 0
         ? `Profitable this month · ${fmtK(netIncome)} net income`
         : `Net loss this month · ${fmtK(Math.abs(netIncome))}`,
+      nav: finReports,
     });
   }
 
@@ -509,23 +518,23 @@ function buildInsights({
   if (expenses > 0) {
     const months = cash / expenses;
     if (months < 0) {
-      insights.push({ type: 'alert', text: 'Cash balance is negative' });
+      insights.push({ type: 'alert', text: 'Cash balance is negative', nav: finReports });
     } else if (months < 1) {
-      insights.push({ type: 'alert', text: `Cash covers less than 1 month of expenses` });
+      insights.push({ type: 'alert', text: `Cash covers less than 1 month of expenses`, nav: finReports });
     } else {
-      insights.push({ type: 'neutral', text: `Cash covers ~${months.toFixed(1)} months of expenses` });
+      insights.push({ type: 'neutral', text: `Cash covers ~${months.toFixed(1)} months of expenses`, nav: finReports });
     }
   }
 
   // AR vs AP balance
-  const ar = kpis.totalAR ?? 0;
-  const ap = kpis.totalAP ?? 0;
-  if (ar > 0 || ap > 0) {
-    const diff = ar - ap;
+  const arVal = kpis.totalAR ?? 0;
+  const apVal = kpis.totalAP ?? 0;
+  if (arVal > 0 || apVal > 0) {
+    const diff = arVal - apVal;
     if (diff > 0) {
-      insights.push({ type: 'positive', text: `Owed ${fmtK(diff)} more than you owe (AR > AP)` });
+      insights.push({ type: 'positive', text: `Owed ${fmtK(diff)} more than you owe (AR > AP)`, nav: ar });
     } else if (diff < 0) {
-      insights.push({ type: 'alert', text: `Owe ${fmtK(Math.abs(diff))} more than is owed to you (AP > AR)` });
+      insights.push({ type: 'alert', text: `Owe ${fmtK(Math.abs(diff))} more than is owed to you (AP > AR)`, nav: ap });
     }
   }
 
@@ -534,12 +543,14 @@ function buildInsights({
     insights.push({
       type: 'alert',
       text: `${overdueBillCount} overdue bill${overdueBillCount > 1 ? 's' : ''} need${overdueBillCount === 1 ? 's' : ''} payment`,
+      nav: ap,
     });
   }
   if (overdueInvoiceCount > 0) {
     insights.push({
       type: 'neutral',
       text: `${overdueInvoiceCount} overdue invoice${overdueInvoiceCount > 1 ? 's' : ''} awaiting collection`,
+      nav: ar,
     });
   }
 
@@ -554,6 +565,7 @@ function QuickInsightsCard({
   netIncomeTrend,
   overdueBillCount,
   overdueInvoiceCount,
+  navigation,
 }: {
   kpis: KPIs | null;
   revenueTrend: number | null;
@@ -562,6 +574,7 @@ function QuickInsightsCard({
   netIncomeTrend: number | null;
   overdueBillCount: number;
   overdueInvoiceCount: number;
+  navigation: any;
 }) {
   const [expanded, setExpanded] = React.useState(true);
   const insights = buildInsights({ kpis, revenueTrend, expensesTrend, netIncome, netIncomeTrend, overdueBillCount, overdueInvoiceCount });
@@ -577,12 +590,32 @@ function QuickInsightsCard({
 
   return (
     <View style={insightStyles.card}>
-      {displayed.map((insight, i) => (
-        <View key={i} style={[insightStyles.row, i < displayed.length - 1 && insightStyles.rowBorder]}>
-          <View style={[insightStyles.dot, { backgroundColor: dotColor(insight.type) }]} />
-          <Text style={insightStyles.text}>{insight.text}</Text>
-        </View>
-      ))}
+      {displayed.map((insight, i) => {
+        const handleNav = insight.nav
+          ? () => navigation.navigate(insight.nav!.stack, insight.nav!.screen ? { screen: insight.nav!.screen } : undefined)
+          : undefined;
+        const inner = (
+          <>
+            <View style={[insightStyles.dot, { backgroundColor: dotColor(insight.type) }]} />
+            <Text style={[insightStyles.text, { flex: 1 }]}>{insight.text}</Text>
+            {insight.nav && <Feather name="chevron-right" size={12} color={Colors.textMuted} />}
+          </>
+        );
+        return handleNav ? (
+          <TouchableOpacity
+            key={i}
+            style={[insightStyles.row, i < displayed.length - 1 && insightStyles.rowBorder]}
+            onPress={handleNav}
+            activeOpacity={0.6}
+          >
+            {inner}
+          </TouchableOpacity>
+        ) : (
+          <View key={i} style={[insightStyles.row, i < displayed.length - 1 && insightStyles.rowBorder]}>
+            {inner}
+          </View>
+        );
+      })}
       {insights.length > 3 && (
         <TouchableOpacity
           style={insightStyles.toggleRow}
@@ -1788,6 +1821,7 @@ export default function DashboardScreen() {
               netIncomeTrend={netIncomeTrend}
               overdueBillCount={overdueBills.length}
               overdueInvoiceCount={overdueInvoices.length}
+              navigation={navigation}
             />
           </>
         )}

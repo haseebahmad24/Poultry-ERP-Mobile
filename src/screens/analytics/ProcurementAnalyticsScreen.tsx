@@ -276,6 +276,24 @@ function computeTopVendors(pos: PurchaseOrder[]): VendorRow[] {
     .map((v) => ({ ...v, avgValue: v.poCount > 0 ? v.total / v.poCount : 0 }));
 }
 
+function computeTopCustomers(sos: SalesOrder[]): CustomerRow[] {
+  const map = new Map<string, CustomerRow>();
+  for (const so of sos) {
+    const name = so.customer ?? 'Unknown';
+    const existing = map.get(name);
+    if (existing) {
+      existing.soCount += 1;
+      existing.total += so.total ?? 0;
+    } else {
+      map.set(name, { name, soCount: 1, total: so.total ?? 0, avgValue: 0 });
+    }
+  }
+  return Array.from(map.values())
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 8)
+    .map((c) => ({ ...c, avgValue: c.soCount > 0 ? c.total / c.soCount : 0 }));
+}
+
 function computeTopItems(pos: PurchaseOrder[]): TopItemRow[] {
   const map = new Map<string, TopItemRow>();
   for (const po of pos) {
@@ -470,7 +488,7 @@ function RankedBarList({ rows, valueKey, countKey, onPress, thisMonthRows, lastM
       )}
       {displayRows.length === 0 && compareOn ? (
         <View style={rankedStyles.noDataRow}>
-          <Text style={rankedStyles.emptyText}>No POs this month</Text>
+          <Text style={rankedStyles.emptyText}>No data this month</Text>
         </View>
       ) : (
         displayRows.map((row, i) => {
@@ -2427,8 +2445,8 @@ export default function ProcurementAnalyticsScreen() {
     );
   }, [rawData, dateRange, isDateActive]);
 
-  const { thisMonthTopItems, lastMonthTopItems, thisMonthTopVendors, lastMonthTopVendors } = React.useMemo(() => {
-    if (!rawData) return { thisMonthTopItems: [], lastMonthTopItems: [], thisMonthTopVendors: [], lastMonthTopVendors: [] };
+  const { thisMonthTopItems, lastMonthTopItems, thisMonthTopVendors, lastMonthTopVendors, thisMonthTopCustomers, lastMonthTopCustomers } = React.useMemo(() => {
+    if (!rawData) return { thisMonthTopItems: [], lastMonthTopItems: [], thisMonthTopVendors: [], lastMonthTopVendors: [], thisMonthTopCustomers: [], lastMonthTopCustomers: [] };
     const now = new Date();
     const thisStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -2442,11 +2460,22 @@ export default function ProcurementAnalyticsScreen() {
       const d = new Date(p.dt);
       return d >= lastStart && d <= lastEnd;
     });
+    const thisSos = rawData.sos.filter((s) => {
+      if (!s.dt) return false;
+      return new Date(s.dt) >= thisStart;
+    });
+    const lastSos = rawData.sos.filter((s) => {
+      if (!s.dt) return false;
+      const d = new Date(s.dt);
+      return d >= lastStart && d <= lastEnd;
+    });
     return {
       thisMonthTopItems: computeTopItems(thisPos),
       lastMonthTopItems: computeTopItems(lastPos),
       thisMonthTopVendors: computeTopVendors(thisPos),
       lastMonthTopVendors: computeTopVendors(lastPos),
+      thisMonthTopCustomers: computeTopCustomers(thisSos),
+      lastMonthTopCustomers: computeTopCustomers(lastSos),
     };
   }, [rawData]);
 
@@ -2661,6 +2690,8 @@ export default function ProcurementAnalyticsScreen() {
               setSelectedRankedCustomer(row as CustomerRow);
               setCompareRankedCustomer(null);
             }}
+            thisMonthRows={thisMonthTopCustomers}
+            lastMonthRows={lastMonthTopCustomers}
           />
 
           {/* Status breakdown */}
