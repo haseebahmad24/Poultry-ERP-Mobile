@@ -374,12 +374,14 @@ function fmtCompact(val: number): string {
 }
 
 function MonthlyNetChart({ bills, invoices }: { bills: APBill[]; invoices: ARInvoice[] }) {
+  const [selectedIdx, setSelectedIdx] = React.useState<number | null>(null);
   const months = buildMonthlyBuckets(bills, invoices);
   const hasData = months.some((m) => m.apAmount > 0 || m.arAmount > 0);
   if (!hasData) return null;
 
   const BAR_HEIGHT = 72;
   const maxVal = Math.max(...months.flatMap((m) => [m.apAmount, m.arAmount]), 1);
+  const snap = selectedIdx != null ? months[selectedIdx] : null;
 
   return (
     <View style={netChartStyles.card}>
@@ -393,6 +395,11 @@ function MonthlyNetChart({ bills, invoices }: { bills: APBill[]; invoices: ARInv
           <View style={[netChartStyles.dot, { backgroundColor: Colors.text }]} />
           <Text style={netChartStyles.legendLabel}>AR (Receivable)</Text>
         </View>
+        {selectedIdx != null && (
+          <TouchableOpacity onPress={() => setSelectedIdx(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 'auto' as any }}>
+            <Feather name="x" size={12} color={Colors.textMuted} />
+          </TouchableOpacity>
+        )}
       </View>
       {/* Bars */}
       <View style={netChartStyles.barsRow}>
@@ -400,24 +407,55 @@ function MonthlyNetChart({ bills, invoices }: { bills: APBill[]; invoices: ARInv
           const apH = maxVal > 0 ? (m.apAmount / maxVal) * BAR_HEIGHT : 0;
           const arH = maxVal > 0 ? (m.arAmount / maxVal) * BAR_HEIGHT : 0;
           const net = m.arAmount - m.apAmount;
+          const isSelected = selectedIdx === idx;
           return (
-            <View key={idx} style={netChartStyles.monthCol}>
+            <TouchableOpacity
+              key={idx}
+              style={[netChartStyles.monthCol, isSelected && netChartStyles.monthColSelected]}
+              onPress={() => setSelectedIdx(selectedIdx === idx ? null : idx)}
+              activeOpacity={0.7}
+            >
               <View style={[netChartStyles.barTrack, { height: BAR_HEIGHT }]}>
                 <View style={netChartStyles.barsBottom}>
-                  <View style={[netChartStyles.bar, { height: Math.max(apH, 2), backgroundColor: Colors.textSecondary, marginRight: 2 }]} />
-                  <View style={[netChartStyles.bar, { height: Math.max(arH, 2), backgroundColor: Colors.text }]} />
+                  <View style={[netChartStyles.bar, { height: Math.max(apH, 2), backgroundColor: Colors.textSecondary, marginRight: 2, opacity: isSelected ? 1 : 0.7 }]} />
+                  <View style={[netChartStyles.bar, { height: Math.max(arH, 2), backgroundColor: Colors.text, opacity: isSelected ? 1 : 0.7 }]} />
                 </View>
               </View>
-              <Text style={netChartStyles.monthLabel}>{m.label}</Text>
+              <Text style={[netChartStyles.monthLabel, isSelected && netChartStyles.monthLabelSelected]}>{m.label}</Text>
               {(m.apAmount > 0 || m.arAmount > 0) && (
                 <Text style={[netChartStyles.netLabel, net >= 0 ? netChartStyles.netPos : netChartStyles.netNeg]}>
                   {net >= 0 ? '+' : ''}{fmtCompact(net)}
                 </Text>
               )}
-            </View>
+            </TouchableOpacity>
           );
         })}
       </View>
+      {/* Tap detail row */}
+      {snap ? (
+        <View style={netChartStyles.snapRow}>
+          <Text style={netChartStyles.snapMonth}>{snap.label}</Text>
+          <View style={netChartStyles.snapDivider} />
+          <View style={netChartStyles.snapItem}>
+            <Text style={netChartStyles.snapLabel}>AP</Text>
+            <Text style={netChartStyles.snapVal}>{fmtCompact(snap.apAmount)}</Text>
+          </View>
+          <View style={netChartStyles.snapDivider} />
+          <View style={netChartStyles.snapItem}>
+            <Text style={netChartStyles.snapLabel}>AR</Text>
+            <Text style={netChartStyles.snapVal}>{fmtCompact(snap.arAmount)}</Text>
+          </View>
+          <View style={netChartStyles.snapDivider} />
+          <View style={netChartStyles.snapItem}>
+            <Text style={netChartStyles.snapLabel}>Net</Text>
+            <Text style={[netChartStyles.snapVal, snap.arAmount - snap.apAmount >= 0 ? netChartStyles.snapValPos : netChartStyles.snapValNeg]}>
+              {snap.arAmount - snap.apAmount >= 0 ? '+' : ''}{fmtCompact(snap.arAmount - snap.apAmount)}
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <Text style={netChartStyles.snapHint}>tap a month to inspect</Text>
+      )}
     </View>
   );
 }
@@ -442,9 +480,28 @@ const netChartStyles = StyleSheet.create({
   barsBottom: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
   bar: { width: 8, borderRadius: Radius.sm },
   monthLabel: { fontSize: 10, color: Colors.textMuted },
+  monthLabelSelected: { color: Colors.text, fontWeight: '700' },
+  monthColSelected: { backgroundColor: Colors.background, borderRadius: Radius.sm },
   netLabel: { fontSize: 10, fontWeight: '700' },
   netPos: { color: Colors.textSecondary },
   netNeg: { color: Colors.text },
+  snapRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+    gap: Spacing.sm,
+  },
+  snapMonth: { fontSize: 11, fontWeight: '700', color: Colors.text, minWidth: 28 },
+  snapDivider: { width: StyleSheet.hairlineWidth, height: 20, backgroundColor: Colors.borderLight },
+  snapItem: { flex: 1, alignItems: 'center' },
+  snapLabel: { fontSize: 9, color: Colors.textMuted, marginBottom: 1 },
+  snapVal: { fontSize: 11, fontWeight: '600', color: Colors.text },
+  snapValPos: { color: Colors.textSecondary },
+  snapValNeg: { color: Colors.text },
+  snapHint: { fontSize: 10, color: Colors.textMuted, textAlign: 'center', marginTop: Spacing.xs },
 });
 
 // ─── Aging Delta Row ─────────────────────────────────────────────────────────
