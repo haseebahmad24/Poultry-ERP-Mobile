@@ -1440,13 +1440,13 @@ const topItemStyles = StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   name: { fontSize: 13, fontWeight: '600', color: Colors.text, flexShrink: 1 },
   newBadge: {
-    backgroundColor: '#0a6ed1',
+    backgroundColor: Colors.text,
     borderRadius: 3,
     paddingHorizontal: 4,
     paddingVertical: 1,
     flexShrink: 0,
   },
-  newBadgeText: { fontSize: 9, fontWeight: '800', color: '#ffffff', letterSpacing: 0.3 },
+  newBadgeText: { fontSize: 9, fontWeight: '800', color: Colors.surface, letterSpacing: 0.3 },
   barTrack: {
     height: 3,
     backgroundColor: Colors.borderLight,

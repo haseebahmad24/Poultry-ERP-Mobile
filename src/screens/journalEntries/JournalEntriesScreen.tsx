@@ -1371,7 +1371,7 @@ const psStyles = StyleSheet.create({
   importRow: { marginTop: Spacing.xs },
   importInput: { height: 72, textAlignVertical: 'top', paddingTop: Spacing.xs + 2, fontFamily: 'monospace', fontSize: 12 },
   importBtn: { alignSelf: 'flex-end', marginTop: Spacing.xs },
-  importError: { fontSize: 12, color: '#c0392b', marginTop: 4 },
+  importError: { fontSize: 12, color: Colors.textSecondary, marginTop: 4 },
   emptyState: {
     padding: Spacing.xl,
     alignItems: 'center',
