@@ -139,6 +139,13 @@
 
 ## UI Polish Log (Monochrome)
 
+### 2026-06-14 — Session-79 audit — all clean
+Full post-build audit of all components/screens touched by build sessions 73–78:
+- **DUSBadge** (InventoryScreen), **WeekAtAGlanceStrip** (DashboardScreen), **DueTodayCard** (DashboardScreen), **DailyCollectionCalendar** (AccountsReceivableScreen), **DailyPaymentCalendar** (AccountsPayableScreen), **NWCTrendCard** (FinancialAnalyticsScreen), **BiometricLockOverlay** (component) — all clean.
+- AR 30-day horizon, WAG tap navigation, DUS trend context additions all use Colors tokens, hairlineWidth borders, Feather icons, no emojis, no raw hex, all fontSize ≥ 10.
+- Intentional non-hairline borders confirmed: `borderWidth: isSelected ? 2 : 1.5` on interactive polyline chart dots in DashboardScreen/FinancialAnalyticsScreen (set in session 69 for selection visibility — preserved by design).
+- Zero monochrome violations found codebase-wide.
+
 ### 2026-06-14 — Session-73 audit — all clean
 Full post-build audit of all three files added/modified by session-73:
 - **InventoryScreen.tsx**: `computeInventoryDUS` function, `DUSBadge` component, `dusMap` useMemo, `dusBadge`/`dusBadgeText` styles — all clean: Colors tokens (`Colors.text`/`Colors.textSecondary`/`Colors.textMuted`/`Colors.surface`), `Radius.full`, no emojis, no shadows, no raw borderRadius, no hardcoded hex.
