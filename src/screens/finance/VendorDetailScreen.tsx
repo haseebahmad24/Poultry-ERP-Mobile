@@ -961,7 +961,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: Radius.full,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.text,
     backgroundColor: Colors.surface,
   },
