@@ -173,6 +173,14 @@
 
 ## UI Polish Log (Monochrome)
 
+### 2026-06-14 — Session-80 audit — all clean
+Full post-build audit of all files modified by Session 80:
+- **APAgingTrendCard** (AccountsPayableScreen): `atStyles` — Colors tokens only (`Colors.surface`, `Colors.border`, `Colors.borderLight`, `Colors.text`, `Colors.textSecondary`, `Colors.textMuted`, `Colors.background`), `Radius.full`/`Radius.lg`, `Spacing.md`/`Spacing.sm`, all fontSize ≥ 10, `StyleSheet.hairlineWidth`, no shadows, no raw hex, no emojis.
+- **CustomerCard DSO badge** (AccountsReceivableScreen): `dsoBadge`/`dsoBadgeText` — `Colors.surfaceHover`, `Colors.border`, `Colors.textSecondary`, `Radius.full`, fontSize 11, `hairlineWidth` border.
+- **WAGDayDetail** (DashboardScreen): `wagDetailStyles` — all Colors tokens, Radius, Spacing, `hairlineWidth` borders, no shadows, no raw hex.
+- **cellSelected** (WeekAtAGlanceStrip): `Colors.surfaceHover`, `Colors.border`, `hairlineWidth` border.
+- Zero monochrome violations found.
+
 ### 2026-06-14 — Session-79 audit — all clean
 Full post-build audit of all components/screens touched by build sessions 73–78:
 - **DUSBadge** (InventoryScreen), **WeekAtAGlanceStrip** (DashboardScreen), **DueTodayCard** (DashboardScreen), **DailyCollectionCalendar** (AccountsReceivableScreen), **DailyPaymentCalendar** (AccountsPayableScreen), **NWCTrendCard** (FinancialAnalyticsScreen), **BiometricLockOverlay** (component) — all clean.
