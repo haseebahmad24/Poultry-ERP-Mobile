@@ -1,5 +1,40 @@
 # Mobile App Progress
 
+## Session 78 — 2026-06-14
+
+### Completed This Session
+
+**AccountsReceivable — 30-Day Daily Collection Horizon** (`src/screens/finance/AccountsReceivableScreen.tsx`)
+- `Alert` added to React Native imports
+- `dailyCollectionSchedule`: 30-slot array computed from `invoices` — outstanding > 0, `daysDueIn` in [0, 29]
+- `DailyCollectionCalendar` component: mirrors AP `DailyPaymentCalendar` (horizontally scrollable 44px cells, proportional bars, K/M amount labels, today-inverted styling)
+- `dccFmtDayLabel()` and `dccFmtAmt()` helpers added as module-level functions
+- Placed in Summary tab after Collection Schedule section, guarded by `dailyCollectionSchedule.some(d => d.count > 0)` to prevent orphaned header
+- Post-build audit: all fontSize ≥ 10, all Colors tokens, no emojis, no shadows, no raw hex
+
+**Dashboard — Week at a Glance Tap Navigation** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `onPressDay` handler upgraded from pure informational `Alert.alert` to `Alert` with action buttons
+- "View Payables" button navigates to `AccountsPayable` screen (only shown when `apCount > 0`)
+- "View Receivables" button navigates to `AccountsReceivable` screen (only shown when `arCount > 0`)
+- "Dismiss" cancel button always present
+- Users can now tap a day cell in the Week at a Glance strip and jump directly to the relevant AP/AR screen
+
+**InventoryScreen — DUS Trend Context in Tap-to-Inspect** (`src/screens/inventory/InventoryScreen.tsx`)
+- `DUSInfo` interface gains `prevDays?: number` field for prior-period comparison
+- `computeInventoryDUS` splits ledger at midpoint timestamp into "recent half" and "prior half"
+- `priorAvgDaily = priorOut / halfDays`; `prevDays = round(balance / priorAvgDaily)` when `priorAvgDaily > 0`
+- Alert message gains a trend line: "Trend: improving (+Nd vs prior period)" / "Trend: worsening (-Nd vs prior period)" / "Trend: stable vs prior period" — threshold is ±2 days
+- Both `StockCard` and `GroupedStockCard` DUS tap handlers updated with trend context
+
+### Next Session
+- Consider: Dashboard — Week at a Glance day tap opens a mini detail card (instead of Alert) with AP/AR line items due that day
+- Consider: StockHealth — per-item DUS trend over time chart (how DUS shifted across the ledger period)
+- Consider: JournalEntries — preset export/import as shareable URL or QR code
+- Consider: AccountsReceivable — customer "collection velocity" metric (avg days between invoice and payment)
+- Consider: AccountsPayable — bill aging trend (is the 90d+ bucket growing or shrinking week over week?)
+
+---
+
 ## Session 76 — 2026-06-14
 
 ### Completed This Session
