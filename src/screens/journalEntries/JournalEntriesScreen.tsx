@@ -388,6 +388,8 @@ export default function JournalEntriesScreen() {
               onSelectType={handleSelectType}
             />
 
+            <MonthlyVoucherChart entries={filtered} />
+
             <SectionHeader title="Vouchers" meta={`${filtered.length} records`} />
             {typeAmountSummary.length > 0 && (
               <View style={styles.typeBreakdownRow}>
@@ -586,6 +588,193 @@ function AccountPickerModal({
     </Modal>
   );
 }
+
+// ─── Monthly Voucher Chart ────────────────────────────────────────────────────
+
+const MV_MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function getLast6MonthsJE(): string[] {
+  const result: string[] = [];
+  const now = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    result.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return result;
+}
+
+function MonthlyVoucherChart({ entries }: { entries: JournalEntry[] }) {
+  const [mode, setMode] = React.useState<'count' | 'value'>('count');
+  const [selectedMonth, setSelectedMonth] = React.useState<string | null>(null);
+
+  const months = React.useMemo(() => getLast6MonthsJE(), []);
+
+  const monthData = React.useMemo(() => {
+    const map = new Map<string, { count: number; value: number }>();
+    for (const ym of months) map.set(ym, { count: 0, value: 0 });
+    for (const e of entries) {
+      if (!e.dt) continue;
+      const d = new Date(e.dt);
+      if (isNaN(d.getTime())) continue;
+      const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const bucket = map.get(ym);
+      if (bucket) {
+        bucket.count += 1;
+        bucket.value += e.total_debit ?? 0;
+      }
+    }
+    return months.map((ym) => {
+      const monthIdx = parseInt(ym.split('-')[1], 10) - 1;
+      const d = map.get(ym) ?? { count: 0, value: 0 };
+      return { ym, label: MV_MONTH_NAMES[monthIdx] ?? ym, ...d };
+    });
+  }, [entries, months]);
+
+  const maxVal = React.useMemo(() => {
+    const vals = monthData.map((m) => mode === 'count' ? m.count : m.value);
+    return Math.max(...vals, 1);
+  }, [monthData, mode]);
+
+  if (!monthData.some((m) => m.count > 0)) return null;
+
+  const CHART_H = 56;
+
+  return (
+    <View style={mvStyles.card}>
+      <View style={mvStyles.header}>
+        <Text style={mvStyles.title}>Monthly Activity</Text>
+        <View style={mvStyles.modeToggle}>
+          {(['count', 'value'] as const).map((m) => (
+            <TouchableOpacity
+              key={m}
+              style={[mvStyles.modePill, mode === m && mvStyles.modePillActive]}
+              onPress={() => { setMode(m); setSelectedMonth(null); }}
+            >
+              <Text style={[mvStyles.modePillText, mode === m && mvStyles.modePillTextActive]}>
+                {m === 'count' ? '#' : '$'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <View style={mvStyles.chart}>
+        {monthData.map((m) => {
+          const val = mode === 'count' ? m.count : m.value;
+          const barH = Math.max(2, Math.round((val / maxVal) * CHART_H));
+          const isSelected = selectedMonth === m.ym;
+          return (
+            <TouchableOpacity
+              key={m.ym}
+              style={mvStyles.col}
+              onPress={() => setSelectedMonth(isSelected ? null : m.ym)}
+              activeOpacity={0.7}
+            >
+              <View style={[mvStyles.barTrack, { height: CHART_H }]}>
+                <View
+                  style={[
+                    mvStyles.bar,
+                    { height: barH },
+                    isSelected && mvStyles.barSelected,
+                    !isSelected && selectedMonth != null && mvStyles.barDim,
+                  ]}
+                />
+              </View>
+              <Text style={[mvStyles.monthLabel, isSelected && mvStyles.monthLabelBold]}>
+                {m.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {selectedMonth != null ? (() => {
+        const m = monthData.find((x) => x.ym === selectedMonth);
+        if (!m) return null;
+        return (
+          <View style={mvStyles.snapRow}>
+            <Text style={mvStyles.snapPeriod}>{m.label} {m.ym.split('-')[0]}</Text>
+            <View style={mvStyles.snapDivider} />
+            <View style={mvStyles.snapCell}>
+              <Text style={mvStyles.snapVal}>{m.count}</Text>
+              <Text style={mvStyles.snapKey}>vouchers</Text>
+            </View>
+            <View style={mvStyles.snapDivider} />
+            <View style={mvStyles.snapCell}>
+              <Text style={mvStyles.snapVal}>{fmtCompactJE(m.value)}</Text>
+              <Text style={mvStyles.snapKey}>debit</Text>
+            </View>
+            <TouchableOpacity
+              style={mvStyles.snapClear}
+              onPress={() => setSelectedMonth(null)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Feather name="x" size={12} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+        );
+      })() : (
+        <Text style={mvStyles.hint}>tap a month to inspect</Text>
+      )}
+    </View>
+  );
+}
+
+const mvStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+  },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm },
+  title: { flex: 1, ...Typography.h4 },
+  modeToggle: { flexDirection: 'row', gap: 4 },
+  modePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  modePillActive: { backgroundColor: Colors.text, borderColor: Colors.text },
+  modePillText: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary },
+  modePillTextActive: { color: Colors.surface },
+  chart: { flexDirection: 'row', alignItems: 'flex-end', gap: 3 },
+  col: { flex: 1, alignItems: 'center' },
+  barTrack: {
+    width: '100%',
+    justifyContent: 'flex-end',
+    backgroundColor: Colors.borderLight,
+    borderRadius: Radius.sm,
+    overflow: 'hidden',
+  },
+  bar: { width: '100%', backgroundColor: Colors.textSecondary, borderRadius: Radius.sm },
+  barSelected: { backgroundColor: Colors.text },
+  barDim: { opacity: 0.35 },
+  monthLabel: { fontSize: 10, color: Colors.textMuted, marginTop: 4, textAlign: 'center' },
+  monthLabelBold: { fontWeight: '700', color: Colors.text },
+  hint: { fontSize: 10, color: Colors.textMuted, fontStyle: 'italic', textAlign: 'center', marginTop: Spacing.sm },
+  snapRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+    paddingTop: Spacing.sm,
+  },
+  snapPeriod: { fontSize: 11, fontWeight: '700', color: Colors.text },
+  snapDivider: { width: StyleSheet.hairlineWidth, height: 20, backgroundColor: Colors.borderLight },
+  snapCell: { alignItems: 'center' },
+  snapVal: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  snapKey: { fontSize: 10, color: Colors.textMuted },
+  snapClear: { marginLeft: 'auto' as any },
+});
 
 // ─── JE Summary Card ──────────────────────────────────────────────────────────
 
