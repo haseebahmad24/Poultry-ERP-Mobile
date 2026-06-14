@@ -36,6 +36,13 @@
 
 ## UI Polish Log (Monochrome)
 
+### 2026-06-14 — Session-73 audit — all clean
+Full post-build audit of all three files added/modified by session-73:
+- **InventoryScreen.tsx**: `computeInventoryDUS` function, `DUSBadge` component, `dusMap` useMemo, `dusBadge`/`dusBadgeText` styles — all clean: Colors tokens (`Colors.text`/`Colors.textSecondary`/`Colors.textMuted`/`Colors.surface`), `Radius.full`, no emojis, no shadows, no raw borderRadius, no hardcoded hex.
+- **JournalEntriesScreen.tsx**: `MonthlyVoucherChart` component, `mvStyles` — all clean: Colors/Radius/Spacing/Typography tokens, `StyleSheet.hairlineWidth`, no emojis, no shadows, no `fontSize: 9`.
+- **ProcurementAnalyticsScreen.tsx**: `NetBalanceCard` component, `nbStyles` — all clean: Colors/Radius/Spacing/Typography tokens, `StyleSheet.hairlineWidth`, `Radius.full`/`Radius.md`, no emojis, no shadows.
+Codebase-wide grep confirms: zero `fontSize: 9`, zero `Shadow.*`, zero raw `borderWidth: 1`, zero semantic hex colors, zero emojis remain anywhere in screens/ or components/.
+
 ### 2026-06-13 — Session-70 audit
 - **JournalEntriesScreen**: `importError` color `#c0392b` (red) → `Colors.textSecondary`; removes semantic red from parse-error message.
 - **ProcurementAnalyticsScreen**: `newBadge` background `#0a6ed1` (blue) → `Colors.text` (near-black), text → `Colors.surface`; preserves badge weight without semantic hue.
