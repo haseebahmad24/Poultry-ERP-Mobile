@@ -360,8 +360,12 @@ export default function AccountsReceivableScreen() {
               <AgingChart buckets={arAgingBuckets} />
             </View>
 
-            <SectionHeader title="Collection Schedule" meta="By week · upcoming" />
-            <WeeklyScheduleCard buckets={arWeeklyBuckets} emptyLabel="No outstanding invoices" />
+            {arWeeklyBuckets.some((b) => b.amount > 0) && (
+              <>
+                <SectionHeader title="Collection Schedule" meta="By week · upcoming" />
+                <WeeklyScheduleCard buckets={arWeeklyBuckets} emptyLabel="No outstanding invoices" />
+              </>
+            )}
 
             {customers.length > 0 && (
               <>

@@ -387,19 +387,27 @@ export default function AccountsPayableScreen() {
               <AgingChart buckets={apAgingBuckets} />
             </View>
 
-            <SectionHeader title="Payment Schedule" meta="By week · upcoming" />
-            <WeeklyScheduleCard buckets={apWeeklyBuckets} emptyLabel="No outstanding bills" />
+            {apWeeklyBuckets.some((b) => b.amount > 0) && (
+              <>
+                <SectionHeader title="Payment Schedule" meta="By week · upcoming" />
+                <WeeklyScheduleCard buckets={apWeeklyBuckets} emptyLabel="No outstanding bills" />
+              </>
+            )}
 
-            <SectionHeader title="30-Day Horizon" meta="Daily · tap for details" />
-            <DailyPaymentCalendar
-              days={dailyPaymentSchedule}
-              onPressDay={(dateStr, amount, count) => {
-                Alert.alert(
-                  dateStr,
-                  `${count} bill${count !== 1 ? 's' : ''} outstanding\nTotal: ${formatCurrency(amount)}`,
-                );
-              }}
-            />
+            {dailyPaymentSchedule.some((d) => d.count > 0) && (
+              <>
+                <SectionHeader title="30-Day Horizon" meta="Daily · tap for details" />
+                <DailyPaymentCalendar
+                  days={dailyPaymentSchedule}
+                  onPressDay={(dateStr, amount, count) => {
+                    Alert.alert(
+                      dateStr,
+                      `${count} bill${count !== 1 ? 's' : ''} outstanding\nTotal: ${formatCurrency(amount)}`,
+                    );
+                  }}
+                />
+              </>
+            )}
 
             {vendors.length > 0 && (
               <>
