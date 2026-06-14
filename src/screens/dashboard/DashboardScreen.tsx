@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   ActivityIndicator,
   RefreshControl,
@@ -672,6 +673,119 @@ const dtStyles = StyleSheet.create({
   kindTagText: { fontSize: 10, fontWeight: '700', color: Colors.surface },
   rowLabel: { flex: 1, fontSize: 13, fontWeight: '500', color: Colors.text },
   rowAmt: { fontSize: 12, fontWeight: '700', color: Colors.text },
+});
+
+// ─── Week at a Glance Strip ───────────────────────────────────────────────────
+
+const DAY_ABBREVS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function WeekAtAGlanceStrip({
+  dueByDay,
+  onPressDay,
+}: {
+  dueByDay: Map<string, { apCount: number; arCount: number; apAmt: number; arAmt: number }>;
+  onPressDay: (dateStr: string, data: { apCount: number; arCount: number; apAmt: number; arAmt: number } | undefined) => void;
+}) {
+  const days = React.useMemo(() => {
+    const result: Array<{ dateStr: string; dayNum: number; dayName: string; isToday: boolean }> = [];
+    const base = new Date();
+    base.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(base.getTime() + i * 86_400_000);
+      result.push({
+        dateStr: d.toISOString().slice(0, 10),
+        dayNum: d.getDate(),
+        dayName: DAY_ABBREVS[d.getDay()],
+        isToday: i === 0,
+      });
+    }
+    return result;
+  }, []);
+
+  const hasAny = days.some((d) => dueByDay.has(d.dateStr));
+  if (!hasAny) return null;
+
+  return (
+    <View style={wagStyles.container}>
+      <View style={wagStyles.header}>
+        <Text style={wagStyles.headerTitle}>Week at a Glance</Text>
+        <Text style={wagStyles.headerMeta}>due · next 7 days</Text>
+      </View>
+      <View style={wagStyles.strip}>
+        {days.map((day) => {
+          const data = dueByDay.get(day.dateStr);
+          const hasAP = (data?.apCount ?? 0) > 0;
+          const hasAR = (data?.arCount ?? 0) > 0;
+          const active = hasAP || hasAR;
+          return (
+            <TouchableOpacity
+              key={day.dateStr}
+              style={[wagStyles.cell, day.isToday && wagStyles.cellToday, active && !day.isToday && wagStyles.cellActive]}
+              activeOpacity={active ? 0.7 : 1}
+              onPress={() => active && onPressDay(day.dateStr, data)}
+            >
+              <Text style={[wagStyles.dayName, day.isToday && wagStyles.dayNameToday]}>{day.dayName}</Text>
+              <Text style={[wagStyles.dayNum, day.isToday && wagStyles.dayNumToday, active && wagStyles.dayNumActive]}>{day.dayNum}</Text>
+              <View style={wagStyles.dots}>
+                {hasAP && <View style={wagStyles.dotAP} />}
+                {hasAR && <View style={wagStyles.dotAR} />}
+                {!hasAP && !hasAR && <View style={wagStyles.dotEmpty} />}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const wagStyles = StyleSheet.create({
+  container: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 9,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  headerTitle: { fontSize: 12, fontWeight: '700', color: Colors.text, letterSpacing: 0.3 },
+  headerMeta: { fontSize: 11, color: Colors.textMuted },
+  strip: {
+    flexDirection: 'row',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: 4,
+  },
+  cell: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderRadius: Radius.md,
+  },
+  cellToday: {
+    backgroundColor: Colors.text,
+  },
+  cellActive: {
+    backgroundColor: Colors.borderLight,
+  },
+  dayName: { fontSize: 10, fontWeight: '500', color: Colors.textMuted, letterSpacing: 0.3 },
+  dayNameToday: { color: Colors.surface },
+  dayNum: { fontSize: 14, fontWeight: '600', color: Colors.textSecondary, marginTop: 1 },
+  dayNumToday: { color: Colors.surface },
+  dayNumActive: { color: Colors.text },
+  dots: { flexDirection: 'row', gap: 2, marginTop: 4, minHeight: 6 },
+  dotAP: { width: 5, height: 5, borderRadius: Radius.full, backgroundColor: Colors.text },
+  dotAR: { width: 5, height: 5, borderRadius: Radius.full, backgroundColor: Colors.textSecondary },
+  dotEmpty: { width: 5, height: 5 },
 });
 
 // ─── Quick Insights Card ──────────────────────────────────────────────────────
@@ -1491,6 +1605,25 @@ export default function DashboardScreen() {
     return dueSoonInvoices.filter((inv) => inv.due_date === todayStr);
   }, [dueSoonInvoices]);
 
+  // 7-day due map: dateStr → { apCount, arCount, apAmt, arAmt }
+  const dueByDay = useMemo(() => {
+    const map = new Map<string, { apCount: number; arCount: number; apAmt: number; arAmt: number }>();
+    for (const b of dueSoonBills) {
+      if (!b.due_date) continue;
+      const e = map.get(b.due_date) ?? { apCount: 0, arCount: 0, apAmt: 0, arAmt: 0 };
+      e.apCount++;
+      e.apAmt += b.outstanding ?? b.amount ?? 0;
+      map.set(b.due_date, e);
+    }
+    for (const inv of dueSoonInvoices) {
+      if (!inv.due_date) continue;
+      const e = map.get(inv.due_date) ?? { apCount: 0, arCount: 0, apAmt: 0, arAmt: 0 };
+      e.arCount++;
+      e.arAmt += inv.outstanding ?? inv.amount ?? 0;
+      map.set(inv.due_date, e);
+    }
+    return map;
+  }, [dueSoonBills, dueSoonInvoices]);
 
   const load = useCallback(async (isRefresh = false, isSilent = false) => {
     let hadCachedData = false;
@@ -1886,6 +2019,18 @@ export default function DashboardScreen() {
             onPressInvoices={() => navigation.navigate('Finance', { screen: 'AccountsReceivable' } as any)}
           />
         )}
+
+        {/* Week at a Glance — 7-day strip with AP/AR dots per day */}
+        <WeekAtAGlanceStrip
+          dueByDay={dueByDay}
+          onPressDay={(dateStr, data) => {
+            if (!data) return;
+            const parts: string[] = [];
+            if (data.apCount > 0) parts.push(`AP: ${data.apCount} bill${data.apCount !== 1 ? 's' : ''} · ${formatCurrency(data.apAmt)}`);
+            if (data.arCount > 0) parts.push(`AR: ${data.arCount} invoice${data.arCount !== 1 ? 's' : ''} · ${formatCurrency(data.arAmt)}`);
+            Alert.alert(dateStr, parts.join('\n'));
+          }}
+        />
 
         {/* KPI Grid */}
         <SectionHeader

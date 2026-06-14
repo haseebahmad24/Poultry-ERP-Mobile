@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -248,6 +249,31 @@ export default function AccountsPayableScreen() {
     ? vendors.filter((v) => v.name?.toLowerCase().includes(vendorSearch.toLowerCase()))
     : vendors;
 
+  // 30-day daily payment schedule — next 30 calendar days grouped by due_date
+  const dailyPaymentSchedule: Array<{ dateStr: string; amount: number; count: number; isToday: boolean }> = (() => {
+    const byDay = new Map<string, { amount: number; count: number }>();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (const bill of bills) {
+      if (!bill.due_date) continue;
+      const outstanding = bill.outstanding ?? (bill.amount ?? 0) - (bill.paid ?? 0);
+      if (outstanding <= 0) continue;
+      const dd = daysDueIn(bill.due_date, bill.status);
+      if (dd < 0 || dd >= 30) continue;
+      const e = byDay.get(bill.due_date) ?? { amount: 0, count: 0 };
+      e.amount += outstanding;
+      e.count++;
+      byDay.set(bill.due_date, e);
+    }
+    const todayStr = today.toISOString().slice(0, 10);
+    return Array.from({ length: 30 }, (_, i) => {
+      const d = new Date(today.getTime() + i * 86_400_000);
+      const dateStr = d.toISOString().slice(0, 10);
+      const e = byDay.get(dateStr) ?? { amount: 0, count: 0 };
+      return { dateStr, amount: e.amount, count: e.count, isToday: dateStr === todayStr };
+    });
+  })();
+
   const aging = summary.aging ?? {};
   const apAgingBuckets: AgingBucket[] = [
     { label: 'Current',      shortLabel: 'Current',  amount: aging.current  ?? 0, fill: AGING_FILLS[0] },
@@ -363,6 +389,17 @@ export default function AccountsPayableScreen() {
 
             <SectionHeader title="Payment Schedule" meta="By week · upcoming" />
             <WeeklyScheduleCard buckets={apWeeklyBuckets} emptyLabel="No outstanding bills" />
+
+            <SectionHeader title="30-Day Horizon" meta="Daily · tap for details" />
+            <DailyPaymentCalendar
+              days={dailyPaymentSchedule}
+              onPressDay={(dateStr, amount, count) => {
+                Alert.alert(
+                  dateStr,
+                  `${count} bill${count !== 1 ? 's' : ''} outstanding\nTotal: ${formatCurrency(amount)}`,
+                );
+              }}
+            />
 
             {vendors.length > 0 && (
               <>
@@ -988,4 +1025,97 @@ const styles = StyleSheet.create({
   },
   payByValue: { fontSize: 13, fontWeight: '700', color: Colors.text },
   payByValueMuted: { color: Colors.textSecondary },
+});
+
+// ─── Daily Payment Calendar ───────────────────────────────────────────────────
+
+function fmtDayLabel(dateStr: string): { mo: string; day: string; dow: string } {
+  const d = new Date(dateStr);
+  return {
+    mo: d.toLocaleString('default', { month: 'short' }),
+    day: String(d.getDate()),
+    dow: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][d.getDay()],
+  };
+}
+
+function fmtAmt(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
+  return String(Math.round(v));
+}
+
+function DailyPaymentCalendar({
+  days,
+  onPressDay,
+}: {
+  days: Array<{ dateStr: string; amount: number; count: number; isToday: boolean }>;
+  onPressDay: (dateStr: string, amount: number, count: number) => void;
+}) {
+  const maxAmt = Math.max(...days.map((d) => d.amount), 1);
+  const hasAny = days.some((d) => d.count > 0);
+  if (!hasAny) return null;
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={dpcStyles.scroll}
+    >
+      {days.map((day) => {
+        const { mo, day: dayNum, dow } = fmtDayLabel(day.dateStr);
+        const barH = day.amount > 0 ? Math.max(4, Math.round((day.amount / maxAmt) * 40)) : 0;
+        const active = day.count > 0;
+        return (
+          <TouchableOpacity
+            key={day.dateStr}
+            style={[dpcStyles.cell, day.isToday && dpcStyles.cellToday]}
+            activeOpacity={active ? 0.7 : 1}
+            onPress={() => active && onPressDay(day.dateStr, day.amount, day.count)}
+          >
+            <Text style={[dpcStyles.dow, day.isToday && dpcStyles.dowToday]}>{dow}</Text>
+            <Text style={[dpcStyles.dayNum, day.isToday && dpcStyles.dayNumToday]}>{dayNum}</Text>
+            <Text style={[dpcStyles.mo, day.isToday && dpcStyles.moToday]}>{mo}</Text>
+            <View style={dpcStyles.barTrack}>
+              {barH > 0 && <View style={[dpcStyles.bar, { height: barH }, day.isToday && dpcStyles.barToday]} />}
+            </View>
+            {active && <Text style={[dpcStyles.amt, day.isToday && dpcStyles.amtToday]}>{fmtAmt(day.amount)}</Text>}
+            {!active && <View style={dpcStyles.amtEmpty} />}
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+const dpcStyles = StyleSheet.create({
+  scroll: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: 4,
+  },
+  cell: {
+    width: 44,
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.background,
+  },
+  cellToday: {
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
+  },
+  dow: { fontSize: 9, fontWeight: '600', color: Colors.textMuted, letterSpacing: 0.3 },
+  dowToday: { color: Colors.surface },
+  dayNum: { fontSize: 13, fontWeight: '700', color: Colors.text, marginTop: 1 },
+  dayNumToday: { color: Colors.surface },
+  mo: { fontSize: 9, color: Colors.textMuted, marginTop: 1 },
+  moToday: { color: Colors.surface },
+  barTrack: { height: 44, justifyContent: 'flex-end', marginTop: 4 },
+  bar: { width: 20, borderRadius: Radius.sm, backgroundColor: Colors.textSecondary },
+  barToday: { backgroundColor: Colors.surface },
+  amt: { fontSize: 9, fontWeight: '700', color: Colors.text, marginTop: 3 },
+  amtToday: { color: Colors.surface },
+  amtEmpty: { height: 12 },
 });

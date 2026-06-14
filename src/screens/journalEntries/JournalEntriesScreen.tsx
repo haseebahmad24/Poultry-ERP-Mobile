@@ -58,6 +58,9 @@ export default function JournalEntriesScreen() {
   const [isStale, setIsStale] = useState(false);
   const [chartMonthFilter, setChartMonthFilter] = useState<string | null>(null);
 
+  // Reset chart drill-down whenever the main search/type/date/account filters change
+  useEffect(() => { setChartMonthFilter(null); }, [search, selectedType, dateRange.from, dateRange.to, pickedAccount]);
+
   // Account filter — can be set via route params or picker
   const [pickedAccount, setPickedAccount] = useState<string | undefined>(route.params?.account);
   const [pickedAccountName, setPickedAccountName] = useState<string | undefined>(route.params?.accountName);
