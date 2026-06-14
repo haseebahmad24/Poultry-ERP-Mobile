@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   ActivityIndicator,
   RefreshControl,
@@ -681,10 +680,12 @@ const DAY_ABBREVS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function WeekAtAGlanceStrip({
   dueByDay,
+  selectedDay,
   onPressDay,
 }: {
   dueByDay: Map<string, { apCount: number; arCount: number; apAmt: number; arAmt: number }>;
-  onPressDay: (dateStr: string, data: { apCount: number; arCount: number; apAmt: number; arAmt: number } | undefined) => void;
+  selectedDay?: string | null;
+  onPressDay: (dateStr: string) => void;
 }) {
   const days = React.useMemo(() => {
     const result: Array<{ dateStr: string; dayNum: number; dayName: string; isToday: boolean }> = [];
@@ -717,12 +718,13 @@ function WeekAtAGlanceStrip({
           const hasAP = (data?.apCount ?? 0) > 0;
           const hasAR = (data?.arCount ?? 0) > 0;
           const active = hasAP || hasAR;
+          const isSelected = selectedDay === day.dateStr;
           return (
             <TouchableOpacity
               key={day.dateStr}
-              style={[wagStyles.cell, day.isToday && wagStyles.cellToday, active && !day.isToday && wagStyles.cellActive]}
+              style={[wagStyles.cell, day.isToday && wagStyles.cellToday, active && !day.isToday && !isSelected && wagStyles.cellActive, isSelected && wagStyles.cellSelected]}
               activeOpacity={active ? 0.7 : 1}
-              onPress={() => active && onPressDay(day.dateStr, data)}
+              onPress={() => active && onPressDay(day.dateStr)}
             >
               <Text style={[wagStyles.dayName, day.isToday && wagStyles.dayNameToday]}>{day.dayName}</Text>
               <Text style={[wagStyles.dayNum, day.isToday && wagStyles.dayNumToday, active && wagStyles.dayNumActive]}>{day.dayNum}</Text>
@@ -777,6 +779,11 @@ const wagStyles = StyleSheet.create({
   cellActive: {
     backgroundColor: Colors.borderLight,
   },
+  cellSelected: {
+    backgroundColor: Colors.surfaceHover,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
   dayName: { fontSize: 10, fontWeight: '500', color: Colors.textMuted, letterSpacing: 0.3 },
   dayNameToday: { color: Colors.surface },
   dayNum: { fontSize: 14, fontWeight: '600', color: Colors.textSecondary, marginTop: 1 },
@@ -786,6 +793,123 @@ const wagStyles = StyleSheet.create({
   dotAP: { width: 5, height: 5, borderRadius: Radius.full, backgroundColor: Colors.text },
   dotAR: { width: 5, height: 5, borderRadius: Radius.full, backgroundColor: Colors.textSecondary },
   dotEmpty: { width: 5, height: 5 },
+});
+
+// ─── WAG Day Detail Card ──────────────────────────────────────────────────────
+
+function WAGDayDetail({
+  dateStr,
+  bills,
+  invoices,
+  onClose,
+  onViewPayables,
+  onViewReceivables,
+}: {
+  dateStr: string;
+  bills: APBill[];
+  invoices: ARInvoice[];
+  onClose: () => void;
+  onViewPayables: () => void;
+  onViewReceivables: () => void;
+}) {
+  const d = new Date(dateStr);
+  const label = d.toLocaleDateString('default', { weekday: 'short', month: 'short', day: 'numeric' });
+  return (
+    <View style={wagDetailStyles.card}>
+      <View style={wagDetailStyles.header}>
+        <Text style={wagDetailStyles.dateLabel}>{label}</Text>
+        <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Feather name="x" size={16} color={Colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+
+      {bills.length > 0 && (
+        <View style={wagDetailStyles.section}>
+          <View style={wagDetailStyles.sectionHeader}>
+            <Text style={wagDetailStyles.sectionLabel}>Payables</Text>
+            <TouchableOpacity onPress={onViewPayables}>
+              <Text style={wagDetailStyles.viewLink}>View AP</Text>
+            </TouchableOpacity>
+          </View>
+          {bills.map((b) => (
+            <View key={b.id} style={wagDetailStyles.row}>
+              <Text style={wagDetailStyles.rowName} numberOfLines={1}>
+                {b.vendor ?? `Bill #${b.bill_number ?? b.id}`}
+              </Text>
+              <Text style={wagDetailStyles.rowAmt}>{formatCurrency(b.outstanding ?? b.amount ?? 0)}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {bills.length > 0 && invoices.length > 0 && <View style={wagDetailStyles.divider} />}
+
+      {invoices.length > 0 && (
+        <View style={wagDetailStyles.section}>
+          <View style={wagDetailStyles.sectionHeader}>
+            <Text style={wagDetailStyles.sectionLabel}>Receivables</Text>
+            <TouchableOpacity onPress={onViewReceivables}>
+              <Text style={wagDetailStyles.viewLink}>View AR</Text>
+            </TouchableOpacity>
+          </View>
+          {invoices.map((inv) => (
+            <View key={inv.id} style={wagDetailStyles.row}>
+              <Text style={wagDetailStyles.rowName} numberOfLines={1}>
+                {inv.customer ?? `Invoice #${inv.invoice_number ?? inv.id}`}
+              </Text>
+              <Text style={wagDetailStyles.rowAmt}>{formatCurrency(inv.outstanding ?? inv.amount ?? 0)}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const wagDetailStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  dateLabel: { fontSize: 12, fontWeight: '700', color: Colors.text, letterSpacing: 0.2 },
+  section: { paddingHorizontal: Spacing.md, paddingVertical: 8 },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: Colors.textMuted, letterSpacing: 0.5 },
+  viewLink: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 5,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+  },
+  rowName: { flex: 1, fontSize: 12, color: Colors.text, marginRight: 8 },
+  rowAmt: { fontSize: 12, fontWeight: '600', color: Colors.text },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.border,
+    marginHorizontal: Spacing.md,
+  },
 });
 
 // ─── Quick Insights Card ──────────────────────────────────────────────────────
@@ -1573,6 +1697,7 @@ export default function DashboardScreen() {
   const [exportingCombined, setExportingCombined] = useState(false);
   const [dueSoonBills, setDueSoonBills] = useState<APBill[]>([]);
   const [dueSoonInvoices, setDueSoonInvoices] = useState<ARInvoice[]>([]);
+  const [selectedWAGDay, setSelectedWAGDay] = useState<string | null>(null);
   const [overdueBills, setOverdueBills] = useState<APBill[]>([]);
   const [overdueInvoices, setOverdueInvoices] = useState<ARInvoice[]>([]);
   const [topVendors, setTopVendors] = useState<Array<{ name: string; outstanding: number; billCount: number }>>([]);
@@ -2023,18 +2148,21 @@ export default function DashboardScreen() {
         {/* Week at a Glance — 7-day strip with AP/AR dots per day */}
         <WeekAtAGlanceStrip
           dueByDay={dueByDay}
-          onPressDay={(dateStr, data) => {
-            if (!data) return;
-            const parts: string[] = [];
-            if (data.apCount > 0) parts.push(`AP: ${data.apCount} bill${data.apCount !== 1 ? 's' : ''} · ${formatCurrency(data.apAmt)}`);
-            if (data.arCount > 0) parts.push(`AR: ${data.arCount} invoice${data.arCount !== 1 ? 's' : ''} · ${formatCurrency(data.arAmt)}`);
-            const buttons: Parameters<typeof Alert.alert>[2] = [];
-            if (data.apCount > 0) buttons.push({ text: 'View Payables', onPress: () => navigation.navigate('Finance', { screen: 'AccountsPayable' } as any) });
-            if (data.arCount > 0) buttons.push({ text: 'View Receivables', onPress: () => navigation.navigate('Finance', { screen: 'AccountsReceivable' } as any) });
-            buttons.push({ text: 'Dismiss', style: 'cancel' });
-            Alert.alert(dateStr, parts.join('\n'), buttons);
+          selectedDay={selectedWAGDay}
+          onPressDay={(dateStr) => {
+            setSelectedWAGDay((prev) => (prev === dateStr ? null : dateStr));
           }}
         />
+        {selectedWAGDay != null && (
+          <WAGDayDetail
+            dateStr={selectedWAGDay}
+            bills={dueSoonBills.filter((b) => b.due_date === selectedWAGDay)}
+            invoices={dueSoonInvoices.filter((inv) => inv.due_date === selectedWAGDay)}
+            onClose={() => setSelectedWAGDay(null)}
+            onViewPayables={() => navigation.navigate('Finance', { screen: 'AccountsPayable' } as any)}
+            onViewReceivables={() => navigation.navigate('Finance', { screen: 'AccountsReceivable' } as any)}
+          />
+        )}
 
         {/* KPI Grid */}
         <SectionHeader

@@ -61,6 +61,27 @@ function daysOverdue(dueDate: string | undefined, status: string | undefined): n
   return diff > 0 ? diff : 0;
 }
 
+function computeAgingFromBills(bills: APBill[], refDate: Date): { current: number; days_30: number; days_60: number; days_90: number; over_90: number } {
+  const ref = new Date(refDate);
+  ref.setHours(0, 0, 0, 0);
+  let current = 0, days_30 = 0, days_60 = 0, days_90 = 0, over_90 = 0;
+  for (const b of bills) {
+    const outstanding = b.outstanding ?? (b.amount ?? 0) - (b.paid ?? 0);
+    if (outstanding <= 0) continue;
+    if ((b.status ?? '').toUpperCase() === 'PAID') continue;
+    if (!b.due_date) { current += outstanding; continue; }
+    const due = new Date(b.due_date);
+    due.setHours(0, 0, 0, 0);
+    const od = Math.floor((ref.getTime() - due.getTime()) / 86_400_000);
+    if (od <= 0) current += outstanding;
+    else if (od <= 30) days_30 += outstanding;
+    else if (od <= 60) days_60 += outstanding;
+    else if (od <= 90) days_90 += outstanding;
+    else over_90 += outstanding;
+  }
+  return { current, days_30, days_60, days_90, over_90 };
+}
+
 function daysDueIn(dueDate: string | undefined, status: string | undefined): number {
   if (!dueDate) return -9999;
   const st = (status ?? '').toUpperCase();
@@ -386,6 +407,13 @@ export default function AccountsPayableScreen() {
             <View style={styles.agingCard}>
               <AgingChart buckets={apAgingBuckets} />
             </View>
+
+            {bills.length > 0 && (
+              <>
+                <SectionHeader title="Aging Trend" meta="vs 7 days ago · overdue buckets" />
+                <APAgingTrendCard bills={bills} />
+              </>
+            )}
 
             {apWeeklyBuckets.some((b) => b.amount > 0) && (
               <>
@@ -1094,6 +1122,123 @@ function DailyPaymentCalendar({
     </ScrollView>
   );
 }
+
+// ─── AP Aging Trend Card ──────────────────────────────────────────────────────
+
+function APAgingTrendCard({ bills }: { bills: APBill[] }) {
+  const today = new Date();
+  const sevenDaysAgo = new Date(today.getTime() - 7 * 86_400_000);
+  const now = computeAgingFromBills(bills, today);
+  const past = computeAgingFromBills(bills, sevenDaysAgo);
+
+  const ROWS: Array<{ label: string; key: keyof typeof now }> = [
+    { label: '1–30d', key: 'days_30' },
+    { label: '31–60d', key: 'days_60' },
+    { label: '61–90d', key: 'days_90' },
+    { label: '90d+', key: 'over_90' },
+  ];
+
+  const hasAny = ROWS.some((r) => now[r.key] > 0 || past[r.key] > 0);
+  if (!hasAny) return null;
+
+  return (
+    <View style={atStyles.card}>
+      {ROWS.map((row, i) => {
+        const curr = now[row.key];
+        const prev = past[row.key];
+        const delta = curr - prev;
+        const hasDelta = Math.abs(delta) >= 1;
+        return (
+          <View key={row.key} style={[atStyles.row, i < ROWS.length - 1 && atStyles.rowBorder]}>
+            <Text style={atStyles.label}>{row.label}</Text>
+            <Text style={atStyles.amount}>{formatCurrency(curr)}</Text>
+            {hasDelta ? (
+              <View style={atStyles.trendPill}>
+                <Feather
+                  name={delta > 0 ? 'trending-up' : 'trending-down'}
+                  size={11}
+                  color={Colors.textSecondary}
+                />
+                <Text style={atStyles.trendText}>
+                  {delta > 0 ? '+' : ''}{formatCurrency(Math.abs(delta))}
+                </Text>
+              </View>
+            ) : (
+              <View style={atStyles.trendPill}>
+                <Text style={atStyles.trendFlat}>— flat</Text>
+              </View>
+            )}
+          </View>
+        );
+      })}
+      <Text style={atStyles.footnote}>Overdue buckets vs 7 days ago · from bills</Text>
+    </View>
+  );
+}
+
+const atStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: 10,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  label: {
+    width: 52,
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.text,
+    letterSpacing: 0.2,
+  },
+  amount: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  trendPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.background,
+    minWidth: 80,
+    justifyContent: 'center',
+  },
+  trendText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  trendFlat: {
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  footnote: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+});
 
 const dpcStyles = StyleSheet.create({
   scroll: {

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   RefreshControl,
@@ -247,6 +247,28 @@ export default function AccountsReceivableScreen() {
   const filteredCustomers = customerSearch.trim()
     ? customers.filter((c) => c.name?.toLowerCase().includes(customerSearch.toLowerCase()))
     : customers;
+
+  // DSO per customer: avg age (days since invoice dt) of outstanding invoices
+  const customerDSOMap = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const acc = new Map<number, { totalAge: number; count: number }>();
+    for (const inv of invoices) {
+      if (!inv.customer_id || !inv.dt) continue;
+      const outstanding = inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0);
+      if (outstanding <= 0) continue;
+      const created = new Date(inv.dt);
+      created.setHours(0, 0, 0, 0);
+      const age = Math.max(0, Math.floor((today.getTime() - created.getTime()) / 86_400_000));
+      const cur = acc.get(inv.customer_id) ?? { totalAge: 0, count: 0 };
+      acc.set(inv.customer_id, { totalAge: cur.totalAge + age, count: cur.count + 1 });
+    }
+    const result = new Map<number, number>();
+    for (const [id, { totalAge, count }] of acc) {
+      result.set(id, Math.round(totalAge / count));
+    }
+    return result;
+  }, [invoices]);
 
   const dailyCollectionSchedule: Array<{ dateStr: string; amount: number; count: number; isToday: boolean }> = (() => {
     const byDay = new Map<string, { amount: number; count: number }>();
@@ -633,6 +655,7 @@ export default function AccountsReceivableScreen() {
                   <CustomerCard
                     key={c.id}
                     customer={c}
+                    dso={customerDSOMap.get(c.id)}
                     onPress={() => navigation.navigate('CustomerDetail', {
                       customerId: c.id,
                       customerName: c.name ?? `Customer ${c.id}`,
@@ -730,11 +753,16 @@ function InvoiceCard({ invoice: inv, overdueDays, flagged, onToggleFlag, reviewe
   );
 }
 
-function CustomerCard({ customer: c, onPress }: { customer: ARCustomer; onPress?: () => void }) {
+function CustomerCard({ customer: c, dso, onPress }: { customer: ARCustomer; dso?: number; onPress?: () => void }) {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.cardHeader}>
         <Text style={[styles.cardTitle, { flex: 1 }]}>{c.name ?? `Customer ${c.id}`}</Text>
+        {dso != null && (
+          <View style={styles.dsoBadge}>
+            <Text style={styles.dsoBadgeText}>DSO {dso}d</Text>
+          </View>
+        )}
         {c.invoices_count != null && (
           <Text style={styles.countBadge}>{c.invoices_count} invoices</Text>
         )}
@@ -932,6 +960,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: Radius.full,
+  },
+  dsoBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surfaceHover,
+    marginRight: 4,
+  },
+  dsoBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    letterSpacing: 0.2,
   },
 
   emptyState: {
