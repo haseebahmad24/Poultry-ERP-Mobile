@@ -1,5 +1,40 @@
 # Mobile App Progress
 
+## Session 76 — 2026-06-14
+
+### Completed This Session
+
+**JournalEntries — Chart Drill-Down Auto-Reset** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- `useEffect` added with dependencies `[search, selectedType, dateRange.from, dateRange.to, pickedAccount]`; calls `setChartMonthFilter(null)` whenever any main filter changes
+- Prevents stale chart month selection persisting after the user changes search text, type, date range, or account filter
+
+**Dashboard — "Week at a Glance" 7-Day Strip** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `dueByDay` useMemo builds a `Map<dateStr, { apCount, arCount, apAmt, arAmt }>` from `dueSoonBills` + `dueSoonInvoices` (no extra API calls)
+- `WeekAtAGlanceStrip` component: horizontal row of 7 tappable day cells (today + next 6 days)
+- Each cell: DOW abbreviation + date number + colored dots (black = AP bills, gray = AR invoices)
+- Today cell uses inverted dark background; cells with items use `Colors.borderLight` background
+- Tap any active day shows `Alert.alert` with AP bill count/amount + AR invoice count/amount for that date
+- Strip renders only when `dueByDay` has at least one entry within the 7-day window
+- Positioned between `DueTodayCard` and the "This Month" KPI grid section
+
+**AccountsPayable — 30-Day Daily Payment Horizon** (`src/screens/finance/AccountsPayableScreen.tsx`)
+- `dailyPaymentSchedule` computed from existing `bills` array — groups bills by `due_date` for the next 30 calendar days (outstanding > 0 and `daysDueIn` in [0, 29])
+- `DailyPaymentCalendar` component: horizontally scrollable row of 44px day cells
+- Each cell: DOW / date / month-abbrev labels + proportional vertical bar (height = `amount / maxAmt × 40px`) + amount label (K/M abbreviated)
+- Today cell inverted; cells with no bills are minimal (no bar, no amount)
+- Tap active cell → `Alert.alert` with bill count + `formatCurrency` total
+- Placed in Summary tab after existing weekly schedule card under new "30-Day Horizon" section header
+- Post-build audit: all fontSize values ≥ 10, all colors use Colors tokens, no emojis or shadows
+
+### Next Session
+- Consider: InventoryScreen — DUS trend context in tap-to-inspect (show if DUS improved or worsened vs last month)
+- Consider: StockHealth — per-item DUS trend over time chart (how DUS shifted across the ledger period)
+- Consider: AccountsReceivable — same 30-day daily horizon as AP but for AR invoices
+- Consider: Dashboard — "Week at a Glance" day tap navigates to AP/AR filtered to that date (instead of Alert)
+- Consider: JournalEntries — preset export/import as shareable URL or QR code
+
+---
+
 ## Session 75 — 2026-06-14
 
 ### Completed This Session
