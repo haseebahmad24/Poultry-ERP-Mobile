@@ -1,5 +1,39 @@
 # Mobile App Progress
 
+## Session 80 — 2026-06-14
+
+### Completed This Session
+
+**AccountsPayable — Aging Trend Card** (`src/screens/finance/AccountsPayableScreen.tsx`)
+- `computeAgingFromBills(bills, refDate)`: client-side aging reconstruction — for each bill with outstanding > 0, computes `daysOverdue` against an arbitrary reference date and places in the appropriate bucket (Current/1–30d/31–60d/61–90d/90d+)
+- `APAgingTrendCard` component: placed in Summary tab after AgingChart; calls `computeAgingFromBills` twice — once for today, once for 7 days ago — then renders a 4-row card (overdue buckets only) with current amount, delta arrow (↑/↓), and delta amount
+- `atStyles`: card/row/trendPill styles using Colors tokens, `Radius.full`, `hairlineWidth` borders
+- Guard: component returns `null` if all overdue buckets are zero (no overdue bills)
+- Post-build audit: all fontSize ≥ 10, all Colors tokens, no raw hex, no shadows, no emojis
+
+**AccountsReceivable — Customer DSO Badges** (`src/screens/finance/AccountsReceivableScreen.tsx`)
+- `useMemo` import added to React imports
+- `customerDSOMap`: useMemo over `invoices` — for each outstanding invoice (outstanding > 0), accumulates `totalAge` (days since `inv.dt`) and `count` per `customer_id`; result = `Map<number, number>` of `customer_id → avgAge`
+- `CustomerCard` updated: accepts optional `dso?: number` prop; shows a "DSO Xd" pill (dsoBadge / dsoBadgeText styles) between customer name and invoices count badge
+- `dsoBadge` / `dsoBadgeText` styles: `surfaceHover` background, `border` border, `textSecondary` text, `Radius.full`
+- Customers tab wires: `dso={customerDSOMap.get(c.id)}`
+
+**Dashboard — Week at a Glance Inline Day Detail** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `Alert` removed from React Native import (no longer used)
+- `selectedWAGDay: string | null` state added
+- `WeekAtAGlanceStrip` updated: accepts `selectedDay?: string | null` prop; tapping a day toggles `selectedWAGDay` (tap same day again to close); selected cell shows `cellSelected` style (surfaceHover bg, hairlineWidth border)
+- `WAGDayDetail` component: inline card rendered below WAG strip when `selectedWAGDay != null`; shows header (formatted date + ×), Payables section (bill rows: vendor + amount), divider, Receivables section (invoice rows: customer + amount); each section has "View AP"/"View AR" link; filtered from `dueSoonBills`/`dueSoonInvoices` by `due_date === selectedWAGDay`
+- `wagDetailStyles`: card/header/section/row/divider styles using Colors tokens, Radius, Spacing — no shadows, no raw hex
+
+### Next Session
+- Consider: StockHealth — per-item DUS trend over time chart (how DUS shifted across the ledger period)
+- Consider: JournalEntries — preset export/import as shareable URL or QR code
+- Consider: AccountsPayable — per-vendor aging breakdown (show each vendor's aging bucket split)
+- Consider: Dashboard — WAG strip expand: show all 30 days (scroll) when tapped on "more" button
+- Consider: InventoryScreen — low-stock alert list card on Dashboard (items with DUS ≤ 7d)
+
+---
+
 ## Session 78 — 2026-06-14
 
 ### Completed This Session
