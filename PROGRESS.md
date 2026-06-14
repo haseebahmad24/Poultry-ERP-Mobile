@@ -1,5 +1,38 @@
 # Mobile App Progress
 
+## Session 75 — 2026-06-14
+
+### Completed This Session
+
+**JournalEntries — Monthly Chart Drill-Down** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- `chartMonthFilter` state lifted to the main component; `MonthlyVoucherChart` changed to a controlled component accepting `selectedMonth` + `onMonthSelect` props
+- `chartFiltered` useMemo: when `chartMonthFilter` is set, filters the `filtered` entries to that `YYYY-MM` month; otherwise passes through unchanged
+- `typeAmountSummary` and `filteredWithBalance` now depend on `chartFiltered` instead of `filtered` — the list, breakdown pills, and running balance all reflect the selected month
+- Month filter chip (calendar icon + month name + × clear) appears below the SectionHeader when a month is active; SectionHeader count updates to show how many records are in the filtered month
+- Tapping a bar in the chart now filters the voucher list live to that month; tapping again or clicking × clears
+
+**InventoryScreen — DUS Tap-to-Inspect** (`src/screens/inventory/InventoryScreen.tsx`)
+- `DUSInfo` interface `{ days: number; balance: number; avgDaily: number }` added
+- `computeInventoryDUS` now returns `Map<string, DUSInfo>` instead of `Map<string, number>`
+- `DUSBadge` wrapped in `TouchableOpacity` (hitSlop 6px) in both `StockCard` and `GroupedStockCard`
+- Tapping a DUS badge shows `Alert.alert('Days Until Stockout', ...)` with item name, current balance + unit, avg daily consumption rate (X/day), and estimated stockout days
+- `StockCard.dusInfo` / `GroupedStockCard.dusInfo` props replace the old `dus?: number`
+
+**Dashboard — "Due Today" Card** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `dueTodayBills` useMemo: filters `dueSoonBills` to bills where `due_date === today's YYYY-MM-DD string`
+- `dueTodayInvoices` useMemo: same pattern for `dueSoonInvoices`
+- `DueTodayCard` component: bold dark header with item count badge and total amount; AP row + AR row below (kindTag pill, count label, formatted amount, chevron); each row navigates to the respective AP/AR screen
+- Card is positioned between the overdue banner and the KPI grid; only appears on days when items are actually due today (i.e. `due_date === today`)
+
+### Next Session
+- Consider: JournalEntries — chart drill-down should reset when main filters change (search/type/date)
+- Consider: Dashboard — "Week at a Glance" calendar strip showing which days have items due (1-week mini calendar)
+- Consider: InventoryScreen — DUS tap-to-inspect modal with trend context (was DUS higher/lower last month?)
+- Consider: AccountsPayable — payment schedule calendar (items by due date for the next 30 days)
+- Consider: StockHealth — per-item DUS trend over time (how DUS has shifted across the ledger period)
+
+---
+
 ## Session 73 — 2026-06-14
 
 ### Completed This Session
