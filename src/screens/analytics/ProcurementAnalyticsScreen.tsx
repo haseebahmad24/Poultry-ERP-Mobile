@@ -995,7 +995,7 @@ const rcmStyles = StyleSheet.create({
   },
   tileGroup: { flex: 1, gap: 3 },
   tileGroupLabel: { fontSize: 11, fontWeight: '600', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
-  tileValue: { fontSize: 16, fontWeight: '800', color: Colors.text },
+  tileValue: { fontSize: 16, fontWeight: '700', color: Colors.text },
   tileSub: { fontSize: 10, color: Colors.textMuted },
   clearHint: { fontSize: 10, color: Colors.textMuted, marginTop: 2, fontStyle: 'italic' },
   vsDivider: {
@@ -1515,7 +1515,7 @@ const delivStyles = StyleSheet.create({
     borderRightWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.borderLight,
   },
-  tileValue: { fontSize: 20, fontWeight: '800', color: Colors.text },
+  tileValue: { fontSize: 20, fontWeight: '700', color: Colors.text },
   tileLabel: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
   danger: { color: Colors.text },
   warn: { color: Colors.textSecondary },
@@ -1743,7 +1743,7 @@ const topItemStyles = StyleSheet.create({
     paddingVertical: 1,
     flexShrink: 0,
   },
-  newBadgeText: { fontSize: 10, fontWeight: '800', color: Colors.surface, letterSpacing: 0.3 },
+  newBadgeText: { fontSize: 10, fontWeight: '700', color: Colors.surface, letterSpacing: 0.3 },
   barTrack: {
     height: 3,
     backgroundColor: Colors.borderLight,

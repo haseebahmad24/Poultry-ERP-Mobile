@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   weekLabelOverdue: {
-    fontWeight: '800',
+    fontWeight: '700',
   },
   sublabel: {
     fontSize: 10,
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   amountOverdue: {
-    fontWeight: '800',
+    fontWeight: '700',
   },
   countLabel: {
     fontSize: 10,

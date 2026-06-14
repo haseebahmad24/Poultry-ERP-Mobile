@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   netCardLeft: { flex: 1 },
   netLabel: { ...Typography.h4 },
   netHint: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
-  netValue: { fontSize: 20, fontWeight: '800', color: Colors.text },
+  netValue: { fontSize: 20, fontWeight: '700', color: Colors.text },
   netValueNegative: { color: Colors.text },
 
   emptyState: {

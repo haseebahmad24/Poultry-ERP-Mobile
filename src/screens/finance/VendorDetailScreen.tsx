@@ -921,7 +921,7 @@ const styles = StyleSheet.create({
   },
   ledgerTotalLabel: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary },
   ledgerTotalAmt: { fontSize: 11, fontWeight: '700', color: Colors.text, textAlign: 'right' },
-  ledgerTotalBalance: { fontSize: 12, fontWeight: '800', color: Colors.text, textAlign: 'right' },
+  ledgerTotalBalance: { fontSize: 12, fontWeight: '700', color: Colors.text, textAlign: 'right' },
 
   emptyState: {
     marginHorizontal: Spacing.md,
@@ -961,7 +961,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: Radius.full,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: Colors.text,
     backgroundColor: Colors.surface,
   },

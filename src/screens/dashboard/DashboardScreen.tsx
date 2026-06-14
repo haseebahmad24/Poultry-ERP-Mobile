@@ -1080,7 +1080,7 @@ const healthStyles = StyleSheet.create({
   },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   scoreBlock: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
-  scoreNum: { fontSize: 36, fontWeight: '800', color: Colors.text, lineHeight: 40 },
+  scoreNum: { fontSize: 36, fontWeight: '700', color: Colors.text, lineHeight: 40 },
   scoreLabel: { fontSize: 13, color: Colors.textMuted, fontWeight: '500' },
   gradeBadge: {
     width: 36,
@@ -1090,7 +1090,7 @@ const healthStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  gradeText: { fontSize: 20, fontWeight: '900', color: Colors.surface },
+  gradeText: { fontSize: 20, fontWeight: '700', color: Colors.surface },
   statusBlock: { flex: 1 },
   statusLabel: { fontSize: 11, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
   statusDesc: { fontSize: 15, fontWeight: '700', color: Colors.text, marginTop: 2 },
