@@ -1,5 +1,39 @@
 # Mobile App Progress
 
+## Session 73 — 2026-06-14
+
+### Completed This Session
+
+**InventoryScreen — DUS (Days Until Stockout) Badges** (`src/screens/inventory/InventoryScreen.tsx`)
+- `computeInventoryDUS(ledger, stock)`: derives `periodDays` from first/last ledger date; sums `qty_out` per item into `outMap`; sums current `qty` per item into `balMap`; result = `round(balance / avgDaily)` capped at 365 days
+- `dusMap` useMemo inside component (uses `ledgerData` + `stockData` already loaded for the Ledger tab — no extra API calls)
+- `DUSBadge` component: black pill (≤7d critical), dark-gray (≤14d caution), muted (15d+), white text
+- `StockCard` and `GroupedStockCard` each accept `dus?: number` prop; badge appears in `qtyMeta` row (after status pill), skipped for out-of-stock items
+
+**JournalEntries — 6-Month Monthly Voucher Chart** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- `MonthlyVoucherChart` component with `getLast6MonthsJE()` generating last-6 ISO month strings
+- `monthData` useMemo: buckets `filtered` entries by month (count + total_debit per bucket)
+- Count/value toggle pills (`#` / `$`); tap-to-inspect on each bar column; CHART_H = 56
+- Selected bar: `Colors.text` fill + bold label; unselected dims to 35% opacity
+- Snap row when selected: period label · vouchers count · debit value · × clear; idle hint text below chart
+- Placed between `JESummaryCard` and `Vouchers` SectionHeader in the scrollable area
+
+**ProcurementAnalytics — PO vs SO Net Balance Card** (`src/screens/analytics/ProcurementAnalyticsScreen.tsx`)
+- `NetBalanceCard` component: uses `analytics.totalPOValue` + `analytics.totalSOValue` (already computed)
+- `net = soValue − poValue`; `coverage = (soValue / poValue) × 100`; fractional splits for proportional bar
+- 6px stacked horizontal bar: PO share (`Colors.text` dark) + SO share (`Colors.border` light)
+- Three stat tiles: PO Spend + SO Revenue + Coverage ratio (SO ÷ PO %); netBadge (surplus/deficit) in header
+- Inserted between Open POs/SOs KPI row and Monthly Trend section
+
+### Next Session
+- Consider: Dashboard — "Due Today" highlight (bills/invoices due today with urgent styling)
+- Consider: AccountsPayable — payment schedule export (CSV of upcoming payments by week)
+- Consider: InventoryScreen — DUS tooltip/tap-to-inspect (show full calculation: balance ÷ avg daily outflow)
+- Consider: StockHealth — per-item DUS trend chart (how DUS has changed over the ledger period)
+- Consider: JournalEntries — monthly chart drill-down (tap month bar to filter list to that month)
+
+---
+
 ## UI Polish Log (Monochrome)
 
 ### 2026-06-13 — Session-70 audit
