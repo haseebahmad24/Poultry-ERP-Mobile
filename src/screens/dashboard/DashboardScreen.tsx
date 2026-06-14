@@ -333,7 +333,7 @@ function DashMonthlySparkline({
                     backgroundColor: Colors.textSecondary,
                     left: pt.x - r,
                     top: pt.y - r,
-                    borderWidth: sel ? 2 : 1.5,
+                    borderWidth: 1,
                     borderColor: Colors.surface,
                   }}
                 />
@@ -353,7 +353,7 @@ function DashMonthlySparkline({
                     backgroundColor: Colors.text,
                     left: pt.x - r,
                     top: pt.y - r,
-                    borderWidth: sel ? 2 : 1.5,
+                    borderWidth: 1,
                     borderColor: Colors.surface,
                   }}
                 />

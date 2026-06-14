@@ -318,7 +318,7 @@ function BalanceSparkline({
                     backgroundColor: v < 0 ? Colors.textSecondary : Colors.text,
                     left: pt.x - r,
                     top: pt.y - r,
-                    borderWidth: isSel ? 2 : 1.5,
+                    borderWidth: 1,
                     borderColor: Colors.surface,
                     opacity: (isSel || isLast) ? 1 : 0.55,
                   }}

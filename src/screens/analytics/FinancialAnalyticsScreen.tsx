@@ -667,7 +667,7 @@ function AgingHistoryPolylines({
             backgroundColor: color,
             left: pt.x - r,
             top: pt.y - r,
-            borderWidth: isSelected ? 2 : 1.5,
+            borderWidth: 1,
             borderColor: Colors.surface,
           }}
         />
@@ -1061,7 +1061,7 @@ function NWCPolyline({
                   backgroundColor: pt.pos ? Colors.text : Colors.textSecondary,
                   left: pt.x - r,
                   top: pt.y - r,
-                  borderWidth: isSelected ? 2 : 1.5,
+                  borderWidth: 1,
                   borderColor: Colors.surface,
                 }}
               />
