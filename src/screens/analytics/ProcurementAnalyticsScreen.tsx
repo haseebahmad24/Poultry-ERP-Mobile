@@ -351,6 +351,95 @@ const kpiStyles = StyleSheet.create({
 
 type ChartMode = 'count' | 'value';
 
+// ─── Net Balance Card ─────────────────────────────────────────────────────────
+
+function NetBalanceCard({ poValue, soValue }: { poValue: number; soValue: number }) {
+  if (poValue === 0 && soValue === 0) return null;
+  const net = soValue - poValue;
+  const total = poValue + soValue;
+  const poFrac = total > 0 ? poValue / total : 0.5;
+  const soFrac = total > 0 ? soValue / total : 0.5;
+  const coverage = poValue > 0 ? ((soValue / poValue) * 100).toFixed(0) : soValue > 0 ? '∞' : '—';
+
+  return (
+    <View style={nbStyles.card}>
+      <View style={nbStyles.header}>
+        <Text style={nbStyles.title}>PO vs SO Balance</Text>
+        <View style={nbStyles.netBadge}>
+          <Text style={nbStyles.netPrefix}>{net >= 0 ? 'surplus' : 'deficit'}</Text>
+          <Text style={nbStyles.netVal}>
+            {net >= 0 ? '+' : '−'}{formatCurrency(Math.abs(net))}
+          </Text>
+        </View>
+      </View>
+
+      {/* Proportional stacked bar */}
+      <View style={nbStyles.propBar}>
+        <View style={[nbStyles.propPO, { flex: Math.max(poFrac, 0.02) }]} />
+        <View style={[nbStyles.propSO, { flex: Math.max(soFrac, 0.02) }]} />
+      </View>
+
+      <View style={nbStyles.statsRow}>
+        <View style={nbStyles.statCell}>
+          <View style={[nbStyles.dot, { backgroundColor: Colors.text }]} />
+          <Text style={nbStyles.statLabel}>PO Spend</Text>
+          <Text style={nbStyles.statVal}>{formatCurrency(poValue)}</Text>
+          <Text style={nbStyles.statPct}>{Math.round(poFrac * 100)}%</Text>
+        </View>
+        <View style={nbStyles.statDivider} />
+        <View style={nbStyles.statCell}>
+          <View style={[nbStyles.dot, { backgroundColor: Colors.border }]} />
+          <Text style={nbStyles.statLabel}>SO Revenue</Text>
+          <Text style={nbStyles.statVal}>{formatCurrency(soValue)}</Text>
+          <Text style={nbStyles.statPct}>{Math.round(soFrac * 100)}%</Text>
+        </View>
+        <View style={nbStyles.statDivider} />
+        <View style={nbStyles.statCell}>
+          <Text style={nbStyles.coverageLabel}>Coverage</Text>
+          <Text style={nbStyles.coverageVal}>{coverage}%</Text>
+          <Text style={nbStyles.coverageSub}>SO ÷ PO</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const nbStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  title: { flex: 1, ...Typography.h4 },
+  netBadge: { alignItems: 'flex-end' },
+  netPrefix: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  netVal: { ...Typography.h4 },
+  propBar: {
+    height: 6,
+    flexDirection: 'row',
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+    backgroundColor: Colors.borderLight,
+  },
+  propPO: { backgroundColor: Colors.text },
+  propSO: { backgroundColor: Colors.border },
+  statsRow: { flexDirection: 'row', alignItems: 'center' },
+  statCell: { flex: 1, alignItems: 'center', gap: 2 },
+  dot: { width: 8, height: 8, borderRadius: Radius.full },
+  statLabel: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
+  statVal: { fontSize: 12, fontWeight: '700', color: Colors.text, textAlign: 'center' },
+  statPct: { fontSize: 10, color: Colors.textSecondary },
+  statDivider: { width: StyleSheet.hairlineWidth, height: 40, backgroundColor: Colors.borderLight },
+  coverageLabel: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
+  coverageVal: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  coverageSub: { fontSize: 10, color: Colors.textMuted },
+});
+
 function fmtChartVal(val: number): string {
   if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
   if (val >= 1_000) return `${(val / 1_000).toFixed(0)}K`;
@@ -2710,6 +2799,9 @@ export default function ProcurementAnalyticsScreen() {
             <KPITile label="Open POs" value={String(analytics.openPOs)} />
             <KPITile label="Open SOs" value={String(analytics.openSOs)} />
           </View>
+
+          {/* PO vs SO Net Balance */}
+          <NetBalanceCard poValue={analytics.totalPOValue} soValue={analytics.totalSOValue} />
 
           {/* Monthly trend */}
           <SectionHeader
