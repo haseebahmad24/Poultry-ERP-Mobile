@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -247,6 +248,30 @@ export default function AccountsReceivableScreen() {
     ? customers.filter((c) => c.name?.toLowerCase().includes(customerSearch.toLowerCase()))
     : customers;
 
+  const dailyCollectionSchedule: Array<{ dateStr: string; amount: number; count: number; isToday: boolean }> = (() => {
+    const byDay = new Map<string, { amount: number; count: number }>();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (const inv of invoices) {
+      if (!inv.due_date) continue;
+      const outstanding = inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0);
+      if (outstanding <= 0) continue;
+      const dd = daysDueIn(inv.due_date, inv.status);
+      if (dd < 0 || dd >= 30) continue;
+      const e = byDay.get(inv.due_date) ?? { amount: 0, count: 0 };
+      e.amount += outstanding;
+      e.count++;
+      byDay.set(inv.due_date, e);
+    }
+    const todayStr = today.toISOString().slice(0, 10);
+    return Array.from({ length: 30 }, (_, i) => {
+      const d = new Date(today.getTime() + i * 86_400_000);
+      const dateStr = d.toISOString().slice(0, 10);
+      const e = byDay.get(dateStr) ?? { amount: 0, count: 0 };
+      return { dateStr, amount: e.amount, count: e.count, isToday: dateStr === todayStr };
+    });
+  })();
+
   const aging = summary.aging ?? {};
   const arAgingBuckets: AgingBucket[] = [
     { label: 'Current',      shortLabel: 'Current',  amount: aging.current  ?? 0, fill: AGING_FILLS[0] },
@@ -364,6 +389,21 @@ export default function AccountsReceivableScreen() {
               <>
                 <SectionHeader title="Collection Schedule" meta="By week · upcoming" />
                 <WeeklyScheduleCard buckets={arWeeklyBuckets} emptyLabel="No outstanding invoices" />
+              </>
+            )}
+
+            {dailyCollectionSchedule.some((d) => d.count > 0) && (
+              <>
+                <SectionHeader title="30-Day Horizon" meta="Daily · tap for details" />
+                <DailyCollectionCalendar
+                  days={dailyCollectionSchedule}
+                  onPressDay={(dateStr, amount, count) => {
+                    Alert.alert(
+                      dateStr,
+                      `${count} invoice${count !== 1 ? 's' : ''} due · ${formatCurrency(amount)}`,
+                    );
+                  }}
+                />
               </>
             )}
 
@@ -991,4 +1031,97 @@ const styles = StyleSheet.create({
   },
   payByValue: { fontSize: 13, fontWeight: '700', color: Colors.text },
   payByValueMuted: { color: Colors.textSecondary },
+});
+
+// ─── Daily Collection Calendar ────────────────────────────────────────────────
+
+function dccFmtDayLabel(dateStr: string): { mo: string; day: string; dow: string } {
+  const d = new Date(dateStr);
+  return {
+    mo: d.toLocaleString('default', { month: 'short' }),
+    day: String(d.getDate()),
+    dow: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][d.getDay()],
+  };
+}
+
+function dccFmtAmt(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
+  return String(Math.round(v));
+}
+
+function DailyCollectionCalendar({
+  days,
+  onPressDay,
+}: {
+  days: Array<{ dateStr: string; amount: number; count: number; isToday: boolean }>;
+  onPressDay: (dateStr: string, amount: number, count: number) => void;
+}) {
+  const maxAmt = Math.max(...days.map((d) => d.amount), 1);
+  const hasAny = days.some((d) => d.count > 0);
+  if (!hasAny) return null;
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={dccStyles.scroll}
+    >
+      {days.map((day) => {
+        const { mo, day: dayNum, dow } = dccFmtDayLabel(day.dateStr);
+        const barH = day.amount > 0 ? Math.max(4, Math.round((day.amount / maxAmt) * 40)) : 0;
+        const active = day.count > 0;
+        return (
+          <TouchableOpacity
+            key={day.dateStr}
+            style={[dccStyles.cell, day.isToday && dccStyles.cellToday]}
+            activeOpacity={active ? 0.7 : 1}
+            onPress={() => active && onPressDay(day.dateStr, day.amount, day.count)}
+          >
+            <Text style={[dccStyles.dow, day.isToday && dccStyles.dowToday]}>{dow}</Text>
+            <Text style={[dccStyles.dayNum, day.isToday && dccStyles.dayNumToday]}>{dayNum}</Text>
+            <Text style={[dccStyles.mo, day.isToday && dccStyles.moToday]}>{mo}</Text>
+            <View style={dccStyles.barTrack}>
+              {barH > 0 && <View style={[dccStyles.bar, { height: barH }, day.isToday && dccStyles.barToday]} />}
+            </View>
+            {active && <Text style={[dccStyles.amt, day.isToday && dccStyles.amtToday]}>{dccFmtAmt(day.amount)}</Text>}
+            {!active && <View style={dccStyles.amtEmpty} />}
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+const dccStyles = StyleSheet.create({
+  scroll: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: 4,
+  },
+  cell: {
+    width: 44,
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.background,
+  },
+  cellToday: {
+    backgroundColor: Colors.text,
+    borderColor: Colors.text,
+  },
+  dow: { fontSize: 10, fontWeight: '600', color: Colors.textMuted, letterSpacing: 0.3 },
+  dowToday: { color: Colors.surface },
+  dayNum: { fontSize: 13, fontWeight: '700', color: Colors.text, marginTop: 1 },
+  dayNumToday: { color: Colors.surface },
+  mo: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
+  moToday: { color: Colors.surface },
+  barTrack: { height: 44, justifyContent: 'flex-end', marginTop: 4 },
+  bar: { width: 20, borderRadius: Radius.sm, backgroundColor: Colors.textSecondary },
+  barToday: { backgroundColor: Colors.surface },
+  amt: { fontSize: 10, fontWeight: '700', color: Colors.text, marginTop: 3 },
+  amtToday: { color: Colors.surface },
+  amtEmpty: { height: 12 },
 });

@@ -2028,7 +2028,11 @@ export default function DashboardScreen() {
             const parts: string[] = [];
             if (data.apCount > 0) parts.push(`AP: ${data.apCount} bill${data.apCount !== 1 ? 's' : ''} · ${formatCurrency(data.apAmt)}`);
             if (data.arCount > 0) parts.push(`AR: ${data.arCount} invoice${data.arCount !== 1 ? 's' : ''} · ${formatCurrency(data.arAmt)}`);
-            Alert.alert(dateStr, parts.join('\n'));
+            const buttons: Parameters<typeof Alert.alert>[2] = [];
+            if (data.apCount > 0) buttons.push({ text: 'View Payables', onPress: () => navigation.navigate('Finance', { screen: 'AccountsPayable' } as any) });
+            if (data.arCount > 0) buttons.push({ text: 'View Receivables', onPress: () => navigation.navigate('Finance', { screen: 'AccountsReceivable' } as any) });
+            buttons.push({ text: 'Dismiss', style: 'cancel' });
+            Alert.alert(dateStr, parts.join('\n'), buttons);
           }}
         />
 

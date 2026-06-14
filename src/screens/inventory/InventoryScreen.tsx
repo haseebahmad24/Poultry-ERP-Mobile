@@ -44,6 +44,7 @@ interface DUSInfo {
   days: number;
   balance: number;
   avgDaily: number;
+  prevDays?: number;
 }
 
 function computeInventoryDUS(
@@ -59,11 +60,24 @@ function computeInventoryDUS(
     1,
     (new Date(lastDate).getTime() - new Date(firstDate).getTime()) / 86_400_000,
   );
+
+  // Split ledger at midpoint for prior-period comparison
+  const midMs = (new Date(firstDate).getTime() + new Date(lastDate).getTime()) / 2;
+  const halfDays = Math.max(1, periodDays / 2);
+  const recentOut = new Map<string, number>();
+  const priorOut = new Map<string, number>();
   const outMap = new Map<string, number>();
   for (const e of ledger) {
     if (!e.item_name) continue;
-    outMap.set(e.item_name, (outMap.get(e.item_name) ?? 0) + (e.qty_out ?? 0));
+    const qty = e.qty_out ?? 0;
+    outMap.set(e.item_name, (outMap.get(e.item_name) ?? 0) + qty);
+    if (e.dt && new Date(e.dt).getTime() >= midMs) {
+      recentOut.set(e.item_name, (recentOut.get(e.item_name) ?? 0) + qty);
+    } else if (e.dt) {
+      priorOut.set(e.item_name, (priorOut.get(e.item_name) ?? 0) + qty);
+    }
   }
+
   const balMap = new Map<string, number>();
   for (const s of stock) {
     balMap.set(s.item_name, (balMap.get(s.item_name) ?? 0) + (s.qty ?? 0));
@@ -75,7 +89,10 @@ function computeInventoryDUS(
     const avgDaily = totalOut / periodDays;
     if (avgDaily <= 0) continue;
     const days = Math.round(balance / avgDaily);
-    if (days < 365) result.set(name, { days, balance, avgDaily });
+    if (days >= 365) continue;
+    const priorAvgDaily = (priorOut.get(name) ?? 0) / halfDays;
+    const prevDays = priorAvgDaily > 0 ? Math.round(balance / priorAvgDaily) : undefined;
+    result.set(name, { days, balance, avgDaily, prevDays });
   }
   return result;
 }
@@ -616,9 +633,21 @@ function StockCard({
 
   const handleDUSPress = () => {
     if (!dusInfo) return;
+    let trendLine = '';
+    if (dusInfo.prevDays != null && dusInfo.prevDays < 365) {
+      const delta = dusInfo.days - dusInfo.prevDays;
+      const absDelta = Math.abs(delta);
+      if (absDelta >= 2) {
+        trendLine = delta > 0
+          ? `\nTrend: improving (+${absDelta}d vs prior period)`
+          : `\nTrend: worsening (${delta}d vs prior period)`;
+      } else {
+        trendLine = '\nTrend: stable vs prior period';
+      }
+    }
     Alert.alert(
       'Days Until Stockout',
-      `${item.item_name}\n\nBalance: ${dusInfo.balance.toLocaleString()} ${item.unit ?? ''}\nAvg daily consumption: ${dusInfo.avgDaily.toFixed(2)}/day\nEstimated stockout: ~${dusInfo.days} days`,
+      `${item.item_name}\n\nBalance: ${dusInfo.balance.toLocaleString()} ${item.unit ?? ''}\nAvg daily: ${dusInfo.avgDaily.toFixed(2)}/day\nEstimated stockout: ~${dusInfo.days} days${trendLine}`,
     );
   };
 
@@ -716,10 +745,24 @@ function GroupedStockCard({
               )}
               {!isOut && dusInfo != null && (
                 <TouchableOpacity
-                  onPress={() => Alert.alert(
-                    'Days Until Stockout',
-                    `${group.item_name}\n\nBalance: ${dusInfo.balance.toLocaleString()} ${group.unit ?? ''}\nAvg daily consumption: ${dusInfo.avgDaily.toFixed(2)}/day\nEstimated stockout: ~${dusInfo.days} days`,
-                  )}
+                  onPress={() => {
+                    let trendLine = '';
+                    if (dusInfo.prevDays != null && dusInfo.prevDays < 365) {
+                      const delta = dusInfo.days - dusInfo.prevDays;
+                      const absDelta = Math.abs(delta);
+                      if (absDelta >= 2) {
+                        trendLine = delta > 0
+                          ? `\nTrend: improving (+${absDelta}d vs prior period)`
+                          : `\nTrend: worsening (${delta}d vs prior period)`;
+                      } else {
+                        trendLine = '\nTrend: stable vs prior period';
+                      }
+                    }
+                    Alert.alert(
+                      'Days Until Stockout',
+                      `${group.item_name}\n\nBalance: ${dusInfo.balance.toLocaleString()} ${group.unit ?? ''}\nAvg daily: ${dusInfo.avgDaily.toFixed(2)}/day\nEstimated stockout: ~${dusInfo.days} days${trendLine}`,
+                    );
+                  }}
                   hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 >
                   <DUSBadge days={dusInfo.days} />
