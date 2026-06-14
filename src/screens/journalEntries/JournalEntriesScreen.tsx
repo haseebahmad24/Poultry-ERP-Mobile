@@ -56,6 +56,7 @@ export default function JournalEntriesScreen() {
   const [selectedType, setSelectedType] = useState('All');
   const [dateRange, setDateRange] = useState<DateRangeValue>({ from: '', to: '' });
   const [isStale, setIsStale] = useState(false);
+  const [chartMonthFilter, setChartMonthFilter] = useState<string | null>(null);
 
   // Account filter — can be set via route params or picker
   const [pickedAccount, setPickedAccount] = useState<string | undefined>(route.params?.account);
@@ -177,9 +178,20 @@ export default function JournalEntriesScreen() {
   const filteredDebit = filtered.reduce((s, e) => s + (e.total_debit ?? 0), 0);
   const filteredCredit = filtered.reduce((s, e) => s + (e.total_credit ?? 0), 0);
 
+  const chartFiltered = React.useMemo(() => {
+    if (!chartMonthFilter) return filtered;
+    return filtered.filter((e) => {
+      if (!e.dt) return false;
+      const d = new Date(e.dt);
+      if (isNaN(d.getTime())) return false;
+      const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      return ym === chartMonthFilter;
+    });
+  }, [filtered, chartMonthFilter]);
+
   const typeAmountSummary = React.useMemo(() => {
     const map = new Map<string, { count: number; debit: number }>();
-    for (const e of filtered) {
+    for (const e of chartFiltered) {
       const t = e.voucher_type ?? 'JV';
       const existing = map.get(t);
       if (existing) {
@@ -192,19 +204,19 @@ export default function JournalEntriesScreen() {
     return Array.from(map.entries())
       .map(([type, { count, debit }]) => ({ type, count, debit }))
       .sort((a, b) => b.debit - a.debit);
-  }, [filtered]);
+  }, [chartFiltered]);
 
   // Running balance — only computed when an account filter is active
   const filteredWithBalance = React.useMemo<Array<{ entry: JournalEntry; runningBalance: number }>>(() => {
-    if (!pickedAccount) return filtered.map((entry) => ({ entry, runningBalance: 0 }));
+    if (!pickedAccount) return chartFiltered.map((entry) => ({ entry, runningBalance: 0 }));
     // Sort chronologically so running balance accumulates oldest → newest
-    const sorted = [...filtered].sort((a, b) => (a.dt ?? '').localeCompare(b.dt ?? ''));
+    const sorted = [...chartFiltered].sort((a, b) => (a.dt ?? '').localeCompare(b.dt ?? ''));
     let running = 0;
     return sorted.map((entry) => {
       running += (entry.total_debit ?? 0) - (entry.total_credit ?? 0);
       return { entry, runningBalance: running };
     });
-  }, [filtered, pickedAccount]);
+  }, [chartFiltered, pickedAccount]);
 
   // First index where the running balance changes sign (crosses zero)
   const zeroCrossingIdx = React.useMemo(() => {
@@ -388,9 +400,27 @@ export default function JournalEntriesScreen() {
               onSelectType={handleSelectType}
             />
 
-            <MonthlyVoucherChart entries={filtered} />
+            <MonthlyVoucherChart
+              entries={filtered}
+              selectedMonth={chartMonthFilter}
+              onMonthSelect={setChartMonthFilter}
+            />
 
-            <SectionHeader title="Vouchers" meta={`${filtered.length} records`} />
+            <SectionHeader title="Vouchers" meta={`${chartFiltered.length} record${chartFiltered.length !== 1 ? 's' : ''}`} />
+            {chartMonthFilter != null && (
+              <View style={styles.monthDrillChip}>
+                <Feather name="calendar" size={10} color={Colors.textSecondary} />
+                <Text style={styles.monthDrillText}>
+                  {MV_MONTH_NAMES[parseInt(chartMonthFilter.split('-')[1], 10) - 1]} {chartMonthFilter.split('-')[0]}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setChartMonthFilter(null)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Feather name="x" size={11} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            )}
             {typeAmountSummary.length > 0 && (
               <View style={styles.typeBreakdownRow}>
                 {typeAmountSummary.map((item) => (
@@ -603,9 +633,16 @@ function getLast6MonthsJE(): string[] {
   return result;
 }
 
-function MonthlyVoucherChart({ entries }: { entries: JournalEntry[] }) {
+function MonthlyVoucherChart({
+  entries,
+  selectedMonth,
+  onMonthSelect,
+}: {
+  entries: JournalEntry[];
+  selectedMonth: string | null;
+  onMonthSelect: (ym: string | null) => void;
+}) {
   const [mode, setMode] = React.useState<'count' | 'value'>('count');
-  const [selectedMonth, setSelectedMonth] = React.useState<string | null>(null);
 
   const months = React.useMemo(() => getLast6MonthsJE(), []);
 
@@ -648,7 +685,7 @@ function MonthlyVoucherChart({ entries }: { entries: JournalEntry[] }) {
             <TouchableOpacity
               key={m}
               style={[mvStyles.modePill, mode === m && mvStyles.modePillActive]}
-              onPress={() => { setMode(m); setSelectedMonth(null); }}
+              onPress={() => { setMode(m); onMonthSelect(null); }}
             >
               <Text style={[mvStyles.modePillText, mode === m && mvStyles.modePillTextActive]}>
                 {m === 'count' ? '#' : '$'}
@@ -667,7 +704,7 @@ function MonthlyVoucherChart({ entries }: { entries: JournalEntry[] }) {
             <TouchableOpacity
               key={m.ym}
               style={mvStyles.col}
-              onPress={() => setSelectedMonth(isSelected ? null : m.ym)}
+              onPress={() => onMonthSelect(isSelected ? null : m.ym)}
               activeOpacity={0.7}
             >
               <View style={[mvStyles.barTrack, { height: CHART_H }]}>
@@ -706,7 +743,7 @@ function MonthlyVoucherChart({ entries }: { entries: JournalEntry[] }) {
             </View>
             <TouchableOpacity
               style={mvStyles.snapClear}
-              onPress={() => setSelectedMonth(null)}
+              onPress={() => onMonthSelect(null)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Feather name="x" size={12} color={Colors.textMuted} />
@@ -1784,6 +1821,22 @@ const styles = StyleSheet.create({
   scrollContent: { paddingTop: Spacing.sm },
 
   cardList: { marginHorizontal: Spacing.md, gap: Spacing.sm },
+
+  monthDrillChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surfaceHover,
+  },
+  monthDrillText: { fontSize: 11, fontWeight: '600', color: Colors.text },
 
   card: {
     backgroundColor: Colors.surface,

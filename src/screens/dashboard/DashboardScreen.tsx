@@ -557,6 +557,125 @@ function buildInsights({
   return insights;
 }
 
+// ─── Due Today Card ──────────────────────────────────────────────────────────
+
+function DueTodayCard({
+  bills,
+  invoices,
+  onPressBills,
+  onPressInvoices,
+}: {
+  bills: APBill[];
+  invoices: ARInvoice[];
+  onPressBills: () => void;
+  onPressInvoices: () => void;
+}) {
+  if (bills.length === 0 && invoices.length === 0) return null;
+
+  const apTotal = bills.reduce((s, b) => s + (b.outstanding ?? b.amount ?? 0), 0);
+  const arTotal = invoices.reduce((s, inv) => s + (inv.outstanding ?? inv.amount ?? 0), 0);
+  const total = apTotal + arTotal;
+  const count = bills.length + invoices.length;
+
+  return (
+    <View style={dtStyles.card}>
+      <View style={dtStyles.header}>
+        <View style={dtStyles.headerLeft}>
+          <Feather name="clock" size={12} color={Colors.text} />
+          <Text style={dtStyles.headerTitle}>Due Today</Text>
+          <View style={dtStyles.countBadge}>
+            <Text style={dtStyles.countBadgeText}>{count}</Text>
+          </View>
+        </View>
+        <Text style={dtStyles.headerTotal}>{formatCurrency(total)}</Text>
+      </View>
+      {bills.length > 0 && (
+        <TouchableOpacity style={dtStyles.row} onPress={onPressBills} activeOpacity={0.7}>
+          <View style={dtStyles.kindTag}>
+            <Text style={dtStyles.kindTagText}>AP</Text>
+          </View>
+          <Text style={dtStyles.rowLabel} numberOfLines={1}>
+            {bills.length} bill{bills.length !== 1 ? 's' : ''} payable
+          </Text>
+          <Text style={dtStyles.rowAmt}>{formatCurrency(apTotal)}</Text>
+          <Feather name="chevron-right" size={12} color={Colors.textMuted} />
+        </TouchableOpacity>
+      )}
+      {invoices.length > 0 && (
+        <TouchableOpacity
+          style={[dtStyles.row, bills.length > 0 && dtStyles.rowBorder]}
+          onPress={onPressInvoices}
+          activeOpacity={0.7}
+        >
+          <View style={[dtStyles.kindTag, dtStyles.kindTagAR]}>
+            <Text style={dtStyles.kindTagText}>AR</Text>
+          </View>
+          <Text style={dtStyles.rowLabel} numberOfLines={1}>
+            {invoices.length} invoice{invoices.length !== 1 ? 's' : ''} receivable
+          </Text>
+          <Text style={dtStyles.rowAmt}>{formatCurrency(arTotal)}</Text>
+          <Feather name="chevron-right" size={12} color={Colors.textMuted} />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+const dtStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 9,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+    backgroundColor: Colors.text,
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerTitle: { fontSize: 12, fontWeight: '700', color: Colors.surface, letterSpacing: 0.3 },
+  countBadge: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.full,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  countBadgeText: { fontSize: 10, fontWeight: '700', color: Colors.text },
+  headerTotal: { fontSize: 13, fontWeight: '700', color: Colors.surface },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+  },
+  rowBorder: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+  },
+  kindTag: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.text,
+  },
+  kindTagAR: { backgroundColor: Colors.textSecondary },
+  kindTagText: { fontSize: 10, fontWeight: '700', color: Colors.surface },
+  rowLabel: { flex: 1, fontSize: 13, fontWeight: '500', color: Colors.text },
+  rowAmt: { fontSize: 12, fontWeight: '700', color: Colors.text },
+});
+
+// ─── Quick Insights Card ──────────────────────────────────────────────────────
+
 function QuickInsightsCard({
   kpis,
   revenueTrend,
@@ -1362,6 +1481,16 @@ export default function DashboardScreen() {
   const weekActivity = useMemo(() => computeWeekActivity(vouchers), [vouchers]);
   const todayActivity = useMemo(() => computeTodayActivity(vouchers), [vouchers]);
 
+  const dueTodayBills = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    return dueSoonBills.filter((b) => b.due_date === todayStr);
+  }, [dueSoonBills]);
+
+  const dueTodayInvoices = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    return dueSoonInvoices.filter((inv) => inv.due_date === todayStr);
+  }, [dueSoonInvoices]);
+
 
   const load = useCallback(async (isRefresh = false, isSilent = false) => {
     let hadCachedData = false;
@@ -1746,6 +1875,16 @@ export default function DashboardScreen() {
               )}
             </View>
           </View>
+        )}
+
+        {/* Due Today — items specifically due today */}
+        {(dueTodayBills.length > 0 || dueTodayInvoices.length > 0) && (
+          <DueTodayCard
+            bills={dueTodayBills}
+            invoices={dueTodayInvoices}
+            onPressBills={() => navigation.navigate('Finance', { screen: 'AccountsPayable' } as any)}
+            onPressInvoices={() => navigation.navigate('Finance', { screen: 'AccountsReceivable' } as any)}
+          />
         )}
 
         {/* KPI Grid */}

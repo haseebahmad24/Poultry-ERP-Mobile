@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -39,10 +40,16 @@ import type { InventoryStackParamList } from '@/navigation/InventoryNavigator';
 type Tab = 'stock' | 'ledger' | 'warehouses';
 type StockFilter = 'all' | 'low' | 'out';
 
+interface DUSInfo {
+  days: number;
+  balance: number;
+  avgDaily: number;
+}
+
 function computeInventoryDUS(
   ledger: StockLedgerEntry[],
   stock: StockBalance[],
-): Map<string, number> {
+): Map<string, DUSInfo> {
   if (!ledger.length || !stock.length) return new Map();
   const dates = ledger.map((e) => e.dt ?? '').filter(Boolean).sort();
   const firstDate = dates[0];
@@ -61,14 +68,14 @@ function computeInventoryDUS(
   for (const s of stock) {
     balMap.set(s.item_name, (balMap.get(s.item_name) ?? 0) + (s.qty ?? 0));
   }
-  const result = new Map<string, number>();
+  const result = new Map<string, DUSInfo>();
   for (const [name, balance] of balMap.entries()) {
     if (balance <= 0) continue;
     const totalOut = outMap.get(name) ?? 0;
     const avgDaily = totalOut / periodDays;
     if (avgDaily <= 0) continue;
     const days = Math.round(balance / avgDaily);
-    if (days < 365) result.set(name, days);
+    if (days < 365) result.set(name, { days, balance, avgDaily });
   }
   return result;
 }
@@ -478,7 +485,7 @@ export default function InventoryScreen() {
                     key={group.item_name}
                     group={group}
                     lowThreshold={lowStockThreshold}
-                    dus={dusMap.get(group.item_name)}
+                    dusInfo={dusMap.get(group.item_name)}
                     expanded={expandedItems.has(group.item_name)}
                     onToggle={() => toggleItemExpand(group.item_name)}
                     onNavigate={group.item_id != null ? () => navigation.navigate('ItemLedger', {
@@ -504,7 +511,7 @@ export default function InventoryScreen() {
                     key={`${item.item_id ?? item.item_name}-${idx}`}
                     item={item}
                     lowThreshold={lowStockThreshold}
-                    dus={dusMap.get(item.item_name)}
+                    dusInfo={dusMap.get(item.item_name)}
                     onPress={item.item_id != null ? () => navigation.navigate('ItemLedger', {
                       item_id: item.item_id!,
                       item_name: item.item_name,
@@ -594,18 +601,26 @@ function DUSBadge({ days }: { days: number }) {
 function StockCard({
   item,
   lowThreshold,
-  dus,
+  dusInfo,
   onPress,
 }: {
   item: StockBalance;
   lowThreshold: number;
-  dus?: number;
+  dusInfo?: DUSInfo;
   onPress?: () => void;
 }) {
   const qty = item.qty ?? 0;
   const isOut = qty <= 0;
   const isLow = qty > 0 && qty < lowThreshold;
   const statusLabel = isOut ? 'Out' : isLow ? 'Low' : null;
+
+  const handleDUSPress = () => {
+    if (!dusInfo) return;
+    Alert.alert(
+      'Days Until Stockout',
+      `${item.item_name}\n\nBalance: ${dusInfo.balance.toLocaleString()} ${item.unit ?? ''}\nAvg daily consumption: ${dusInfo.avgDaily.toFixed(2)}/day\nEstimated stockout: ~${dusInfo.days} days`,
+    );
+  };
 
   const inner = (
     <View style={styles.cardRow}>
@@ -623,7 +638,11 @@ function StockCard({
               <Text style={styles.statusPillText}>{statusLabel}</Text>
             </View>
           )}
-          {!isOut && dus != null && <DUSBadge days={dus} />}
+          {!isOut && dusInfo != null && (
+            <TouchableOpacity onPress={handleDUSPress} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+              <DUSBadge days={dusInfo.days} />
+            </TouchableOpacity>
+          )}
         </View>
         {onPress && <Feather name="chevron-right" size={14} color={Colors.textMuted} style={{ marginTop: 4 }} />}
       </View>
@@ -643,7 +662,7 @@ function StockCard({
 function GroupedStockCard({
   group,
   lowThreshold,
-  dus,
+  dusInfo,
   expanded,
   onToggle,
   onNavigate,
@@ -651,7 +670,7 @@ function GroupedStockCard({
 }: {
   group: GroupedStock;
   lowThreshold: number;
-  dus?: number;
+  dusInfo?: DUSInfo;
   expanded: boolean;
   onToggle: () => void;
   onNavigate?: () => void;
@@ -695,7 +714,17 @@ function GroupedStockCard({
                   <Text style={styles.statusPillText}>{statusLabel}</Text>
                 </View>
               )}
-              {!isOut && dus != null && <DUSBadge days={dus} />}
+              {!isOut && dusInfo != null && (
+                <TouchableOpacity
+                  onPress={() => Alert.alert(
+                    'Days Until Stockout',
+                    `${group.item_name}\n\nBalance: ${dusInfo.balance.toLocaleString()} ${group.unit ?? ''}\nAvg daily consumption: ${dusInfo.avgDaily.toFixed(2)}/day\nEstimated stockout: ~${dusInfo.days} days`,
+                  )}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <DUSBadge days={dusInfo.days} />
+                </TouchableOpacity>
+              )}
             </View>
             <Feather
               name={multiWarehouse ? (expanded ? 'chevron-up' : 'chevron-down') : 'chevron-right'}
