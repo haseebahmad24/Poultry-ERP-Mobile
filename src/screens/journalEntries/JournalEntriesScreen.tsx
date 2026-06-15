@@ -1967,15 +1967,21 @@ const styles = StyleSheet.create({
 
 // ─── Voucher Type Distribution Bar ───────────────────────────────────────────
 
-const VTB_FILLS = [
-  '#0a0a0a', '#374151', '#6b7280', '#9ca3af',
-  '#c4c4c4', '#d1d5db', '#e5e7eb', '#f3f4f6',
-] as const;
+const VTB_FILLS: readonly string[] = [
+  Colors.text,     // near-black
+  '#374151',       // gray-700
+  '#6b7280',       // gray-500
+  '#9ca3af',       // gray-400
+  '#c4c4c4',       // gray-300ish
+  '#d1d5db',       // gray-300
+  Colors.border,   // #e5e7eb
+  Colors.borderLight, // #f3f4f6
+];
 
-const VTB_TEXT = [
-  '#ffffff', '#ffffff', '#ffffff', '#0a0a0a',
-  '#0a0a0a', '#0a0a0a', '#0a0a0a', '#0a0a0a',
-] as const;
+const VTB_TEXT: readonly string[] = [
+  Colors.surface, Colors.surface, Colors.surface, Colors.text,
+  Colors.text,    Colors.text,    Colors.text,    Colors.text,
+];
 
 function VoucherTypeBar({
   summary,

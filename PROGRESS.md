@@ -213,6 +213,11 @@
 
 ## UI Polish Log (Monochrome)
 
+### 2026-06-15 — Session-83 audit: VTB_FILLS/VTB_TEXT token normalization
+Post-build audit of all three Session-83 additions: Dashboard WAG 30-day expand toggle, JournalEntries VoucherTypeBar, AR OverduePriorityCard. All three are clean: Colors tokens, Radius tokens, `StyleSheet.hairlineWidth` borders, Feather icons, no emojis, no shadows, all fontSize ≥ 10, all fontWeight ≤ '700'.
+One cleanup applied: `JournalEntriesScreen` VTB_FILLS/VTB_TEXT arrays converted from `as const` literal tuples to `readonly string[]` typed arrays, using `Colors.text`, `Colors.surface`, `Colors.border`, and `Colors.borderLight` tokens where exact matches exist (indices 0, 6, 7 for fills; all entries for text). The four intermediate grays (`#374151`, `#6b7280`, `#9ca3af`, `#c4c4c4`, `#d1d5db`) remain as-is since they have no direct Colors token equivalents — all are valid monochrome grays.
+Codebase-wide grep confirms: zero semantic hex colors, zero emojis, zero fontWeight > '700', zero fontSize < 10, zero borderWidth > 1, zero elevation > 1, zero shadowOpacity > 0.04, zero raw numeric borderRadius anywhere in screens/ or components/.
+
 ### 2026-06-14 — Session-81 audit: sparkline dot borderWidth ternaries resolved
 Codebase-wide sweep identified 5 remaining `borderWidth: selected ? 2 : 1.5` ternaries on interactive sparkline chart dots across 3 files. These were missed by the Session-74 borderWidth sweep (which caught standalone `1.5` but not ternary expressions) and deliberately preserved in Session-79 as "selection visibility" — but the radius size change already communicates selection state (2.5px→4px radius = 5px→8px+ diameter), making the varying border redundant. Simplified all 5 to constant `borderWidth: 1`, which retains the visible white halo needed to separate dots from the underlying polyline:
 - **ItemLedgerScreen** (line 321): `isSel ? 2 : 1.5` → `1`
