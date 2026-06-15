@@ -409,6 +409,13 @@ export default function JournalEntriesScreen() {
               onMonthSelect={setChartMonthFilter}
             />
 
+            {typeAmountSummary.length > 1 && (
+              <>
+                <SectionHeader title="By Type" meta={`${typeAmountSummary.length} types · tap to filter`} />
+                <VoucherTypeBar summary={typeAmountSummary} onSelectType={handleSelectType} />
+              </>
+            )}
+
             <SectionHeader title="Vouchers" meta={`${chartFiltered.length} record${chartFiltered.length !== 1 ? 's' : ''}`} />
             {chartMonthFilter != null && (
               <View style={styles.monthDrillChip}>
@@ -424,18 +431,6 @@ export default function JournalEntriesScreen() {
                 </TouchableOpacity>
               </View>
             )}
-            {typeAmountSummary.length > 0 && (
-              <View style={styles.typeBreakdownRow}>
-                {typeAmountSummary.map((item) => (
-                  <View key={item.type} style={styles.typeBreakdownPill}>
-                    <Text style={styles.typeBreakdownLabel}>{item.type}</Text>
-                    <Text style={styles.typeBreakdownAmt}>{fmtCompactJE(item.debit)}</Text>
-                    <Text style={styles.typeBreakdownCount}>{item.count}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
             {filteredWithBalance.length === 0 ? (
               <View style={styles.emptyState}>
                 <Feather name="book-open" size={32} color={Colors.textMuted} />
@@ -1968,4 +1963,119 @@ const styles = StyleSheet.create({
   typeBreakdownLabel: { fontSize: 10, fontWeight: '700', color: Colors.text },
   typeBreakdownAmt: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary },
   typeBreakdownCount: { fontSize: 10, color: Colors.textMuted },
+});
+
+// ─── Voucher Type Distribution Bar ───────────────────────────────────────────
+
+const VTB_FILLS = [
+  '#0a0a0a', '#374151', '#6b7280', '#9ca3af',
+  '#c4c4c4', '#d1d5db', '#e5e7eb', '#f3f4f6',
+] as const;
+
+const VTB_TEXT = [
+  '#ffffff', '#ffffff', '#ffffff', '#0a0a0a',
+  '#0a0a0a', '#0a0a0a', '#0a0a0a', '#0a0a0a',
+] as const;
+
+function VoucherTypeBar({
+  summary,
+  onSelectType,
+}: {
+  summary: Array<{ type: string; count: number; debit: number }>;
+  onSelectType?: (type: string) => void;
+}) {
+  const totalDebit = summary.reduce((s, item) => s + item.debit, 0);
+  if (totalDebit === 0 || summary.length === 0) return null;
+
+  return (
+    <View style={vtbStyles.container}>
+      <View style={vtbStyles.bar}>
+        {summary.map((item, i) => {
+          const flex = totalDebit > 0 ? item.debit / totalDebit : 0;
+          const fill = VTB_FILLS[i % VTB_FILLS.length];
+          const pct = Math.round(flex * 100);
+          if (flex < 0.01) return null;
+          return (
+            <TouchableOpacity
+              key={item.type}
+              style={[vtbStyles.segment, { flex, backgroundColor: fill }]}
+              onPress={() => onSelectType?.(item.type)}
+              activeOpacity={0.75}
+            >
+              {pct >= 10 && (
+                <Text style={[vtbStyles.segmentLabel, { color: VTB_TEXT[i % VTB_TEXT.length] }]}>
+                  {item.type}
+                </Text>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <View style={vtbStyles.legend}>
+        {summary.map((item, i) => {
+          const flex = totalDebit > 0 ? item.debit / totalDebit : 0;
+          const fill = VTB_FILLS[i % VTB_FILLS.length];
+          const pct = Math.round(flex * 100);
+          return (
+            <TouchableOpacity
+              key={item.type}
+              style={vtbStyles.legendItem}
+              onPress={() => onSelectType?.(item.type)}
+              activeOpacity={0.7}
+            >
+              <View style={[vtbStyles.legendDot, { backgroundColor: fill }]} />
+              <Text style={vtbStyles.legendType}>{item.type}</Text>
+              <Text style={vtbStyles.legendPct}>{pct}%</Text>
+              <Text style={vtbStyles.legendCount}>{item.count}×</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const vtbStyles = StyleSheet.create({
+  container: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+    paddingBottom: Spacing.sm,
+  },
+  bar: {
+    flexDirection: 'row',
+    height: 28,
+    overflow: 'hidden',
+  },
+  segment: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  segmentLabel: { fontSize: 10, fontWeight: '700' },
+  legend: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingTop: Spacing.sm,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: Colors.background,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.borderLight,
+  },
+  legendDot: { width: 8, height: 8, borderRadius: Radius.full },
+  legendType: { fontSize: 11, fontWeight: '700', color: Colors.text },
+  legendPct: { fontSize: 10, color: Colors.textSecondary },
+  legendCount: { fontSize: 10, color: Colors.textMuted },
 });
