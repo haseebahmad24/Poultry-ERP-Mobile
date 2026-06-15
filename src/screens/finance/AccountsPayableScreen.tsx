@@ -270,6 +270,35 @@ export default function AccountsPayableScreen() {
     ? vendors.filter((v) => v.name?.toLowerCase().includes(vendorSearch.toLowerCase()))
     : vendors;
 
+  // Per-vendor aging breakdown — computed client-side from bills
+  const vendorAgingMap = React.useMemo(() => {
+    const map = new Map<string, { current: number; d30: number; d60: number; d90: number; over90: number }>();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (const b of bills) {
+      const name = b.vendor ?? '';
+      if (!name) continue;
+      const outstanding = b.outstanding ?? Math.max(0, (b.amount ?? 0) - (b.paid ?? 0));
+      if (outstanding <= 0) continue;
+      const st = (b.status ?? '').toUpperCase();
+      if (st === 'PAID' || st === 'CLOSED' || st === 'CANCELLED') continue;
+      const entry = map.get(name) ?? { current: 0, d30: 0, d60: 0, d90: 0, over90: 0 };
+      if (!b.due_date) { entry.current += outstanding; }
+      else {
+        const due = new Date(b.due_date);
+        due.setHours(0, 0, 0, 0);
+        const od = Math.floor((today.getTime() - due.getTime()) / 86_400_000);
+        if (od <= 0) entry.current += outstanding;
+        else if (od <= 30) entry.d30 += outstanding;
+        else if (od <= 60) entry.d60 += outstanding;
+        else if (od <= 90) entry.d90 += outstanding;
+        else entry.over90 += outstanding;
+      }
+      map.set(name, entry);
+    }
+    return map;
+  }, [bills]);
+
   // 30-day daily payment schedule — next 30 calendar days grouped by due_date
   const dailyPaymentSchedule: Array<{ dateStr: string; amount: number; count: number; isToday: boolean }> = (() => {
     const byDay = new Map<string, { amount: number; count: number }>();
@@ -663,6 +692,7 @@ export default function AccountsPayableScreen() {
                   <VendorCard
                     key={v.id}
                     vendor={v}
+                    aging={v.name ? vendorAgingMap.get(v.name) : undefined}
                     onPress={() => navigation.navigate('VendorDetail', {
                       vendorId: v.id,
                       vendorName: v.name ?? `Vendor ${v.id}`,
@@ -760,7 +790,26 @@ function BillCard({ bill, overdueDays, flagged, onToggleFlag, reviewed, onToggle
   );
 }
 
-function VendorCard({ vendor: v, onPress }: { vendor: APVendor; onPress?: () => void }) {
+function VendorCard({
+  vendor: v,
+  aging,
+  onPress,
+}: {
+  vendor: APVendor;
+  aging?: { current: number; d30: number; d60: number; d90: number; over90: number };
+  onPress?: () => void;
+}) {
+  const agingTotal = aging ? aging.current + aging.d30 + aging.d60 + aging.d90 + aging.over90 : 0;
+  const agingSegs = aging && agingTotal > 0
+    ? [
+        { pct: aging.current / agingTotal, fill: AGING_FILLS[0] },
+        { pct: aging.d30 / agingTotal, fill: AGING_FILLS[1] },
+        { pct: aging.d60 / agingTotal, fill: AGING_FILLS[2] },
+        { pct: aging.d90 / agingTotal, fill: AGING_FILLS[3] },
+        { pct: aging.over90 / agingTotal, fill: AGING_FILLS[4] },
+      ].filter((s) => s.pct > 0)
+    : null;
+
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.cardHeader}>
@@ -782,9 +831,39 @@ function VendorCard({ vendor: v, onPress }: { vendor: APVendor; onPress?: () => 
           </View>
         )}
       </View>
+      {agingSegs && (
+        <View style={vendorAgingStyles.wrap}>
+          <View style={vendorAgingStyles.barTrack}>
+            {agingSegs.map((s, i) => (
+              <View key={i} style={[vendorAgingStyles.seg, { flex: s.pct, backgroundColor: s.fill }]} />
+            ))}
+          </View>
+          <View style={vendorAgingStyles.legend}>
+            {aging!.current > 0 && <Text style={vendorAgingStyles.leg}>Cur {formatCurrency(aging!.current)}</Text>}
+            {aging!.d30 > 0 && <Text style={vendorAgingStyles.leg}>1-30d {formatCurrency(aging!.d30)}</Text>}
+            {aging!.d60 > 0 && <Text style={vendorAgingStyles.leg}>31-60d {formatCurrency(aging!.d60)}</Text>}
+            {aging!.d90 > 0 && <Text style={vendorAgingStyles.leg}>61-90d {formatCurrency(aging!.d90)}</Text>}
+            {aging!.over90 > 0 && <Text style={vendorAgingStyles.leg}>90d+ {formatCurrency(aging!.over90)}</Text>}
+          </View>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
+
+const vendorAgingStyles = StyleSheet.create({
+  wrap: { gap: 5 },
+  barTrack: {
+    flexDirection: 'row',
+    height: 5,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+    backgroundColor: Colors.borderLight,
+  },
+  seg: { height: '100%' },
+  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  leg: { fontSize: 10, color: Colors.textMuted, fontWeight: '500' },
+});
 
 function EmptyState({ icon, message }: { icon: string; message: string }) {
   return (

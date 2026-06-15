@@ -45,6 +45,7 @@ interface DUSInfo {
   balance: number;
   avgDaily: number;
   prevDays?: number;
+  trend?: number[];  // DUS values across 4 time windows (oldest → newest)
 }
 
 function computeInventoryDUS(
@@ -94,6 +95,41 @@ function computeInventoryDUS(
     const prevDays = priorAvgDaily > 0 ? Math.round(balance / priorAvgDaily) : undefined;
     result.set(name, { days, balance, avgDaily, prevDays });
   }
+
+  // Compute 4-window DUS trend per item
+  const firstMs = new Date(dates[0]).getTime();
+  const lastMs = new Date(dates[dates.length - 1]).getTime();
+  const windowMs = (lastMs - firstMs) / 4;
+  if (windowMs >= 86_400_000) {
+    // Group ledger entries by item for quick lookup
+    const byItem = new Map<string, typeof ledger>();
+    for (const e of ledger) {
+      if (!e.item_name || !e.dt) continue;
+      const existing = byItem.get(e.item_name);
+      if (existing) existing.push(e);
+      else byItem.set(e.item_name, [e]);
+    }
+    for (const [name, info] of result.entries()) {
+      const entries = byItem.get(name) ?? [];
+      const trend: number[] = [];
+      for (let w = 0; w < 4; w++) {
+        const wStart = firstMs + w * windowMs;
+        const wEnd = firstMs + (w + 1) * windowMs;
+        const wDays = Math.max(1, windowMs / 86_400_000);
+        let wOut = 0;
+        for (const e of entries) {
+          const t = new Date(e.dt).getTime();
+          if (t >= wStart && t < wEnd) wOut += e.qty_out ?? 0;
+        }
+        const wAvgDaily = wOut / wDays;
+        trend.push(wAvgDaily > 0 ? Math.min(364, Math.round(info.balance / wAvgDaily)) : 0);
+      }
+      if (trend.some((v) => v > 0)) {
+        info.trend = trend;
+      }
+    }
+  }
+
   return result;
 }
 
@@ -615,6 +651,77 @@ function DUSBadge({ days }: { days: number }) {
   );
 }
 
+// ─── DUS Trend sparkline — 4-bar inline chart ────────────────────────────────
+function DUSTrendRow({ trend }: { trend: number[] }) {
+  const maxVal = Math.max(...trend, 1);
+  const labels = ['W1', 'W2', 'W3', 'W4'];
+  return (
+    <View style={dusTrendStyles.wrap}>
+      <Text style={dusTrendStyles.title}>DUS TREND</Text>
+      <View style={dusTrendStyles.bars}>
+        {trend.map((v, i) => (
+          <View key={i} style={dusTrendStyles.barCol}>
+            <View style={dusTrendStyles.barTrack}>
+              <View
+                style={[
+                  dusTrendStyles.bar,
+                  { flex: v > 0 ? v / maxVal : 0 },
+                  v > 0 && v <= 7 && dusTrendStyles.barCritical,
+                  v > 7 && v <= 14 && dusTrendStyles.barLow,
+                ]}
+              />
+            </View>
+            <Text style={dusTrendStyles.barLabel}>{v > 0 ? `${v}d` : '—'}</Text>
+            <Text style={dusTrendStyles.barPeriod}>{labels[i]}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const dusTrendStyles = StyleSheet.create({
+  wrap: {
+    paddingTop: Spacing.xs,
+    gap: 4,
+  },
+  title: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  bars: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'flex-end',
+    height: 36,
+  },
+  barCol: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  barTrack: {
+    width: '100%',
+    height: 20,
+    backgroundColor: Colors.borderLight,
+    borderRadius: Radius.sm,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+  },
+  bar: {
+    width: '100%',
+    backgroundColor: Colors.textSecondary,
+    borderRadius: Radius.sm,
+  },
+  barCritical: { backgroundColor: Colors.text },
+  barLow: { backgroundColor: Colors.textSecondary },
+  barLabel: { fontSize: 10, fontWeight: '600', color: Colors.text },
+  barPeriod: { fontSize: 10, color: Colors.textMuted },
+});
+
 function StockCard({
   item,
   lowThreshold,
@@ -777,6 +884,11 @@ function GroupedStockCard({
             />
           </View>
         </View>
+        {dusInfo?.trend && !isOut && (
+          <View style={styles.dusTrendWrap}>
+            <DUSTrendRow trend={dusInfo.trend} />
+          </View>
+        )}
       </TouchableOpacity>
       {expanded && multiWarehouse && group.warehouses.map((wh, i) => {
         const whQty = wh.qty ?? 0;
@@ -1145,6 +1257,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   warehouseBadgeText: { fontSize: 11, fontWeight: '500', color: Colors.textSecondary },
+
+  dusTrendWrap: {
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+    marginTop: Spacing.xs,
+  },
 
   whSubRow: {
     flexDirection: 'row',

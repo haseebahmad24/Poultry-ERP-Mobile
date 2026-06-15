@@ -42,6 +42,8 @@ import { saveKpiSnapshot, loadKpiHistory, KpiHistoryEntry } from '@/utils/kpiHis
 import { saveHealthSnapshot, loadHealthHistory, HealthHistoryEntry } from '@/utils/healthHistory';
 import { fetchAPBills, APBill } from '@/api/accountsPayable';
 import { fetchARInvoices, ARInvoice } from '@/api/accountsReceivable';
+import { StockBalance } from '@/api/inventory';
+import { getLowStockThreshold } from '@/utils/settings';
 import type { AppTabParamList } from '@/navigation/AppNavigator';
 
 type Nav = BottomTabNavigationProp<AppTabParamList>;
@@ -672,6 +674,128 @@ const dtStyles = StyleSheet.create({
   kindTagText: { fontSize: 10, fontWeight: '700', color: Colors.surface },
   rowLabel: { flex: 1, fontSize: 13, fontWeight: '500', color: Colors.text },
   rowAmt: { fontSize: 12, fontWeight: '700', color: Colors.text },
+});
+
+// ─── Low-Stock Alert Card ─────────────────────────────────────────────────────
+
+function LowStockAlertCard({
+  items,
+  onPress,
+}: {
+  items: Array<{ name: string; qty: number; unit?: string; status: 'out' | 'low' }>;
+  onPress?: () => void;
+}) {
+  if (items.length === 0) return null;
+  const outCount = items.filter((i) => i.status === 'out').length;
+  const lowCount = items.filter((i) => i.status === 'low').length;
+  return (
+    <TouchableOpacity
+      style={lsStyles.card}
+      activeOpacity={onPress ? 0.7 : 1}
+      onPress={onPress}
+    >
+      <View style={lsStyles.header}>
+        <View style={lsStyles.headerLeft}>
+          <Feather name="alert-triangle" size={13} color={Colors.textSecondary} />
+          <Text style={lsStyles.headerTitle}>Stock Alerts</Text>
+        </View>
+        <View style={lsStyles.headerBadges}>
+          {outCount > 0 && (
+            <View style={[lsStyles.badge, lsStyles.badgeOut]}>
+              <Text style={lsStyles.badgeText}>{outCount} out</Text>
+            </View>
+          )}
+          {lowCount > 0 && (
+            <View style={[lsStyles.badge, lsStyles.badgeLow]}>
+              <Text style={lsStyles.badgeText}>{lowCount} low</Text>
+            </View>
+          )}
+        </View>
+      </View>
+      {items.map((item, i) => (
+        <View key={`${item.name}-${i}`} style={[lsStyles.row, i < items.length - 1 && lsStyles.rowBorder]}>
+          <View style={[lsStyles.statusDot, item.status === 'out' ? lsStyles.dotOut : lsStyles.dotLow]} />
+          <Text style={lsStyles.itemName} numberOfLines={1}>{item.name}</Text>
+          <Text style={lsStyles.itemQty}>
+            {item.qty.toLocaleString()}{item.unit ? ` ${item.unit}` : ''}
+          </Text>
+        </View>
+      ))}
+      {onPress && (
+        <View style={lsStyles.footer}>
+          <Text style={lsStyles.footerText}>View Inventory</Text>
+          <Feather name="chevron-right" size={11} color={Colors.textMuted} />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+const lsStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerTitle: { fontSize: 13, fontWeight: '600', color: Colors.text },
+  headerBadges: { flexDirection: 'row', gap: 5 },
+  badge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  badgeOut: { backgroundColor: Colors.borderLight },
+  badgeLow: { backgroundColor: Colors.background },
+  badgeText: { fontSize: 10, fontWeight: '700', color: Colors.text },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 9,
+    gap: 8,
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    flexShrink: 0,
+  },
+  dotOut: { backgroundColor: Colors.text },
+  dotLow: { backgroundColor: Colors.textSecondary },
+  itemName: { flex: 1, fontSize: 13, color: Colors.text },
+  itemQty: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    paddingVertical: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+  },
+  footerText: { fontSize: 11, color: Colors.textMuted },
 });
 
 // ─── Week at a Glance Strip ───────────────────────────────────────────────────
@@ -1702,6 +1826,7 @@ export default function DashboardScreen() {
   const [overdueInvoices, setOverdueInvoices] = useState<ARInvoice[]>([]);
   const [topVendors, setTopVendors] = useState<Array<{ name: string; outstanding: number; billCount: number }>>([]);
   const [topCustomers, setTopCustomers] = useState<Array<{ name: string; outstanding: number; invoiceCount: number }>>([]);
+  const [lowStockItems, setLowStockItems] = useState<Array<{ name: string; qty: number; unit?: string; status: 'out' | 'low' }>>([]);
   const [dueSoonDays, setDueSoonDays] = useState(7);
   const [flaggedBillCount, setFlaggedBillCount] = useState(0);
   const [flaggedInvoiceCount, setFlaggedInvoiceCount] = useState(0);
@@ -1935,6 +2060,24 @@ export default function DashboardScreen() {
       if (buckets6.some((b) => b.apAmount > 0 || b.arAmount > 0)) {
         setDashMonthlyBuckets(buckets6);
       }
+    }).catch(() => {});
+
+    // Low-stock alert: read from inventory cache (populated when user visits Inventory)
+    const stockCid = selectedCompany?.id ?? 'all';
+    Promise.all([
+      getCached<StockBalance[]>(`inventory:stock:${stockCid}`),
+      getLowStockThreshold(),
+    ]).then(([cached, threshold]) => {
+      if (!cached) return;
+      const stock = cached.data;
+      const outItems = stock
+        .filter((s) => (s.qty ?? 0) <= 0)
+        .map((s) => ({ name: s.item_name, qty: s.qty ?? 0, unit: s.unit, status: 'out' as const }));
+      const lowItems = stock
+        .filter((s) => { const q = s.qty ?? 0; return q > 0 && q < threshold; })
+        .map((s) => ({ name: s.item_name, qty: s.qty ?? 0, unit: s.unit, status: 'low' as const }));
+      const all = [...outItems, ...lowItems].slice(0, 5);
+      setLowStockItems(all);
     }).catch(() => {});
   }, [selectedCompany]));
 
@@ -2394,6 +2537,17 @@ export default function DashboardScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+          </>
+        )}
+
+        {/* Low-Stock Alert — populated from inventory cache when user has visited Inventory */}
+        {lowStockItems.length > 0 && (
+          <>
+            <SectionHeader title="Inventory Alerts" meta={`${lowStockItems.length} item${lowStockItems.length !== 1 ? 's' : ''} need attention`} />
+            <LowStockAlertCard
+              items={lowStockItems}
+              onPress={() => navigation.navigate('Inventory')}
+            />
           </>
         )}
 
