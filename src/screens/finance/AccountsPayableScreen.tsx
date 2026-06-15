@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   RefreshControl,
@@ -211,6 +211,14 @@ export default function AccountsPayableScreen() {
 
   const overdueCount = dateFilteredBills.filter((b) => daysOverdue(b.due_date, b.status) > 0).length;
   const dueSoonCount = dateFilteredBills.filter((b) => { const d = daysDueIn(b.due_date, b.status); return d >= 0 && d <= dueSoonDays; }).length;
+
+  const topOverdueBills = useMemo(() => {
+    return bills
+      .map((b) => ({ b, od: daysOverdue(b.due_date, b.status) }))
+      .filter(({ od, b }) => od > 0 && (b.outstanding ?? (b.amount ?? 0) - (b.paid ?? 0)) > 0)
+      .sort((a, z) => z.od - a.od)
+      .slice(0, 5);
+  }, [bills]);
 
   // Pay-by mini bar: bucket unpaid bills by urgency
   const payByStats = (() => {
@@ -436,6 +444,22 @@ export default function AccountsPayableScreen() {
             <View style={styles.agingCard}>
               <AgingChart buckets={apAgingBuckets} />
             </View>
+
+            {topOverdueBills.length > 0 && (
+              <>
+                <SectionHeader
+                  title="Action Required"
+                  meta={`${topOverdueBills.length} most overdue · tap to view all`}
+                />
+                <APActionRequiredCard
+                  items={topOverdueBills}
+                  onViewAll={() => {
+                    setActiveTab('bills');
+                    setBillFilter('overdue');
+                  }}
+                />
+              </>
+            )}
 
             {bills.length > 0 && (
               <>
@@ -1317,6 +1341,94 @@ const atStyles = StyleSheet.create({
     marginTop: 6,
     textAlign: 'center',
   },
+});
+
+// ─── AP Action Required Card ──────────────────────────────────────────────────
+
+function APActionRequiredCard({
+  items,
+  onViewAll,
+}: {
+  items: Array<{ b: APBill; od: number }>;
+  onViewAll: () => void;
+}) {
+  return (
+    <View style={arcStyles.card}>
+      {items.map(({ b, od }, idx) => {
+        const outstanding = b.outstanding ?? (b.amount ?? 0) - (b.paid ?? 0);
+        const isLast = idx === items.length - 1;
+        return (
+          <View key={b.id} style={[arcStyles.row, !isLast && arcStyles.rowBorder]}>
+            <View style={arcStyles.rowLeft}>
+              <Text style={arcStyles.billNum} numberOfLines={1}>
+                {b.bill_number ?? `BILL-${b.id}`}
+              </Text>
+              <Text style={arcStyles.vendorName} numberOfLines={1}>
+                {b.vendor ?? '—'}
+              </Text>
+            </View>
+            <View style={arcStyles.rowRight}>
+              <Text style={arcStyles.amount}>{formatCurrency(outstanding)}</Text>
+              <View style={arcStyles.odBadge}>
+                <Text style={arcStyles.odText}>{od}d overdue</Text>
+              </View>
+            </View>
+          </View>
+        );
+      })}
+      <TouchableOpacity style={arcStyles.viewAllRow} onPress={onViewAll} activeOpacity={0.7}>
+        <Text style={arcStyles.viewAllText}>View all overdue bills</Text>
+        <Feather name="arrow-right" size={12} color={Colors.textSecondary} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const arcStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    justifyContent: 'space-between',
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  rowLeft: { flex: 1, marginRight: Spacing.sm },
+  billNum: { fontSize: 13, fontWeight: '600', color: Colors.text },
+  vendorName: { fontSize: 11, color: Colors.textMuted, marginTop: 1 },
+  rowRight: { alignItems: 'flex-end', gap: 3 },
+  amount: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  odBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    backgroundColor: Colors.borderLight,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  odText: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary },
+  viewAllRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+  },
+  viewAllText: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary },
 });
 
 const dpcStyles = StyleSheet.create({
