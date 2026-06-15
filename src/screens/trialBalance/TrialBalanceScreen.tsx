@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -35,6 +36,11 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function priorMonthLastDay(asOf: string): string {
+  const d = new Date(asOf);
+  return new Date(d.getFullYear(), d.getMonth(), 0).toISOString().slice(0, 10);
+}
+
 export default function TrialBalanceScreen() {
   const { companyId, selectedCompany: ctxCompany } = useCompany();
   const navigation = useNavigation<NavProp>();
@@ -46,6 +52,9 @@ export default function TrialBalanceScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isStale, setIsStale] = useState(false);
   const [search, setSearch] = useState('');
+  const [showMoM, setShowMoM] = useState(false);
+  const [priorResult, setPriorResult] = useState<TrialBalanceResult>({ rows: [] });
+  const [momLoading, setMomLoading] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
     const cacheKey = `trial-balance:${companyId ?? 'all'}:${asOf}`;
@@ -76,7 +85,22 @@ export default function TrialBalanceScreen() {
     }
   }, [companyId, asOf]);
 
+  const loadPrior = useCallback(async () => {
+    const prior = priorMonthLastDay(asOf);
+    const cacheKey = `trial-balance:${companyId ?? 'all'}:${prior}`;
+    const cached = await getCached<TrialBalanceResult>(cacheKey);
+    if (cached && !cached.stale) { setPriorResult(cached.data); return; }
+    setMomLoading(true);
+    try {
+      const data = await fetchTrialBalance(companyId, prior);
+      setPriorResult(data);
+      await setCached(cacheKey, data);
+    } catch { /* silent — MoM is optional */ }
+    finally { setMomLoading(false); }
+  }, [companyId, asOf]);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (showMoM) loadPrior(); }, [showMoM, loadPrior]);
 
   const handleDateChange = (v: DateRangeValue) => {
     setDateRange(v);
@@ -136,6 +160,13 @@ export default function TrialBalanceScreen() {
         {!loading && <Text style={styles.headerSub}>{filteredRows.length} accounts</Text>}
         {!loading && result.rows.length > 0 && (
           <>
+            <TouchableOpacity
+              style={[styles.exportBtn, showMoM && styles.exportBtnActive]}
+              onPress={() => setShowMoM((v) => !v)}
+            >
+              <Feather name="git-merge" size={13} color={showMoM ? Colors.surface : Colors.text} />
+              <Text style={[styles.exportBtnText, showMoM && styles.exportBtnTextActive]}>MoM</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.exportBtn} onPress={handleExportBundlePDF}>
               <Feather name="layers" size={13} color={Colors.text} />
               <Text style={styles.exportBtnText}>Bundle</Text>
@@ -206,47 +237,59 @@ export default function TrialBalanceScreen() {
           </View>
         )}
 
-        <SectionHeader
-          title="Account Balances"
-          meta={`${filteredRows.length} accounts`}
-        />
-
-        {filteredRows.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Feather name="book-open" size={36} color={Colors.textMuted} />
-            <Text style={styles.emptyText}>No accounts found</Text>
-          </View>
+        {showMoM ? (
+          <MoMSection
+            currentRows={filteredRows}
+            priorRows={priorResult.rows}
+            currentLabel={asOf.slice(0, 7)}
+            priorLabel={priorMonthLastDay(asOf).slice(0, 7)}
+            loading={momLoading}
+          />
         ) : (
-          <View style={styles.tableCard}>
-            <View style={[styles.tableRow, styles.tableHeaderRow]}>
-              <Text style={[styles.colAccount, styles.tableHeaderText]}>Account</Text>
-              <Text style={[styles.colAmount, styles.tableHeaderText]}>Debit</Text>
-              <Text style={[styles.colAmount, styles.tableHeaderText]}>Credit</Text>
-            </View>
+          <>
+            <SectionHeader
+              title="Account Balances"
+              meta={`${filteredRows.length} accounts`}
+            />
 
-            {filteredRows.map((row, idx) => (
-              <TBRow
-                key={row.account_id ?? idx}
-                row={row}
-                isLast={idx === filteredRows.length - 1}
-                onPress={!row.is_group ? () => navigation.navigate('AccountStatement', {
-                  accountCode: row.account_code ?? row.account_name ?? '',
-                  accountName: row.account_name ?? '',
-                  accountType: row.account_type,
-                }) : undefined}
-              />
-            ))}
+            {filteredRows.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Feather name="book-open" size={36} color={Colors.textMuted} />
+                <Text style={styles.emptyText}>No accounts found</Text>
+              </View>
+            ) : (
+              <View style={styles.tableCard}>
+                <View style={[styles.tableRow, styles.tableHeaderRow]}>
+                  <Text style={[styles.colAccount, styles.tableHeaderText]}>Account</Text>
+                  <Text style={[styles.colAmount, styles.tableHeaderText]}>Debit</Text>
+                  <Text style={[styles.colAmount, styles.tableHeaderText]}>Credit</Text>
+                </View>
 
-            <View style={[styles.tableRow, styles.tableTotalRow]}>
-              <Text style={[styles.colAccount, styles.tableTotalText]}>TOTAL</Text>
-              <Text style={[styles.colAmount, styles.tableTotalText]}>
-                {formatCurrency(totalDebit)}
-              </Text>
-              <Text style={[styles.colAmount, styles.tableTotalText, isOutOfBalance && styles.outOfBalance]}>
-                {formatCurrency(totalCredit)}
-              </Text>
-            </View>
-          </View>
+                {filteredRows.map((row, idx) => (
+                  <TBRow
+                    key={row.account_id ?? idx}
+                    row={row}
+                    isLast={idx === filteredRows.length - 1}
+                    onPress={!row.is_group ? () => navigation.navigate('AccountStatement', {
+                      accountCode: row.account_code ?? row.account_name ?? '',
+                      accountName: row.account_name ?? '',
+                      accountType: row.account_type,
+                    }) : undefined}
+                  />
+                ))}
+
+                <View style={[styles.tableRow, styles.tableTotalRow]}>
+                  <Text style={[styles.colAccount, styles.tableTotalText]}>TOTAL</Text>
+                  <Text style={[styles.colAmount, styles.tableTotalText]}>
+                    {formatCurrency(totalDebit)}
+                  </Text>
+                  <Text style={[styles.colAmount, styles.tableTotalText, isOutOfBalance && styles.outOfBalance]}>
+                    {formatCurrency(totalCredit)}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </>
         )}
 
         <View style={{ height: Spacing.xxl }} />
@@ -307,6 +350,133 @@ function TBRow({
   return content;
 }
 
+function fmtDelta(delta: number): string {
+  if (delta === 0) return '—';
+  const abs = Math.abs(delta);
+  const k = abs >= 1_000_000 ? `${(abs / 1_000_000).toFixed(1)}M` : abs >= 1_000 ? `${(abs / 1_000).toFixed(0)}K` : abs.toFixed(0);
+  return `${delta > 0 ? '+' : '-'}${k}`;
+}
+
+function MoMSection({
+  currentRows,
+  priorRows,
+  currentLabel,
+  priorLabel,
+  loading,
+}: {
+  currentRows: TrialBalanceRow[];
+  priorRows: TrialBalanceRow[];
+  currentLabel: string;
+  priorLabel: string;
+  loading: boolean;
+}) {
+  const priorMap = React.useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of priorRows) {
+      const key = r.account_code ?? r.account_name;
+      if (key) m.set(key, r.balance ?? (r.debit - r.credit));
+    }
+    return m;
+  }, [priorRows]);
+
+  if (loading) {
+    return (
+      <View style={momStyles.loader}>
+        <ActivityIndicator size="small" color={Colors.textMuted} />
+        <Text style={momStyles.loaderText}>Loading prior month…</Text>
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <SectionHeader
+        title="Month-over-Month"
+        meta={`${priorLabel} → ${currentLabel}`}
+      />
+      <View style={momStyles.tableCard}>
+        <View style={[momStyles.row, momStyles.headerRow]}>
+          <Text style={[momStyles.colName, momStyles.headerText]}>Account</Text>
+          <Text style={[momStyles.colAmt, momStyles.headerText]}>{priorLabel}</Text>
+          <Text style={[momStyles.colAmt, momStyles.headerText]}>{currentLabel}</Text>
+          <Text style={[momStyles.colDelta, momStyles.headerText]}>Δ</Text>
+        </View>
+        {currentRows.map((row, idx) => {
+          const key = row.account_code ?? row.account_name;
+          const curBal = row.balance ?? (row.debit - row.credit);
+          const priorBal = priorMap.get(key ?? '') ?? 0;
+          const delta = curBal - priorBal;
+          const isGroup = row.is_group;
+          const indent = (row.level ?? 0) * 10;
+          return (
+            <View
+              key={row.account_id ?? idx}
+              style={[
+                momStyles.row,
+                idx < currentRows.length - 1 && momStyles.rowBorder,
+                isGroup && momStyles.rowGroup,
+              ]}
+            >
+              <View style={[momStyles.colName, { paddingLeft: indent }]}>
+                <Text
+                  style={[momStyles.accountName, isGroup && momStyles.accountNameGroup]}
+                  numberOfLines={2}
+                >
+                  {row.account_code ? `${row.account_code} — ` : ''}{row.account_name}
+                </Text>
+              </View>
+              <Text style={[momStyles.colAmt, !priorBal && momStyles.amtMuted]}>
+                {priorBal !== 0 ? formatCurrency(Math.abs(priorBal)) : '—'}
+              </Text>
+              <Text style={[momStyles.colAmt, !curBal && momStyles.amtMuted]}>
+                {curBal !== 0 ? formatCurrency(Math.abs(curBal)) : '—'}
+              </Text>
+              <Text style={[momStyles.colDelta, delta > 0 && momStyles.deltaPos, delta < 0 && momStyles.deltaNeg]}>
+                {fmtDelta(delta)}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    </>
+  );
+}
+
+const momStyles = StyleSheet.create({
+  loader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, justifyContent: 'center', padding: Spacing.lg },
+  loaderText: { fontSize: 13, color: Colors.textMuted },
+  tableCard: {
+    marginHorizontal: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+  },
+  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border },
+  rowGroup: { backgroundColor: Colors.surfaceHover },
+  headerRow: {
+    backgroundColor: Colors.surfaceHover,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  headerText: { fontSize: 10, fontWeight: '700', color: Colors.textSecondary },
+  colName: { flex: 2, paddingRight: Spacing.xs },
+  colAmt: { flex: 1, fontSize: 11, fontWeight: '500', color: Colors.text, textAlign: 'right' },
+  amtMuted: { color: Colors.textMuted },
+  colDelta: { width: 44, fontSize: 11, fontWeight: '700', color: Colors.textSecondary, textAlign: 'right' },
+  deltaPos: { color: Colors.text },
+  deltaNeg: { color: Colors.textSecondary },
+  accountName: { fontSize: 11, color: Colors.text },
+  accountNameGroup: { fontWeight: '700', fontSize: 12 },
+});
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
 
@@ -333,6 +503,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   exportBtnText: { fontSize: 12, fontWeight: '600', color: Colors.text },
+  exportBtnActive: { backgroundColor: Colors.text, borderColor: Colors.text },
+  exportBtnTextActive: { color: Colors.surface },
 
   searchContainer: {
     paddingHorizontal: Spacing.md,

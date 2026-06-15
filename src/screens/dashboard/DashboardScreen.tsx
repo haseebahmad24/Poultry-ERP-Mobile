@@ -806,10 +806,12 @@ function WeekAtAGlanceStrip({
   dueByDay,
   selectedDay,
   onPressDay,
+  overdueAP,
 }: {
   dueByDay: Map<string, { apCount: number; arCount: number; apAmt: number; arAmt: number }>;
   selectedDay?: string | null;
   onPressDay: (dateStr: string) => void;
+  overdueAP?: number;
 }) {
   const [expanded, setExpanded] = React.useState(false);
   const dayCount = expanded ? 30 : 7;
@@ -868,6 +870,11 @@ function WeekAtAGlanceStrip({
     <View style={wagStyles.container}>
       <View style={wagStyles.header}>
         <Text style={wagStyles.headerTitle}>Week at a Glance</Text>
+        {overdueAP != null && overdueAP > 0 && (
+          <View style={wagStyles.overduePill}>
+            <Text style={wagStyles.overduePillText}>{overdueAP} AP overdue</Text>
+          </View>
+        )}
         <TouchableOpacity
           onPress={() => setExpanded((e) => !e)}
           style={wagStyles.expandToggle}
@@ -911,6 +918,18 @@ const wagStyles = StyleSheet.create({
     borderBottomColor: Colors.borderLight,
   },
   headerTitle: { fontSize: 12, fontWeight: '700', color: Colors.text, letterSpacing: 0.3 },
+  overduePill: {
+    flex: 1,
+    marginLeft: Spacing.sm,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surfaceHover,
+    alignSelf: 'center',
+  },
+  overduePillText: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary },
   expandToggle: {
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -2352,6 +2371,7 @@ export default function DashboardScreen() {
           onPressDay={(dateStr) => {
             setSelectedWAGDay((prev) => (prev === dateStr ? null : dateStr));
           }}
+          overdueAP={apOverdue > 0 ? apOverdue : undefined}
         />
         {selectedWAGDay != null && (
           <WAGDayDetail
