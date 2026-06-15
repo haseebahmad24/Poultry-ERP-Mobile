@@ -1,5 +1,37 @@
 # Mobile App Progress
 
+## Session 85 — 2026-06-15
+
+### Completed This Session
+
+**AccountsPayable — Action Required Card** (`src/screens/finance/AccountsPayableScreen.tsx`)
+- `topOverdueBills` useMemo: filters all bills with `daysOverdue > 0` and `outstanding > 0`, sorts by days overdue descending, slices top 5
+- `APActionRequiredCard` component: card with one row per overdue bill — bill number, vendor name, outstanding amount, "Xd overdue" badge; hairlineWidth separators between rows
+- "View all overdue bills" footer link: sets `activeTab = 'bills'` and `billFilter = 'overdue'` for immediate drill-down
+- Inserted in Summary tab before AgingTrend card, guarded by `topOverdueBills.length > 0`
+- `arcStyles`: monochrome card layout using Colors/Radius/Spacing tokens
+- Mirrors the AR `OverduePriorityCard` added in session 83
+
+**InventoryScreen — Category Stock Breakdown** (`src/screens/inventory/InventoryScreen.tsx`)
+- `fetchInventoryItems` added to imports and called in `load()` alongside stock/ledger/warehouses (parallel `Promise.all`); `itemsData` state + `loadItems` callback
+- `categoryBreakdown` useMemo: joins `StockBalance.item_id` → `InventoryItem.category`; computes total qty per category; falls back to "Uncategorized"; sorts by qty descending
+- `CategoryBreakdownCard` component: 10px proportional segmented horizontal bar + legend rows (colored dot + category name + pct + qty)
+- `CAT_FILLS`: uses `AgingFills` palette — index 4 (darkest) for the largest category, index 0 (lightest) for remaining
+- Shown in Stock tab when `stockFilter='all'`, no active search, and 2+ categories present; guarded by `categoryBreakdown.length > 1`
+- `cbStyles`: monochrome, no shadows, all Colors tokens
+
+### Catch-up: Session 84
+
+**Session 84** (ui-polish-mono audit): VTB_FILLS indices 1–3 and 5 in JournalEntriesScreen now reference `AgingFills[3/2/1/0]` (exact hex matches) instead of raw literals; `AgingFills` import added.
+
+### Next Session
+- Consider: TrialBalance — month-over-month comparison view (current month vs prior month side by side)
+- Consider: Dashboard — overdue AP urgency badge on the WAG strip header (count of bills overdue)
+- Consider: PurchaseOrders — delivery performance card (on-time vs late deliveries in the last 30 days)
+- Consider: AccountsPayable — "pay by" amount summary row in Summary tab (how much overdue vs due this week vs later)
+
+---
+
 ## Session 83 — 2026-06-15
 
 ### Completed This Session
