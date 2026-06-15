@@ -1,5 +1,38 @@
 # Mobile App Progress
 
+## Session 88 — 2026-06-15
+
+### Completed This Session
+
+**SalesOrders — Fulfillment Status Card** (`src/screens/salesOrders/SalesOrdersScreen.tsx`)
+- `deliveryPerf` useMemo: iterates all orders; CLOSED/CANCELLED/DELIVERED/COMPLETE → `completedCount`; open orders: `delivery_date` in past → `overdueCount`, ≤7d → `thisWeekCount`, 7d+ → `onTrackCount`
+- `DeliveryPerfCard` component: header row with package icon + "Fulfillment Status" title; tile grid with large number + label + sub-description per non-zero bucket; Fulfilled tiles use `tileValueDim` (textSecondary) to de-emphasize
+- Shown in 'register' (All) tab above Orders SectionHeader; guarded by `orders.length > 0`
+- `dpStyles`: monochrome card/tile/label styles; no shadows, no raw hex, all Colors tokens
+- Mirrors the PO `DeliveryPerfCard` added in session 86
+
+**Dashboard — Net Cash Flow Card** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `net7Flow` useMemo: sums `outstanding ?? amount ?? 0` from `due30Bills` and `due30Invoices` where days-to-due is 0–7; returns `{ arAmt, apAmt, net }`
+- `NetCashFlowCard` component: header with trending-up icon + "Next 7 Days — Cash Flow" title; 3-cell row (AR In / AP Out / Net) separated by hairline dividers; AR and AP cells are `TouchableOpacity` navigating to their respective screens
+- Net cell: `Colors.background` background to distinguish from flanking cells; negative net shown in `Colors.textSecondary`; positive net prefixed '+'
+- Placed between `DueTodayCard` and `WeekAtAGlanceStrip`; guarded by `arAmt > 0 || apAmt > 0`
+- `ncfStyles`: monochrome, Radius.lg card, all Colors tokens
+
+**AccountsPayable — Vendor Payment Rate Card** (`src/screens/finance/AccountsPayableScreen.tsx`)
+- `vendorPaymentStats` useMemo: per-vendor `totalBilled`, `totalPaid`, `billCount`, `paymentRate` (%), `avgTermsDays` (avg of due_date–dt for bills with both dates); overall rate and avg terms across all vendors; `topPayers` = top-3 by payment rate; `vendorRateMap` for per-card lookup
+- `VendorPaymentRateCard` component: KPI row (% Paid / Total Paid / Outstanding), proportional bar track (Colors.text fill), top-3 vendor payment rate list with footer label
+- `VendorCard`: gains `paymentRate?: number` prop; renders a "X% paid" pill badge in card header between bill count and chevron
+- Shown above Vendors `SectionHeader` in Vendors tab; guarded by `vendors.length > 0`
+- `vprStyles`: monochrome layout using Colors/Radius/Spacing tokens; `hairlineWidth` dividers; no shadows
+
+### Next Session
+- Consider: Dashboard — Net Working Capital (NWC) trend: plot NWC = AR total - AP total over the last 6 months
+- Consider: AccountsReceivable — customer payment velocity: % of invoices paid + avg collection period per customer
+- Consider: PurchaseOrders — vendor performance ranking: top 5 vendors by on-time delivery rate (% of POs delivered before due_date)
+- Consider: JournalEntries — account-level drill: tap a voucher type bar segment to filter entries to that voucher type and account
+
+---
+
 ## Session 86 — 2026-06-15
 
 ### Completed This Session
