@@ -303,6 +303,17 @@ export default function AccountsReceivableScreen() {
     { label: 'Over 90 days', shortLabel: '90d+',     amount: aging.over_90  ?? 0, fill: AGING_FILLS[4] },
   ];
 
+  // Top-5 most overdue invoices for the Action Required card in Summary tab
+  const topOverdueInvoices = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return invoices
+      .map((inv) => ({ inv, od: daysOverdue(inv.due_date, inv.status) }))
+      .filter(({ od, inv }) => od > 0 && (inv.outstanding ?? 0) > 0)
+      .sort((a, b) => b.od - a.od)
+      .slice(0, 5);
+  }, [invoices]);
+
   const handleExportPDF = async () => {
     await exportARSummaryPDF({
       summary,
@@ -406,6 +417,22 @@ export default function AccountsReceivableScreen() {
             <View style={styles.agingCard}>
               <AgingChart buckets={arAgingBuckets} />
             </View>
+
+            {topOverdueInvoices.length > 0 && (
+              <>
+                <SectionHeader
+                  title="Action Required"
+                  meta={`${topOverdueInvoices.length} most overdue · tap to view all`}
+                />
+                <OverduePriorityCard
+                  items={topOverdueInvoices}
+                  onViewAll={() => {
+                    setActiveTab('invoices');
+                    setInvoiceFilter('overdue');
+                  }}
+                />
+              </>
+            )}
 
             {arWeeklyBuckets.some((b) => b.amount > 0) && (
               <>
@@ -1167,4 +1194,93 @@ const dccStyles = StyleSheet.create({
   amt: { fontSize: 10, fontWeight: '700', color: Colors.text, marginTop: 3 },
   amtToday: { color: Colors.surface },
   amtEmpty: { height: 12 },
+});
+
+// ─── Overdue Priority Card ────────────────────────────────────────────────────
+
+function OverduePriorityCard({
+  items,
+  onViewAll,
+}: {
+  items: Array<{ inv: ARInvoice; od: number }>;
+  onViewAll: () => void;
+}) {
+  return (
+    <View style={opcStyles.card}>
+      {items.map(({ inv, od }, idx) => {
+        const outstanding = inv.outstanding ?? (inv.amount ?? 0) - (inv.paid ?? 0);
+        const isLast = idx === items.length - 1;
+        return (
+          <View key={inv.id} style={[opcStyles.row, !isLast && opcStyles.rowBorder]}>
+            <View style={opcStyles.rowLeft}>
+              <Text style={opcStyles.invoiceNum} numberOfLines={1}>
+                {inv.invoice_number ?? `INV-${inv.id}`}
+              </Text>
+              <Text style={opcStyles.customerName} numberOfLines={1}>
+                {inv.customer ?? '—'}
+              </Text>
+            </View>
+            <View style={opcStyles.rowRight}>
+              <Text style={opcStyles.amount}>{formatCurrency(outstanding)}</Text>
+              <View style={opcStyles.odBadge}>
+                <Text style={opcStyles.odText}>{od}d overdue</Text>
+              </View>
+            </View>
+          </View>
+        );
+      })}
+      <TouchableOpacity style={opcStyles.viewAllRow} onPress={onViewAll} activeOpacity={0.7}>
+        <Text style={opcStyles.viewAllText}>View all overdue invoices</Text>
+        <Feather name="arrow-right" size={12} color={Colors.textSecondary} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const opcStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    justifyContent: 'space-between',
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  rowLeft: { flex: 1, marginRight: Spacing.sm },
+  invoiceNum: { fontSize: 13, fontWeight: '600', color: Colors.text },
+  customerName: { fontSize: 11, color: Colors.textMuted, marginTop: 1 },
+  rowRight: { alignItems: 'flex-end', gap: 3 },
+  amount: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  odBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    backgroundColor: Colors.borderLight,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  odText: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary },
+  viewAllRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+    backgroundColor: Colors.background,
+  },
+  viewAllText: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary },
 });
