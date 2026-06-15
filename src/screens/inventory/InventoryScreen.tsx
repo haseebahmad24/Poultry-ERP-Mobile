@@ -14,14 +14,16 @@ import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Colors, Radius, Spacing, Typography } from '@/theme';
+import { AgingFills, Colors, Radius, Spacing, Typography } from '@/theme';
 import {
   fetchStockBalances,
   fetchStockLedger,
   fetchWarehouses,
+  fetchInventoryItems,
   StockBalance,
   StockLedgerEntry,
   Warehouse,
+  InventoryItem,
 } from '@/api/inventory';
 import ErrorView from '@/components/ErrorView';
 import ListScreenSkeleton from '@/components/ListScreenSkeleton';
@@ -150,6 +152,7 @@ export default function InventoryScreen() {
   const [stockData, setStockData] = useState<StockBalance[]>([]);
   const [ledgerData, setLedgerData] = useState<StockLedgerEntry[]>([]);
   const [warehouseData, setWarehouseData] = useState<Warehouse[]>([]);
+  const [itemsData, setItemsData] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -194,6 +197,11 @@ export default function InventoryScreen() {
     setWarehouseData(data);
   }, [companyId]);
 
+  const loadItems = useCallback(async () => {
+    const data = await fetchInventoryItems(companyId);
+    setItemsData(data);
+  }, [companyId]);
+
   const stockCacheKey = `inventory:stock:${companyId ?? 'all'}`;
 
   const load = useCallback(async (isRefresh = false) => {
@@ -213,7 +221,7 @@ export default function InventoryScreen() {
     }
     setError(null);
     try {
-      await Promise.all([loadStock(), loadLedger(), loadWarehouses()]);
+      await Promise.all([loadStock(), loadLedger(), loadWarehouses(), loadItems()]);
       setIsStale(false);
     } catch (e: any) {
       if (hadCachedData) {
@@ -225,7 +233,7 @@ export default function InventoryScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [loadStock, loadLedger, loadWarehouses, stockCacheKey]);
+  }, [loadStock, loadLedger, loadWarehouses, loadItems, stockCacheKey]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -294,6 +302,26 @@ export default function InventoryScreen() {
 
   const outOfStockCount = stockData.filter((s) => (s.qty ?? 0) <= 0).length;
   const lowStockCount = stockData.filter((s) => { const q = s.qty ?? 0; return q > 0 && q < lowStockThreshold; }).length;
+
+  const categoryBreakdown = useMemo(() => {
+    const itemCategoryMap = new Map<number, string>();
+    for (const item of itemsData) {
+      if (item.id != null && item.category) itemCategoryMap.set(item.id, item.category);
+    }
+    const catTotals = new Map<string, number>();
+    let totalQty = 0;
+    for (const s of stockData) {
+      const qty = s.qty ?? 0;
+      if (qty <= 0) continue;
+      const cat = (s.item_id != null ? itemCategoryMap.get(s.item_id) : undefined) ?? 'Uncategorized';
+      catTotals.set(cat, (catTotals.get(cat) ?? 0) + qty);
+      totalQty += qty;
+    }
+    if (totalQty === 0) return [];
+    return Array.from(catTotals.entries())
+      .map(([cat, qty]) => ({ cat, qty, pct: (qty / totalQty) * 100 }))
+      .sort((a, b) => b.qty - a.qty);
+  }, [stockData, itemsData]);
 
   const filteredLedger = ledgerData.filter((e) =>
     !search || e.item_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -517,6 +545,13 @@ export default function InventoryScreen() {
       >
         {activeTab === 'stock' && (
           <>
+            {categoryBreakdown.length > 1 && !search && stockFilter === 'all' && (
+              <>
+                <SectionHeader title="Stock by Category" meta={`${categoryBreakdown.length} categories`} />
+                <CategoryBreakdownCard breakdown={categoryBreakdown} />
+              </>
+            )}
+
             <SectionHeader
               title="Current Stock"
               meta={
@@ -1292,4 +1327,93 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   emptyText: { ...Typography.body, color: Colors.textMuted },
+});
+
+// ─── Category Breakdown Card ──────────────────────────────────────────────────
+
+const CAT_FILLS = [
+  AgingFills[4], // darkest — largest category
+  AgingFills[3],
+  AgingFills[2],
+  AgingFills[1],
+  AgingFills[0], // lightest — remaining
+] as const;
+
+function CategoryBreakdownCard({
+  breakdown,
+}: {
+  breakdown: Array<{ cat: string; qty: number; pct: number }>;
+}) {
+  const total = breakdown.reduce((s, r) => s + r.qty, 0);
+  if (total === 0 || breakdown.length === 0) return null;
+  return (
+    <View style={cbStyles.card}>
+      {/* Proportional segmented bar */}
+      <View style={cbStyles.bar}>
+        {breakdown.map((row, idx) => (
+          <View
+            key={row.cat}
+            style={[
+              cbStyles.segment,
+              { flex: row.qty / total, backgroundColor: CAT_FILLS[Math.min(idx, CAT_FILLS.length - 1)] },
+              idx === 0 && cbStyles.segmentFirst,
+              idx === breakdown.length - 1 && cbStyles.segmentLast,
+            ]}
+          />
+        ))}
+      </View>
+      {/* Legend rows */}
+      {breakdown.map((row, idx) => (
+        <View
+          key={row.cat}
+          style={[cbStyles.legendRow, idx < breakdown.length - 1 && cbStyles.legendRowBorder]}
+        >
+          <View
+            style={[cbStyles.dot, { backgroundColor: CAT_FILLS[Math.min(idx, CAT_FILLS.length - 1)] }]}
+          />
+          <Text style={cbStyles.catName} numberOfLines={1}>{row.cat}</Text>
+          <Text style={cbStyles.catPct}>{row.pct.toFixed(1)}%</Text>
+          <Text style={cbStyles.catQty}>{row.qty.toLocaleString()}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const cbStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  bar: {
+    flexDirection: 'row',
+    height: 10,
+  },
+  segment: { height: 10 },
+  segmentFirst: { borderTopLeftRadius: Radius.lg, borderBottomLeftRadius: Radius.lg },
+  segmentLast: { borderTopRightRadius: Radius.lg, borderBottomRightRadius: Radius.lg },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 9,
+    gap: Spacing.sm,
+  },
+  legendRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: Radius.full,
+  },
+  catName: { flex: 1, fontSize: 13, fontWeight: '500', color: Colors.text },
+  catPct: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary, minWidth: 42, textAlign: 'right' },
+  catQty: { fontSize: 13, fontWeight: '700', color: Colors.text, minWidth: 56, textAlign: 'right' },
 });
