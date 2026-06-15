@@ -307,6 +307,43 @@ export default function AccountsPayableScreen() {
     return map;
   }, [bills]);
 
+  // Per-vendor payment rate: total paid vs total billed, avg payment terms
+  const vendorPaymentStats = React.useMemo(() => {
+    const map = new Map<string, { totalBilled: number; totalPaid: number; termsDays: number[]; billCount: number }>();
+    for (const b of bills) {
+      const name = b.vendor ?? '';
+      if (!name) continue;
+      const amount = b.amount ?? 0;
+      const paid = b.paid ?? 0;
+      const entry = map.get(name) ?? { totalBilled: 0, totalPaid: 0, termsDays: [], billCount: 0 };
+      entry.totalBilled += amount;
+      entry.totalPaid += paid;
+      entry.billCount++;
+      if (b.dt && b.due_date) {
+        const issued = new Date(b.dt);
+        const due = new Date(b.due_date);
+        const termDays = Math.round((due.getTime() - issued.getTime()) / 86_400_000);
+        if (termDays >= 0 && termDays <= 180) entry.termsDays.push(termDays);
+      }
+      map.set(name, entry);
+    }
+    const rows = Array.from(map.entries()).map(([name, v]) => ({
+      name,
+      totalBilled: v.totalBilled,
+      totalPaid: v.totalPaid,
+      billCount: v.billCount,
+      paymentRate: v.totalBilled > 0 ? Math.round((v.totalPaid / v.totalBilled) * 100) : 0,
+      avgTermsDays: v.termsDays.length > 0 ? Math.round(v.termsDays.reduce((s, d) => s + d, 0) / v.termsDays.length) : null,
+    }));
+    const overallBilled = rows.reduce((s, r) => s + r.totalBilled, 0);
+    const overallPaid = rows.reduce((s, r) => s + r.totalPaid, 0);
+    const overallRate = overallBilled > 0 ? Math.round((overallPaid / overallBilled) * 100) : 0;
+    const allTerms = rows.flatMap((r) => r.avgTermsDays != null ? [r.avgTermsDays] : []);
+    const avgTerms = allTerms.length > 0 ? Math.round(allTerms.reduce((s, d) => s + d, 0) / allTerms.length) : null;
+    const topPayers = [...rows].sort((a, b) => b.paymentRate - a.paymentRate).slice(0, 3);
+    return { overallBilled, overallPaid, overallRate, avgTerms, topPayers, vendorRateMap: new Map(rows.map((r) => [r.name, r.paymentRate])) };
+  }, [bills]);
+
   // 30-day daily payment schedule — next 30 calendar days grouped by due_date
   const dailyPaymentSchedule: Array<{ dateStr: string; amount: number; count: number; isToday: boolean }> = (() => {
     const byDay = new Map<string, { amount: number; count: number }>();
@@ -707,6 +744,9 @@ export default function AccountsPayableScreen() {
                 )}
               </View>
             </View>
+            {vendors.length > 0 && (
+              <VendorPaymentRateCard stats={vendorPaymentStats} />
+            )}
             <SectionHeader title="Vendors" meta={`${filteredVendors.length} records`} />
             {filteredVendors.length === 0 ? (
               <EmptyState icon="briefcase" message={vendorSearch ? 'No vendors match search' : 'No vendors found'} />
@@ -717,6 +757,7 @@ export default function AccountsPayableScreen() {
                     key={v.id}
                     vendor={v}
                     aging={v.name ? vendorAgingMap.get(v.name) : undefined}
+                    paymentRate={v.name ? vendorPaymentStats.vendorRateMap.get(v.name) : undefined}
                     onPress={() => navigation.navigate('VendorDetail', {
                       vendorId: v.id,
                       vendorName: v.name ?? `Vendor ${v.id}`,
@@ -814,13 +855,128 @@ function BillCard({ bill, overdueDays, flagged, onToggleFlag, reviewed, onToggle
   );
 }
 
+interface VendorPaymentStats {
+  overallBilled: number;
+  overallPaid: number;
+  overallRate: number;
+  avgTerms: number | null;
+  topPayers: Array<{ name: string; paymentRate: number; totalBilled: number; totalPaid: number }>;
+  vendorRateMap: Map<string, number>;
+}
+
+function VendorPaymentRateCard({ stats }: { stats: VendorPaymentStats }) {
+  if (stats.overallBilled === 0) return null;
+  const outstanding = stats.overallBilled - stats.overallPaid;
+
+  return (
+    <View style={vprStyles.card}>
+      <View style={vprStyles.header}>
+        <Feather name="activity" size={13} color={Colors.textSecondary} />
+        <Text style={vprStyles.headerTitle}>Payment Overview</Text>
+        {stats.avgTerms != null && (
+          <Text style={vprStyles.headerMeta}>Net {stats.avgTerms}d avg terms</Text>
+        )}
+      </View>
+      <View style={vprStyles.kpiRow}>
+        <View style={vprStyles.kpi}>
+          <Text style={vprStyles.kpiValue}>{stats.overallRate}%</Text>
+          <Text style={vprStyles.kpiLabel}>Paid</Text>
+        </View>
+        <View style={vprStyles.kpiDivider} />
+        <View style={vprStyles.kpi}>
+          <Text style={vprStyles.kpiValue}>{formatCurrency(stats.overallPaid)}</Text>
+          <Text style={vprStyles.kpiLabel}>Total Paid</Text>
+        </View>
+        <View style={vprStyles.kpiDivider} />
+        <View style={vprStyles.kpi}>
+          <Text style={vprStyles.kpiValue}>{formatCurrency(outstanding)}</Text>
+          <Text style={vprStyles.kpiLabel}>Outstanding</Text>
+        </View>
+      </View>
+      <View style={vprStyles.barTrack}>
+        <View style={[vprStyles.barFill, { flex: stats.overallRate }]} />
+        <View style={{ flex: 100 - stats.overallRate }} />
+      </View>
+      {stats.topPayers.length > 0 && (
+        <>
+          <View style={vprStyles.divider} />
+          <View style={vprStyles.topList}>
+            {stats.topPayers.map((p, i) => (
+              <View key={p.name} style={[vprStyles.topRow, i > 0 && vprStyles.topRowBorder]}>
+                <Text style={vprStyles.topName} numberOfLines={1}>{p.name}</Text>
+                <Text style={vprStyles.topRate}>{p.paymentRate}%</Text>
+              </View>
+            ))}
+          </View>
+          <View style={vprStyles.topFooter}>
+            <Text style={vprStyles.topFooterText}>Top vendors by payment rate</Text>
+          </View>
+        </>
+      )}
+    </View>
+  );
+}
+
+const vprStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 9,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  headerTitle: { fontSize: 12, fontWeight: '700', color: Colors.text, flex: 1, letterSpacing: 0.3 },
+  headerMeta: { fontSize: 11, color: Colors.textMuted, fontWeight: '500' },
+  kpiRow: { flexDirection: 'row', paddingVertical: Spacing.md },
+  kpi: { flex: 1, alignItems: 'center', gap: 2 },
+  kpiDivider: { width: StyleSheet.hairlineWidth, backgroundColor: Colors.borderLight, marginVertical: 4 },
+  kpiValue: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  kpiLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '500' },
+  barTrack: {
+    flexDirection: 'row',
+    height: 4,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+    backgroundColor: Colors.borderLight,
+  },
+  barFill: { height: '100%', backgroundColor: Colors.text },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: Colors.borderLight, marginHorizontal: Spacing.md },
+  topList: { paddingHorizontal: Spacing.md },
+  topRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7 },
+  topRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.borderLight },
+  topName: { flex: 1, fontSize: 12, color: Colors.text, fontWeight: '500' },
+  topRate: { fontSize: 12, fontWeight: '700', color: Colors.text },
+  topFooter: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 7,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.borderLight,
+  },
+  topFooterText: { fontSize: 10, color: Colors.textMuted },
+});
+
 function VendorCard({
   vendor: v,
   aging,
+  paymentRate,
   onPress,
 }: {
   vendor: APVendor;
   aging?: { current: number; d30: number; d60: number; d90: number; over90: number };
+  paymentRate?: number;
   onPress?: () => void;
 }) {
   const agingTotal = aging ? aging.current + aging.d30 + aging.d60 + aging.d90 + aging.over90 : 0;
@@ -840,6 +996,11 @@ function VendorCard({
         <Text style={[styles.cardTitle, { flex: 1 }]}>{v.name ?? `Vendor ${v.id}`}</Text>
         {v.bills_count != null && (
           <Text style={styles.countBadge}>{v.bills_count} bills</Text>
+        )}
+        {paymentRate != null && (
+          <View style={vendorAgingStyles.rateBadge}>
+            <Text style={vendorAgingStyles.rateBadgeText}>{paymentRate}% paid</Text>
+          </View>
         )}
         <Feather name="chevron-right" size={16} color={Colors.textMuted} />
       </View>
@@ -887,6 +1048,15 @@ const vendorAgingStyles = StyleSheet.create({
   seg: { height: '100%' },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   leg: { fontSize: 10, color: Colors.textMuted, fontWeight: '500' },
+  rateBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  rateBadgeText: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary },
 });
 
 function EmptyState({ icon, message }: { icon: string; message: string }) {

@@ -676,6 +676,93 @@ const dtStyles = StyleSheet.create({
   rowAmt: { fontSize: 12, fontWeight: '700', color: Colors.text },
 });
 
+// ─── Net Cash Flow Card ───────────────────────────────────────────────────────
+
+function NetCashFlowCard({
+  arAmt,
+  apAmt,
+  net,
+  onPressAR,
+  onPressAP,
+}: {
+  arAmt: number;
+  apAmt: number;
+  net: number;
+  onPressAR: () => void;
+  onPressAP: () => void;
+}) {
+  if (arAmt === 0 && apAmt === 0) return null;
+
+  return (
+    <View style={ncfStyles.card}>
+      <View style={ncfStyles.header}>
+        <Feather name="trending-up" size={12} color={Colors.text} />
+        <Text style={ncfStyles.headerTitle}>Next 7 Days — Cash Flow</Text>
+      </View>
+      <View style={ncfStyles.cellRow}>
+        <TouchableOpacity style={ncfStyles.cell} onPress={onPressAR} activeOpacity={0.7}>
+          <Text style={ncfStyles.cellLabel}>AR In</Text>
+          <Text style={ncfStyles.cellValue}>{formatCurrency(arAmt)}</Text>
+          <Text style={ncfStyles.cellSub}>invoices due</Text>
+        </TouchableOpacity>
+        <View style={ncfStyles.cellDivider} />
+        <TouchableOpacity style={ncfStyles.cell} onPress={onPressAP} activeOpacity={0.7}>
+          <Text style={ncfStyles.cellLabel}>AP Out</Text>
+          <Text style={ncfStyles.cellValue}>{formatCurrency(apAmt)}</Text>
+          <Text style={ncfStyles.cellSub}>bills due</Text>
+        </TouchableOpacity>
+        <View style={ncfStyles.cellDivider} />
+        <View style={[ncfStyles.cell, ncfStyles.cellNet]}>
+          <Text style={ncfStyles.cellLabel}>Net</Text>
+          <Text style={[ncfStyles.cellValue, net < 0 && ncfStyles.cellValueNeg]}>
+            {net >= 0 ? '+' : ''}{formatCurrency(net)}
+          </Text>
+          <Text style={ncfStyles.cellSub}>{net >= 0 ? 'surplus' : 'shortfall'}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const ncfStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 9,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  headerTitle: { fontSize: 12, fontWeight: '700', color: Colors.text, letterSpacing: 0.3 },
+  cellRow: { flexDirection: 'row' },
+  cell: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    gap: 2,
+  },
+  cellNet: { backgroundColor: Colors.background },
+  cellDivider: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.borderLight,
+    marginVertical: Spacing.sm,
+  },
+  cellLabel: { fontSize: 10, fontWeight: '600', color: Colors.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
+  cellValue: { fontSize: 15, fontWeight: '700', color: Colors.text },
+  cellValueNeg: { color: Colors.textSecondary },
+  cellSub: { fontSize: 10, color: Colors.textMuted },
+});
+
 // ─── Low-Stock Alert Card ─────────────────────────────────────────────────────
 
 function LowStockAlertCard({
@@ -1939,6 +2026,28 @@ export default function DashboardScreen() {
     return map;
   }, [due30Bills, due30Invoices]);
 
+  // Net cash flow: next 7 days AR inflow (invoices due) minus AP outflow (bills due)
+  const net7Flow = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let arAmt = 0, apAmt = 0;
+    for (const inv of due30Invoices) {
+      if (!inv.due_date) continue;
+      const due = new Date(inv.due_date);
+      due.setHours(0, 0, 0, 0);
+      const d = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+      if (d >= 0 && d <= 7) arAmt += inv.outstanding ?? inv.amount ?? 0;
+    }
+    for (const b of due30Bills) {
+      if (!b.due_date) continue;
+      const due = new Date(b.due_date);
+      due.setHours(0, 0, 0, 0);
+      const d = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+      if (d >= 0 && d <= 7) apAmt += b.outstanding ?? b.amount ?? 0;
+    }
+    return { arAmt, apAmt, net: arAmt - apAmt };
+  }, [due30Bills, due30Invoices]);
+
   const load = useCallback(async (isRefresh = false, isSilent = false) => {
     let hadCachedData = false;
     if (isRefresh && !isSilent) {
@@ -2361,6 +2470,17 @@ export default function DashboardScreen() {
             invoices={dueTodayInvoices}
             onPressBills={() => navigation.navigate('Finance', { screen: 'AccountsPayable' } as any)}
             onPressInvoices={() => navigation.navigate('Finance', { screen: 'AccountsReceivable' } as any)}
+          />
+        )}
+
+        {/* Net Cash Flow — next 7 days AR inflow vs AP outflow */}
+        {(net7Flow.arAmt > 0 || net7Flow.apAmt > 0) && (
+          <NetCashFlowCard
+            arAmt={net7Flow.arAmt}
+            apAmt={net7Flow.apAmt}
+            net={net7Flow.net}
+            onPressAR={() => navigation.navigate('Finance', { screen: 'AccountsReceivable' } as any)}
+            onPressAP={() => navigation.navigate('Finance', { screen: 'AccountsPayable' } as any)}
           />
         )}
 

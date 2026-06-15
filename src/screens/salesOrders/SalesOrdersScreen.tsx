@@ -120,6 +120,25 @@ export default function SalesOrdersScreen() {
   const filteredTotal = filtered.reduce((s, so) => s + (so.total ?? 0), 0);
   const filteredAvg = filtered.length > 0 ? filteredTotal / filtered.length : 0;
 
+  const deliveryPerf = React.useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let overdueCount = 0, thisWeekCount = 0, onTrackCount = 0, completedCount = 0;
+    for (const so of orders) {
+      const st = (so.status ?? '').toUpperCase();
+      const isClosed = ['CLOSED', 'CANCELLED', 'DELIVERED', 'COMPLETE'].includes(st);
+      if (isClosed) { completedCount++; continue; }
+      if (!so.delivery_date) continue;
+      const due = new Date(so.delivery_date);
+      due.setHours(0, 0, 0, 0);
+      const days = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+      if (days < 0) overdueCount++;
+      else if (days <= 7) thisWeekCount++;
+      else onTrackCount++;
+    }
+    return { overdueCount, thisWeekCount, onTrackCount, completedCount };
+  }, [orders]);
+
   const handleExport = async () => {
     setExporting(true);
     try {
@@ -205,6 +224,10 @@ export default function SalesOrdersScreen() {
               />
             }
           >
+            {activeTab === 'register' && orders.length > 0 && (
+              <DeliveryPerfCard perf={deliveryPerf} />
+            )}
+
             <SectionHeader title="Orders" meta={`${filtered.length} total`} />
 
             {filtered.length > 0 && filteredTotal > 0 && (
@@ -243,6 +266,84 @@ export default function SalesOrdersScreen() {
     </SafeAreaView>
   );
 }
+
+interface DeliveryPerf {
+  overdueCount: number;
+  thisWeekCount: number;
+  onTrackCount: number;
+  completedCount: number;
+}
+
+function DeliveryPerfCard({ perf }: { perf: DeliveryPerf }) {
+  const total = perf.overdueCount + perf.thisWeekCount + perf.onTrackCount + perf.completedCount;
+  if (total === 0) return null;
+  const tiles: Array<{ label: string; value: number; sub: string; dim?: boolean }> = [
+    { label: 'Overdue', value: perf.overdueCount, sub: 'delivery past due' },
+    { label: 'This Week', value: perf.thisWeekCount, sub: 'due in 7 days' },
+    { label: 'On Track', value: perf.onTrackCount, sub: '7+ days out' },
+    { label: 'Fulfilled', value: perf.completedCount, sub: 'closed / delivered', dim: true },
+  ].filter((t) => t.value > 0);
+
+  return (
+    <View style={dpStyles.card}>
+      <View style={dpStyles.header}>
+        <Feather name="package" size={13} color={Colors.textSecondary} />
+        <Text style={dpStyles.title}>Fulfillment Status</Text>
+      </View>
+      <View style={dpStyles.tileRow}>
+        {tiles.map((t) => (
+          <View key={t.label} style={dpStyles.tile}>
+            <Text style={[dpStyles.tileValue, t.dim && dpStyles.tileValueDim]}>{t.value}</Text>
+            <Text style={dpStyles.tileLabel}>{t.label}</Text>
+            <Text style={dpStyles.tileSub}>{t.sub}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const dpStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 9,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  title: { fontSize: 12, fontWeight: '700', color: Colors.text, letterSpacing: 0.3 },
+  tileRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  tile: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.background,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    gap: 2,
+  },
+  tileValue: { fontSize: 22, fontWeight: '700', color: Colors.text },
+  tileValueDim: { color: Colors.textSecondary },
+  tileLabel: { fontSize: 11, fontWeight: '600', color: Colors.text },
+  tileSub: { fontSize: 10, color: Colors.textMuted, textAlign: 'center' },
+});
 
 function SOCard({ so, onPress }: { so: SalesOrder; onPress: () => void }) {
   const isClosed = ['CLOSED', 'CANCELLED'].includes((so.status ?? '').toUpperCase());
