@@ -1,5 +1,38 @@
 # Mobile App Progress
 
+## Session 86 — 2026-06-15
+
+### Completed This Session
+
+**Dashboard — WAG Overdue AP Badge** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `WeekAtAGlanceStrip` gains `overdueAP?: number` prop
+- When `overdueAP > 0`: renders `overduePill` View between `headerTitle` and `expandToggle`
+- Pill text: "N AP overdue"; `flex: 1` fills space without crowding the expand toggle
+- `wagStyles`: `overduePill` (surfaceHover bg, hairlineWidth border, Radius.full) + `overduePillText` (10px, 600wt, textSecondary)
+- Call site: `overdueAP={apOverdue > 0 ? apOverdue : undefined}` from `useOverdue()` context
+
+**PurchaseOrders — Delivery Performance Card** (`src/screens/purchaseOrders/PurchaseOrdersScreen.tsx`)
+- `deliveryPerf` useMemo: iterates all orders; CLOSED/CANCELLED/RECEIVED/COMPLETE → `completedCount`; open orders: `delivery_date` in past → `overdueCount`, ≤7d → `thisWeekCount`, 7d+ → `onTrackCount`
+- `DeliveryPerfCard` component: header row with truck icon + "Delivery Status" title; tile grid with large number + label + sub-description per non-zero bucket
+- Completed tiles use `tileValueDim` (textSecondary) to de-emphasize; shown in "All" tab above the Orders section header
+- `dpStyles`: monochrome card/tile/label styles; no shadows, no raw hex, all Colors tokens
+
+**TrialBalance — Month-over-Month Comparison** (`src/screens/trialBalance/TrialBalanceScreen.tsx`)
+- `priorMonthLastDay(asOf)`: returns ISO date for last day of the prior calendar month
+- `showMoM` boolean state; `loadPrior()` fetches/caches prior month TB (silent fail); triggered on `showMoM` toggle
+- Header: "MoM" toggle button (git-merge icon); active state = Colors.text bg + Colors.surface text (filled button)
+- `MoMSection` component: builds `priorMap` (Map<key, balance>); renders 4-column table: Account | Prior | Current | Δ
+- `fmtDelta()`: formats delta as +/- with K/M shorthand; positive = Colors.text, negative = textSecondary
+- `momLoading` spinner shown while prior data fetches; `momStyles` monochrome, all Radius/Spacing tokens
+
+### Next Session
+- Consider: AccountsPayable — vendor payment velocity: avg days from invoice receipt to payment per vendor
+- Consider: Dashboard — Net Cash Flow tile: AR due next 7 days minus AP due next 7 days = net position
+- Consider: PurchaseOrders — vendor performance ranking: top 5 vendors by on-time delivery rate
+- Consider: SalesOrders — delivery performance card mirroring the PO delivery card (on-time vs late fulfillments)
+
+---
+
 ## Session 85 — 2026-06-15
 
 ### Completed This Session
