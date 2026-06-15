@@ -1,5 +1,45 @@
 # Mobile App Progress
 
+## Session 83 — 2026-06-15
+
+### Completed This Session
+
+**Dashboard — WAG Strip 30-Day Expand Toggle** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `due30Bills` / `due30Invoices` state: bills and invoices due within the next 30 calendar days, computed in `useFocusEffect` via a new `filter30Day` filter (independent of the user's `dueSoonDays` setting)
+- `dueByDay` memo now uses `due30Bills`/`due30Invoices` so the map has entries for the full 30-day window; `WAGDayDetail` also uses these arrays for day-detail filtering
+- `WeekAtAGlanceStrip`: internal `expanded: boolean` state toggled by a pill button in the header ("7d" ↔ "30d"); always generates 30 day objects but slices to 7 or 30 depending on mode; 7-day mode = fixed `flex:1` cells in a `View`; 30-day mode = fixed 40px cells in a horizontal `ScrollView` with `gap: 3`
+- New wagStyles: `expandToggle`, `expandToggleText`, `cellFixed`, `stripScrollContent`
+
+**JournalEntries — Voucher Type Distribution Bar** (`src/screens/journalEntries/JournalEntriesScreen.tsx`)
+- `VoucherTypeBar` component: full-width segmented proportional horizontal bar (height 28px) where each segment's width = `typeDebit / totalDebit`; uses `VTB_FILLS` 8-shade grayscale palette; segments ≥ 10% show an inline type label
+- Legend grid below bar: colored dot + type name + percentage + count×, tappable to filter entries to that type via `onSelectType` callback
+- Mounted between `MonthlyVoucherChart` and "Vouchers" section header when `typeAmountSummary.length > 1`; guarded by total debit > 0
+- Removed the old `typeBreakdownRow` pill row (superseded); `vtbStyles` added at bottom of file
+
+**AccountsReceivable — Overdue Invoice Priority Card** (`src/screens/finance/AccountsReceivableScreen.tsx`)
+- `topOverdueInvoices` useMemo: filters all invoices to those with `daysOverdue > 0` and `outstanding > 0`, sorts by days overdue descending, slices top 5
+- `OverduePriorityCard` component: card with one row per overdue invoice — invoice number, customer name, outstanding amount, "Xd overdue" badge; hairlineWidth separators between rows
+- "View all overdue invoices" footer link: sets `activeTab = 'invoices'` and `invoiceFilter = 'overdue'` for immediate drill-down
+- Inserted in Summary tab after Aging Analysis, before Collection Schedule; guarded by `topOverdueInvoices.length > 0`
+- `opcStyles`: monochrome card layout using Colors/Radius/Spacing tokens
+
+### Catch-up: Sessions 81 and 82
+
+**Session 81** (ui-polish-mono audit): fixed sparkline `dotBorderWidth` ternaries to constant `1`
+
+**Session 82 — LowStockAlertCard, AP Vendor Aging Bar, DUS Trend Sparkline** (`DashboardScreen.tsx`, `AccountsPayableScreen.tsx`, `InventoryScreen.tsx`)
+- Dashboard: `LowStockAlertCard` reads inventory cache on focus, shows top-5 out-of-stock and low-stock items, tap navigates to Inventory screen
+- AccountsPayable Vendors tab: `vendorAgingMap` useMemo groups bills by vendor; `VendorCard` shows 5-segment proportional aging bar using `AgingFills` colors
+- InventoryScreen: `DUSInfo.trend` array (4 quartile windows) computed inside `computeInventoryDUS`; `DUSTrendRow` component renders 4 vertical bars with critical/low/normal coloring
+
+### Next Session
+- Consider: AccountsPayable — mirror the new AR OverduePriorityCard as an AP "Action Required" overdue bills card in the AP Summary tab
+- Consider: Dashboard — Net Cash Flow gauge: single number (AR collections due - AP payments due) in next 7 days with +/- indicator
+- Consider: InventoryScreen — category-level stock value breakdown (pie/segments by category)
+- Consider: TrialBalance — month-over-month comparison view (current month vs prior month side by side)
+
+---
+
 ## Session 80 — 2026-06-14
 
 ### Completed This Session
