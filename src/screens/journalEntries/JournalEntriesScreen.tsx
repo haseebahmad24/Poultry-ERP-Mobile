@@ -1972,7 +1972,6 @@ const VTB_FILLS: readonly string[] = [
   AgingFills[3],      // gray-700    #374151
   AgingFills[2],      // gray-500    #6b7280
   AgingFills[1],      // gray-400    #9ca3af
-  '#c4c4c4',          // gray-300ish (no exact token)
   AgingFills[0],      // gray-300    #d1d5db
   Colors.border,      // light gray  #e5e7eb
   Colors.borderLight, // near-white  #f3f4f6
@@ -1980,7 +1979,7 @@ const VTB_FILLS: readonly string[] = [
 
 const VTB_TEXT: readonly string[] = [
   Colors.surface, Colors.surface, Colors.surface, Colors.text,
-  Colors.text,    Colors.text,    Colors.text,    Colors.text,
+  Colors.text,    Colors.text,    Colors.text,
 ];
 
 function VoucherTypeBar({
