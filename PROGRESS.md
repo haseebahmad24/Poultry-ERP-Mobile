@@ -213,6 +213,10 @@
 
 ## UI Polish Log (Monochrome)
 
+### 2026-06-15 — Session-84 audit: VTB_FILLS AgingFills token normalization
+Full post-build audit of all screens and components. Zero violations found: no semantic hex colors, no emojis, no fontWeight > '700', no fontSize < 10, no borderWidth > 1, no elevation > 1, no shadow beyond minimal (shadowOpacity ≤ 0.04). All recently-added screens (AlertsScreen, BookmarksScreen, FinanceMenuScreen, MoreMenuScreen, SearchScreen, SettingsScreen, ComparisonScreen, DeliveryCalendarScreen, AccountStatementScreen, JournalEntryDetailScreen, PartnerDetailScreen, PODetailScreen, MaterialDetailScreen, StockHealthScreen) confirmed clean — built after theme was already monochrome.
+One token normalization applied: `JournalEntriesScreen` VTB_FILLS indices 1–3 and 5 replaced with `AgingFills[3]`, `AgingFills[2]`, `AgingFills[1]`, `AgingFills[0]` respectively — exact hex matches (#374151, #6b7280, #9ca3af, #d1d5db) now reference the shared grayscale token instead of raw literals. Index 4 (#c4c4c4, no exact token) retained as-is. `AgingFills` added to import.
+
 ### 2026-06-15 — Session-83 audit: VTB_FILLS/VTB_TEXT token normalization
 Post-build audit of all three Session-83 additions: Dashboard WAG 30-day expand toggle, JournalEntries VoucherTypeBar, AR OverduePriorityCard. All three are clean: Colors tokens, Radius tokens, `StyleSheet.hairlineWidth` borders, Feather icons, no emojis, no shadows, all fontSize ≥ 10, all fontWeight ≤ '700'.
 One cleanup applied: `JournalEntriesScreen` VTB_FILLS/VTB_TEXT arrays converted from `as const` literal tuples to `readonly string[]` typed arrays, using `Colors.text`, `Colors.surface`, `Colors.border`, and `Colors.borderLight` tokens where exact matches exist (indices 0, 6, 7 for fills; all entries for text). The four intermediate grays (`#374151`, `#6b7280`, `#9ca3af`, `#c4c4c4`, `#d1d5db`) remain as-is since they have no direct Colors token equivalents — all are valid monochrome grays.

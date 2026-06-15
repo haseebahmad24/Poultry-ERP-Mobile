@@ -18,7 +18,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Colors, Radius, Spacing, Typography } from '@/theme';
+import { AgingFills, Colors, Radius, Spacing, Typography } from '@/theme';
 import { fetchJournalEntries, JournalEntry } from '@/api/journalEntries';
 import { fetchTrialBalance, TrialBalanceRow } from '@/api/trialBalance';
 import type { FinanceStackParamList } from '@/navigation/FinanceNavigator';
@@ -1968,14 +1968,14 @@ const styles = StyleSheet.create({
 // ─── Voucher Type Distribution Bar ───────────────────────────────────────────
 
 const VTB_FILLS: readonly string[] = [
-  Colors.text,     // near-black
-  '#374151',       // gray-700
-  '#6b7280',       // gray-500
-  '#9ca3af',       // gray-400
-  '#c4c4c4',       // gray-300ish
-  '#d1d5db',       // gray-300
-  Colors.border,   // #e5e7eb
-  Colors.borderLight, // #f3f4f6
+  Colors.text,        // near-black  #0a0a0a
+  AgingFills[3],      // gray-700    #374151
+  AgingFills[2],      // gray-500    #6b7280
+  AgingFills[1],      // gray-400    #9ca3af
+  '#c4c4c4',          // gray-300ish (no exact token)
+  AgingFills[0],      // gray-300    #d1d5db
+  Colors.border,      // light gray  #e5e7eb
+  Colors.borderLight, // near-white  #f3f4f6
 ];
 
 const VTB_TEXT: readonly string[] = [
