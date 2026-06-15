@@ -811,11 +811,14 @@ function WeekAtAGlanceStrip({
   selectedDay?: string | null;
   onPressDay: (dateStr: string) => void;
 }) {
+  const [expanded, setExpanded] = React.useState(false);
+  const dayCount = expanded ? 30 : 7;
+
   const days = React.useMemo(() => {
     const result: Array<{ dateStr: string; dayNum: number; dayName: string; isToday: boolean }> = [];
     const base = new Date();
     base.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 30; i++) {
       const d = new Date(base.getTime() + i * 86_400_000);
       result.push({
         dateStr: d.toISOString().slice(0, 10),
@@ -827,40 +830,63 @@ function WeekAtAGlanceStrip({
     return result;
   }, []);
 
+  const visibleDays = days.slice(0, dayCount);
   const hasAny = days.some((d) => dueByDay.has(d.dateStr));
   if (!hasAny) return null;
+
+  const cellNodes = visibleDays.map((day) => {
+    const data = dueByDay.get(day.dateStr);
+    const hasAP = (data?.apCount ?? 0) > 0;
+    const hasAR = (data?.arCount ?? 0) > 0;
+    const active = hasAP || hasAR;
+    const isSelected = selectedDay === day.dateStr;
+    return (
+      <TouchableOpacity
+        key={day.dateStr}
+        style={[
+          wagStyles.cell,
+          expanded && wagStyles.cellFixed,
+          day.isToday && wagStyles.cellToday,
+          active && !day.isToday && !isSelected && wagStyles.cellActive,
+          isSelected && wagStyles.cellSelected,
+        ]}
+        activeOpacity={active ? 0.7 : 1}
+        onPress={() => active && onPressDay(day.dateStr)}
+      >
+        <Text style={[wagStyles.dayName, day.isToday && wagStyles.dayNameToday]}>{day.dayName}</Text>
+        <Text style={[wagStyles.dayNum, day.isToday && wagStyles.dayNumToday, active && wagStyles.dayNumActive]}>{day.dayNum}</Text>
+        <View style={wagStyles.dots}>
+          {hasAP && <View style={wagStyles.dotAP} />}
+          {hasAR && <View style={wagStyles.dotAR} />}
+          {!hasAP && !hasAR && <View style={wagStyles.dotEmpty} />}
+        </View>
+      </TouchableOpacity>
+    );
+  });
 
   return (
     <View style={wagStyles.container}>
       <View style={wagStyles.header}>
         <Text style={wagStyles.headerTitle}>Week at a Glance</Text>
-        <Text style={wagStyles.headerMeta}>due · next 7 days</Text>
+        <TouchableOpacity
+          onPress={() => setExpanded((e) => !e)}
+          style={wagStyles.expandToggle}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text style={wagStyles.expandToggleText}>{expanded ? '7d' : '30d'}</Text>
+        </TouchableOpacity>
       </View>
-      <View style={wagStyles.strip}>
-        {days.map((day) => {
-          const data = dueByDay.get(day.dateStr);
-          const hasAP = (data?.apCount ?? 0) > 0;
-          const hasAR = (data?.arCount ?? 0) > 0;
-          const active = hasAP || hasAR;
-          const isSelected = selectedDay === day.dateStr;
-          return (
-            <TouchableOpacity
-              key={day.dateStr}
-              style={[wagStyles.cell, day.isToday && wagStyles.cellToday, active && !day.isToday && !isSelected && wagStyles.cellActive, isSelected && wagStyles.cellSelected]}
-              activeOpacity={active ? 0.7 : 1}
-              onPress={() => active && onPressDay(day.dateStr)}
-            >
-              <Text style={[wagStyles.dayName, day.isToday && wagStyles.dayNameToday]}>{day.dayName}</Text>
-              <Text style={[wagStyles.dayNum, day.isToday && wagStyles.dayNumToday, active && wagStyles.dayNumActive]}>{day.dayNum}</Text>
-              <View style={wagStyles.dots}>
-                {hasAP && <View style={wagStyles.dotAP} />}
-                {hasAR && <View style={wagStyles.dotAR} />}
-                {!hasAP && !hasAR && <View style={wagStyles.dotEmpty} />}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {expanded ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={wagStyles.stripScrollContent}
+        >
+          {cellNodes}
+        </ScrollView>
+      ) : (
+        <View style={wagStyles.strip}>{cellNodes}</View>
+      )}
     </View>
   );
 }
@@ -885,17 +911,34 @@ const wagStyles = StyleSheet.create({
     borderBottomColor: Colors.borderLight,
   },
   headerTitle: { fontSize: 12, fontWeight: '700', color: Colors.text, letterSpacing: 0.3 },
-  headerMeta: { fontSize: 11, color: Colors.textMuted },
+  expandToggle: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surfaceHover,
+  },
+  expandToggleText: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary },
   strip: {
     flexDirection: 'row',
     paddingVertical: Spacing.sm,
     paddingHorizontal: 4,
+  },
+  stripScrollContent: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: 4,
+    gap: 3,
   },
   cell: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 6,
     borderRadius: Radius.md,
+  },
+  cellFixed: {
+    flex: 0,
+    width: 40,
   },
   cellToday: {
     backgroundColor: Colors.text,
@@ -1821,6 +1864,8 @@ export default function DashboardScreen() {
   const [exportingCombined, setExportingCombined] = useState(false);
   const [dueSoonBills, setDueSoonBills] = useState<APBill[]>([]);
   const [dueSoonInvoices, setDueSoonInvoices] = useState<ARInvoice[]>([]);
+  const [due30Bills, setDue30Bills] = useState<APBill[]>([]);
+  const [due30Invoices, setDue30Invoices] = useState<ARInvoice[]>([]);
   const [selectedWAGDay, setSelectedWAGDay] = useState<string | null>(null);
   const [overdueBills, setOverdueBills] = useState<APBill[]>([]);
   const [overdueInvoices, setOverdueInvoices] = useState<ARInvoice[]>([]);
@@ -1855,17 +1900,17 @@ export default function DashboardScreen() {
     return dueSoonInvoices.filter((inv) => inv.due_date === todayStr);
   }, [dueSoonInvoices]);
 
-  // 7-day due map: dateStr → { apCount, arCount, apAmt, arAmt }
+  // 30-day due map for WAG strip: dateStr → { apCount, arCount, apAmt, arAmt }
   const dueByDay = useMemo(() => {
     const map = new Map<string, { apCount: number; arCount: number; apAmt: number; arAmt: number }>();
-    for (const b of dueSoonBills) {
+    for (const b of due30Bills) {
       if (!b.due_date) continue;
       const e = map.get(b.due_date) ?? { apCount: 0, arCount: 0, apAmt: 0, arAmt: 0 };
       e.apCount++;
       e.apAmt += b.outstanding ?? b.amount ?? 0;
       map.set(b.due_date, e);
     }
-    for (const inv of dueSoonInvoices) {
+    for (const inv of due30Invoices) {
       if (!inv.due_date) continue;
       const e = map.get(inv.due_date) ?? { apCount: 0, arCount: 0, apAmt: 0, arAmt: 0 };
       e.arCount++;
@@ -1873,7 +1918,7 @@ export default function DashboardScreen() {
       map.set(inv.due_date, e);
     }
     return map;
-  }, [dueSoonBills, dueSoonInvoices]);
+  }, [due30Bills, due30Invoices]);
 
   const load = useCallback(async (isRefresh = false, isSilent = false) => {
     let hadCachedData = false;
@@ -1977,6 +2022,18 @@ export default function DashboardScreen() {
 
       setDueSoonBills((bills ?? []).filter((b) => filterDueSoon(b.due_date, b.status)));
       setDueSoonInvoices((invoices ?? []).filter((inv) => filterDueSoon(inv.due_date, inv.status)));
+
+      // 30-day window for WAG strip (independent of dsd setting)
+      const filter30Day = (dueDate: string | undefined, status: string | undefined) => {
+        if (!dueDate || !isActiveStatus(status)) return false;
+        const due = new Date(dueDate);
+        due.setHours(0, 0, 0, 0);
+        const d = Math.floor((due.getTime() - today.getTime()) / 86_400_000);
+        return d >= 0 && d <= 30;
+      };
+      setDue30Bills((bills ?? []).filter((b) => filter30Day(b.due_date, b.status)));
+      setDue30Invoices((invoices ?? []).filter((inv) => filter30Day(inv.due_date, inv.status)));
+
       setOverdueBills((bills ?? []).filter((b) => filterOverdue(b.due_date, b.status)));
       setOverdueInvoices((invoices ?? []).filter((inv) => filterOverdue(inv.due_date, inv.status)));
 
@@ -2299,8 +2356,8 @@ export default function DashboardScreen() {
         {selectedWAGDay != null && (
           <WAGDayDetail
             dateStr={selectedWAGDay}
-            bills={dueSoonBills.filter((b) => b.due_date === selectedWAGDay)}
-            invoices={dueSoonInvoices.filter((inv) => inv.due_date === selectedWAGDay)}
+            bills={due30Bills.filter((b) => b.due_date === selectedWAGDay)}
+            invoices={due30Invoices.filter((inv) => inv.due_date === selectedWAGDay)}
             onClose={() => setSelectedWAGDay(null)}
             onViewPayables={() => navigation.navigate('Finance', { screen: 'AccountsPayable' } as any)}
             onViewReceivables={() => navigation.navigate('Finance', { screen: 'AccountsReceivable' } as any)}
