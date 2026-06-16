@@ -4,6 +4,32 @@
 
 - **2026-06-16** — Session-89 audit: DashboardScreen `NWCTrendCard` fontSize 9 → 10 for `monthLabel` + `nwcVal`; VendorRankCard (PO) and CustomerCollectionRateCard (AR) clean — all Colors tokens, hairline borders, no semantic colors.
 
+## Session 90 — 2026-06-16
+
+### Completed This Session
+
+**SalesOrders — Customer Revenue Ranking Card** (`src/screens/salesOrders/SalesOrdersScreen.tsx`)
+- `customerRevenue` useMemo: groups all orders by customer name, sums `total` per customer, sorts descending, retains top 5
+- `CustomerRevenueCard` component: ranked list (#1–5) with customer name, proportional bar, total revenue and SO count
+- Bar proportional to `total / maxTotal`; hairline track with `Colors.text` fill; `as any` cast for percentage width
+- Shown in All (register) tab when `customerRevenue.length >= 2` and no active search text; `crStyles` monochrome
+
+**Dashboard — 7-Day Cash Flow Forecast Chart** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `cashFlowForecast` useMemo: iterates next 7 days, per-day AR = sum of `due30Invoices` matching date, AP = sum of `due30Bills` matching date
+- `CashFlowForecastChart` component: for each of 7 days, two mini bars side-by-side (AR = `Colors.text`, AP = `Colors.textSecondary`)
+- Bar height proportional to `amount / maxAmt × 40px`, minimum 3px when amount > 0; Today column highlighted with `Colors.background`
+- Legend in header row (dark dot = AR, gray dot = AP); guarded by `hasAny` check
+- Placed between `NetCashFlowCard` and `WeekAtAGlanceStrip`; `cffStyles`: monochrome, hairline borders, no shadows
+
+### Next Session
+- Consider: JournalEntries — account-level drill: tap a voucher type segment to also filter by account
+- Consider: AccountsPayable — vendor payment velocity display: show `avgTermsDays` as "avg Xd terms" on each VendorCard
+- Consider: Dashboard — Collections vs Payments 7-day forecast already done; next: overdue aging heatmap
+- Consider: SalesOrders — period comparison: toggle current vs prior period total with % change badge
+- Consider: Inventory — reorder suggestion card: items where qty < reorder threshold
+
+---
+
 ## Session 89 — 2026-06-16
 
 ### Completed This Session
