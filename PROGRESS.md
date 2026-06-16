@@ -33,6 +33,7 @@
 
 ### UI Polish Log (Monochrome)
 
+- **2026-06-16** — Session-92 audit: OverdueAgingHeatmap (Dashboard), AP vendor terms badge, Inventory ReorderSuggestionCard — all clean. Heatmap uses `rgba(0,0,0,…)` intensity (monochrome); urgency bars use Colors.text/textSecondary/textMuted (black→gray scale); terms badge uses Colors.textMuted + hairline border. Full sweep of all 37 screens and 29 components: zero semantic hex colors, no emojis, no fontWeight > 700, no fontSize < 10, no borderWidth > 1 (sparkline dot 1px white halos confirmed intentional from session 81). All shared filter migrations (CompanySelector + DateRangeBar) confirmed complete across Inventory, JournalEntries, TrialBalance, FinancialReports, AP, AR.
 - **2026-06-16** — Session-91 audit: DashboardScreen `cffStyles.dayLabel` fontSize 9 → 10 (CashFlowForecastChart added in session 90); full sweep of screens and components — no raw hex colors, no semantic colors, no heavy shadows, no emojis found; borderWidth 1 in sparkline dots confirmed intentional.
 - **2026-06-16** — Session-89 audit: DashboardScreen `NWCTrendCard` fontSize 9 → 10 for `monthLabel` + `nwcVal`; VendorRankCard (PO) and CustomerCollectionRateCard (AR) clean — all Colors tokens, hairline borders, no semantic colors.
 
