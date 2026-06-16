@@ -1078,6 +1078,140 @@ const lsStyles = StyleSheet.create({
   footerText: { fontSize: 11, color: Colors.textMuted },
 });
 
+// ─── Overdue Aging Heatmap ────────────────────────────────────────────────────
+
+const OD_BUCKET_LABELS = ['1-30d', '31-60d', '61-90d', '90+d'];
+
+function fmtHeat(amt: number): string {
+  if (amt >= 1_000_000) return `${(amt / 1_000_000).toFixed(1)}M`;
+  if (amt >= 1_000) return `${(amt / 1_000).toFixed(0)}K`;
+  if (amt > 0) return `${Math.round(amt)}`;
+  return '—';
+}
+
+function OverdueAgingHeatmap({
+  apBuckets,
+  arBuckets,
+}: {
+  apBuckets: AgingMicroBucket[];
+  arBuckets: AgingMicroBucket[];
+}) {
+  // indices 1-4 are the overdue buckets (0 = Current / not yet due)
+  const apOd = apBuckets.slice(1, 5);
+  const arOd = arBuckets.slice(1, 5);
+  if (apOd.length === 0 && arOd.length === 0) return null;
+  const allAmts = [...apOd, ...arOd].map((b) => b.amount);
+  const maxAmt = Math.max(...allAmts, 1);
+
+  const rows: Array<{ label: string; buckets: AgingMicroBucket[] }> = [
+    { label: 'AP', buckets: apOd },
+    { label: 'AR', buckets: arOd },
+  ];
+
+  return (
+    <View style={oahStyles.card}>
+      <View style={oahStyles.headerRow}>
+        <Text style={oahStyles.title}>Overdue Aging</Text>
+        <View style={oahStyles.colHeaders}>
+          {OD_BUCKET_LABELS.map((lbl) => (
+            <Text key={lbl} style={oahStyles.colLabel}>{lbl}</Text>
+          ))}
+        </View>
+      </View>
+      {rows.map((row, ri) => (
+        <View key={row.label} style={[oahStyles.row, ri < rows.length - 1 && oahStyles.rowBorder]}>
+          <Text style={oahStyles.rowLabel}>{row.label}</Text>
+          <View style={oahStyles.cells}>
+            {row.buckets.map((b, ci) => {
+              const intensity = b.amount > 0 ? Math.max(0.08, b.amount / maxAmt) : 0;
+              return (
+                <View
+                  key={ci}
+                  style={[
+                    oahStyles.cell,
+                    ci < row.buckets.length - 1 && oahStyles.cellBorder,
+                    b.amount > 0 && { backgroundColor: `rgba(0,0,0,${(intensity * 0.28).toFixed(3)})` },
+                  ]}
+                >
+                  <Text style={[oahStyles.cellAmt, b.amount === 0 && oahStyles.cellAmtEmpty]}>
+                    {fmtHeat(b.amount)}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const oahStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+    gap: Spacing.sm,
+  },
+  title: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    minWidth: 28,
+  },
+  colHeaders: { flex: 1, flexDirection: 'row' },
+  colLabel: {
+    flex: 1,
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.textMuted,
+    textAlign: 'center',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    gap: Spacing.sm,
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  rowLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    minWidth: 28,
+  },
+  cells: { flex: 1, flexDirection: 'row', gap: 2 },
+  cell: {
+    flex: 1,
+    height: 36,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cellBorder: {},
+  cellAmt: { fontSize: 11, fontWeight: '700', color: Colors.text },
+  cellAmtEmpty: { color: Colors.textMuted },
+});
+
 // ─── Week at a Glance Strip ───────────────────────────────────────────────────
 
 const DAY_ABBREVS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -2672,6 +2806,11 @@ export default function DashboardScreen() {
               )}
             </View>
           </View>
+        )}
+
+        {/* Overdue Aging Heatmap — 2×4 grid of overdue buckets for AP and AR */}
+        {(apAgingBuckets.some((b, i) => i > 0 && b.amount > 0) || arAgingBuckets.some((b, i) => i > 0 && b.amount > 0)) && (
+          <OverdueAgingHeatmap apBuckets={apAgingBuckets} arBuckets={arAgingBuckets} />
         )}
 
         {/* Due Today — items specifically due today */}
