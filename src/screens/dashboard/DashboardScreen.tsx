@@ -445,6 +445,92 @@ const dashSparkStyles = StyleSheet.create({
   selAmountText: { fontSize: 11, color: Colors.text },
 });
 
+// ─── NWC Trend Card ──────────────────────────────────────────────────────────
+
+function NWCTrendCard({
+  buckets,
+}: {
+  buckets: Array<{ label: string; apAmount: number; arAmount: number }>;
+}) {
+  if (buckets.length < 2) return null;
+  const nwcBuckets = buckets.map((b) => ({ label: b.label, nwc: b.arAmount - b.apAmount }));
+  const maxAbs = Math.max(...nwcBuckets.map((b) => Math.abs(b.nwc)), 1);
+  const latest = nwcBuckets[nwcBuckets.length - 1];
+  const isPositive = latest.nwc >= 0;
+  const fmtShort = (v: number) => {
+    const a = Math.abs(v);
+    if (a >= 1_000_000) return `${(a / 1_000_000).toFixed(1)}M`;
+    if (a >= 1_000) return `${(a / 1_000).toFixed(1)}K`;
+    return Math.round(a).toString();
+  };
+
+  return (
+    <View style={nwcStyles.card}>
+      <View style={nwcStyles.headerRow}>
+        <Text style={nwcStyles.title}>Net Working Capital</Text>
+        <Text style={[nwcStyles.latestNWC, isPositive ? nwcStyles.pos : nwcStyles.neg]}>
+          {isPositive ? '+' : '−'}{fmtShort(latest.nwc)}
+        </Text>
+      </View>
+      <View style={nwcStyles.chartRow}>
+        {nwcBuckets.map((b) => {
+          const barH = Math.max(Math.round((Math.abs(b.nwc) / maxAbs) * 36), 2);
+          const positive = b.nwc >= 0;
+          return (
+            <View key={b.label} style={nwcStyles.colWrap}>
+              <View style={nwcStyles.barArea}>
+                <View
+                  style={[
+                    nwcStyles.bar,
+                    { height: barH },
+                    positive ? nwcStyles.barPos : nwcStyles.barNeg,
+                  ]}
+                />
+              </View>
+              <Text style={nwcStyles.monthLabel}>{b.label}</Text>
+              <Text style={[nwcStyles.nwcVal, positive ? nwcStyles.pos : nwcStyles.neg]}>
+                {positive ? '+' : '−'}{fmtShort(b.nwc)}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+      <Text style={nwcStyles.hint}>AR billed − AP billed · 6-month</Text>
+    </View>
+  );
+}
+
+const nwcStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  title: { fontSize: 12, fontWeight: '700', color: Colors.text },
+  latestNWC: { fontSize: 15, fontWeight: '700' },
+  pos: { color: Colors.text },
+  neg: { color: Colors.textSecondary },
+  chartRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: Spacing.xs,
+  },
+  colWrap: { flex: 1, alignItems: 'center', gap: 3 },
+  barArea: { height: 36, justifyContent: 'flex-end', width: '100%', alignItems: 'center' },
+  bar: { width: '55%', borderRadius: Radius.sm },
+  barPos: { backgroundColor: Colors.text },
+  barNeg: { backgroundColor: Colors.textSecondary },
+  monthLabel: { fontSize: 9, color: Colors.textMuted, fontWeight: '500' },
+  nwcVal: { fontSize: 9, fontWeight: '600' },
+  hint: { fontSize: 10, color: Colors.textMuted, textAlign: 'center' },
+});
+
 // ─── Quick Insights ──────────────────────────────────────────────────────────
 
 type InsightType = 'positive' | 'alert' | 'neutral';
@@ -2684,6 +2770,7 @@ export default function DashboardScreen() {
               meta="6-month billed · AP · AR"
             />
             <DashMonthlySparkline buckets={dashMonthlyBuckets} />
+            <NWCTrendCard buckets={dashMonthlyBuckets} />
           </>
         )}
 

@@ -143,6 +143,37 @@ export default function PurchaseOrdersScreen() {
     return { overdueCount, thisWeekCount, onTrackCount, completedCount };
   }, [orders]);
 
+  const vendorPerf = React.useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const map = new Map<string, { total: number; completed: number; overdue: number }>();
+    for (const po of orders) {
+      const name = po.vendor?.trim() || 'Unknown';
+      const entry = map.get(name) ?? { total: 0, completed: 0, overdue: 0 };
+      entry.total++;
+      const st = (po.status ?? '').toUpperCase();
+      if (['CLOSED', 'CANCELLED', 'RECEIVED', 'COMPLETE'].includes(st)) {
+        entry.completed++;
+      } else if (po.delivery_date) {
+        const due = new Date(po.delivery_date);
+        due.setHours(0, 0, 0, 0);
+        if (due < today) entry.overdue++;
+      }
+      map.set(name, entry);
+    }
+    return Array.from(map.entries())
+      .map(([name, v]) => ({
+        name,
+        total: v.total,
+        completed: v.completed,
+        overdue: v.overdue,
+        rate: Math.round((v.completed / Math.max(v.total, 1)) * 100),
+      }))
+      .filter((v) => v.total >= 1)
+      .sort((a, b) => b.rate - a.rate || b.total - a.total)
+      .slice(0, 5);
+  }, [orders]);
+
   const handleExport = async () => {
     setExporting(true);
     try {
@@ -229,6 +260,10 @@ export default function PurchaseOrdersScreen() {
           >
             {activeTab === 'all' && orders.length > 0 && (
               <DeliveryPerfCard perf={deliveryPerf} />
+            )}
+
+            {activeTab === 'all' && vendorPerf.length >= 2 && (
+              <VendorRankCard vendors={vendorPerf} />
             )}
 
             <SectionHeader title="Orders" meta={`${filtered.length} total`} />
@@ -346,6 +381,94 @@ const dpStyles = StyleSheet.create({
   tileValueDim: { color: Colors.textSecondary },
   tileLabel: { fontSize: 11, fontWeight: '600', color: Colors.text },
   tileSub: { fontSize: 10, color: Colors.textMuted, textAlign: 'center' },
+});
+
+interface VendorPerfRow { name: string; total: number; completed: number; overdue: number; rate: number }
+
+function VendorRankCard({ vendors }: { vendors: VendorPerfRow[] }) {
+  if (vendors.length === 0) return null;
+  return (
+    <View style={vrStyles.card}>
+      <View style={vrStyles.header}>
+        <Feather name="award" size={13} color={Colors.textSecondary} />
+        <Text style={vrStyles.title}>Vendor Performance</Text>
+        <Text style={vrStyles.subtitle}>completion rate</Text>
+      </View>
+      {vendors.map((v, i) => (
+        <View key={v.name} style={[vrStyles.row, i > 0 && vrStyles.rowBorder]}>
+          <Text style={vrStyles.rank}>{i + 1}</Text>
+          <View style={vrStyles.vendorInfo}>
+            <Text style={vrStyles.vendorName} numberOfLines={1}>{v.name}</Text>
+            <View style={vrStyles.barTrack}>
+              <View style={[vrStyles.barFill, { width: `${v.rate}%` as any }]} />
+            </View>
+          </View>
+          <View style={vrStyles.rightCol}>
+            <Text style={vrStyles.rateText}>{v.rate}%</Text>
+            <Text style={vrStyles.poCount}>{v.total} PO{v.total !== 1 ? 's' : ''}</Text>
+          </View>
+          {v.overdue > 0 && (
+            <View style={vrStyles.overduePill}>
+              <Text style={vrStyles.overduePillText}>{v.overdue} late</Text>
+            </View>
+          )}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const vrStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 9,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  title: { fontSize: 12, fontWeight: '700', color: Colors.text, letterSpacing: 0.3 },
+  subtitle: { fontSize: 11, color: Colors.textMuted, marginLeft: 'auto' as any },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 9,
+    gap: Spacing.sm,
+  },
+  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.borderLight },
+  rank: { fontSize: 11, fontWeight: '700', color: Colors.textMuted, width: 16, textAlign: 'center' },
+  vendorInfo: { flex: 1, gap: 4 },
+  vendorName: { fontSize: 13, fontWeight: '600', color: Colors.text },
+  barTrack: {
+    height: 3,
+    backgroundColor: Colors.borderLight,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+  },
+  barFill: { height: '100%', backgroundColor: Colors.text, borderRadius: Radius.full },
+  rightCol: { alignItems: 'flex-end', minWidth: 44 },
+  rateText: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  poCount: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
+  overduePill: {
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surfaceHover,
+  },
+  overduePillText: { fontSize: 10, color: Colors.textSecondary, fontWeight: '600' },
 });
 
 function POCard({ po, onPress }: { po: PurchaseOrder; onPress: () => void }) {

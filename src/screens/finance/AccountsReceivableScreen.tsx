@@ -248,6 +248,35 @@ export default function AccountsReceivableScreen() {
     ? customers.filter((c) => c.name?.toLowerCase().includes(customerSearch.toLowerCase()))
     : customers;
 
+  const customerCollectionStats = useMemo(() => {
+    const byName = new Map<string, { totalInvoiced: number; totalPaid: number; count: number }>();
+    let grandInvoiced = 0, grandPaid = 0;
+    for (const inv of invoices) {
+      const name = inv.customer?.trim() || `Customer ${inv.customer_id ?? inv.id}`;
+      const amount = inv.amount ?? 0;
+      const paid = inv.paid ?? 0;
+      grandInvoiced += amount;
+      grandPaid += paid;
+      const e = byName.get(name) ?? { totalInvoiced: 0, totalPaid: 0, count: 0 };
+      e.totalInvoiced += amount;
+      e.totalPaid += paid;
+      e.count++;
+      byName.set(name, e);
+    }
+    const overallRate = grandInvoiced > 0 ? Math.round((grandPaid / grandInvoiced) * 100) : 0;
+    const top3 = Array.from(byName.entries())
+      .map(([name, v]) => ({
+        name,
+        count: v.count,
+        totalInvoiced: v.totalInvoiced,
+        rate: v.totalInvoiced > 0 ? Math.round((v.totalPaid / v.totalInvoiced) * 100) : 0,
+      }))
+      .filter((r) => r.totalInvoiced > 0)
+      .sort((a, b) => b.rate - a.rate || b.totalInvoiced - a.totalInvoiced)
+      .slice(0, 3);
+    return { overallRate, grandInvoiced, grandPaid, top3 };
+  }, [invoices]);
+
   // DSO per customer: avg age (days since invoice dt) of outstanding invoices
   const customerDSOMap = useMemo(() => {
     const today = new Date();
@@ -673,6 +702,9 @@ export default function AccountsReceivableScreen() {
                 )}
               </View>
             </View>
+            {!customerSearch.trim() && invoices.length > 0 && (
+              <CustomerCollectionRateCard stats={customerCollectionStats} />
+            )}
             <SectionHeader title="Customers" meta={`${filteredCustomers.length} records`} />
             {filteredCustomers.length === 0 ? (
               <EmptyState icon="users" message={customerSearch ? 'No customers match search' : 'No customers found'} />
@@ -1283,4 +1315,143 @@ const opcStyles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   viewAllText: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary },
+});
+
+// ─── Customer Collection Rate Card ───────────────────────────────────────────
+
+interface CollectionStats {
+  overallRate: number;
+  grandInvoiced: number;
+  grandPaid: number;
+  top3: Array<{ name: string; count: number; totalInvoiced: number; rate: number }>;
+}
+
+function CustomerCollectionRateCard({ stats }: { stats: CollectionStats }) {
+  if (stats.grandInvoiced === 0 || stats.top3.length === 0) return null;
+  return (
+    <View style={ccrStyles.card}>
+      <View style={ccrStyles.header}>
+        <Feather name="trending-up" size={13} color={Colors.textSecondary} />
+        <Text style={ccrStyles.title}>Collection Rate</Text>
+      </View>
+      <View style={ccrStyles.kpiRow}>
+        <View style={ccrStyles.kpiCell}>
+          <Text style={ccrStyles.kpiValue}>{stats.overallRate}%</Text>
+          <Text style={ccrStyles.kpiLabel}>Collected</Text>
+        </View>
+        <View style={ccrStyles.kpiDivider} />
+        <View style={ccrStyles.kpiCell}>
+          <Text style={ccrStyles.kpiValue}>{formatCurrency(stats.grandPaid)}</Text>
+          <Text style={ccrStyles.kpiLabel}>Total Paid</Text>
+        </View>
+        <View style={ccrStyles.kpiDivider} />
+        <View style={ccrStyles.kpiCell}>
+          <Text style={ccrStyles.kpiValue}>{formatCurrency(stats.grandInvoiced - stats.grandPaid)}</Text>
+          <Text style={ccrStyles.kpiLabel}>Outstanding</Text>
+        </View>
+      </View>
+      <View style={ccrStyles.trackRow}>
+        <View style={ccrStyles.track}>
+          <View style={[ccrStyles.trackFill, { width: `${stats.overallRate}%` as any }]} />
+        </View>
+        <Text style={ccrStyles.trackPct}>{stats.overallRate}%</Text>
+      </View>
+      <Text style={ccrStyles.sectionLabel}>TOP COLLECTORS</Text>
+      {stats.top3.map((c, i) => (
+        <View key={c.name} style={[ccrStyles.row, i > 0 && ccrStyles.rowBorder]}>
+          <Text style={ccrStyles.rowRank}>{i + 1}</Text>
+          <View style={ccrStyles.rowInfo}>
+            <Text style={ccrStyles.rowName} numberOfLines={1}>{c.name}</Text>
+            <View style={ccrStyles.rowBarTrack}>
+              <View style={[ccrStyles.rowBarFill, { width: `${c.rate}%` as any }]} />
+            </View>
+          </View>
+          <View style={ccrStyles.rowRight}>
+            <Text style={ccrStyles.rowRate}>{c.rate}%</Text>
+            <Text style={ccrStyles.rowCount}>{c.count} inv</Text>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const ccrStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 9,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  title: { fontSize: 12, fontWeight: '700', color: Colors.text, letterSpacing: 0.3 },
+  kpiRow: {
+    flexDirection: 'row',
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  kpiCell: { flex: 1, alignItems: 'center', gap: 2 },
+  kpiDivider: { width: StyleSheet.hairlineWidth, backgroundColor: Colors.borderLight, marginVertical: 4 },
+  kpiValue: { fontSize: 14, fontWeight: '700', color: Colors.text },
+  kpiLabel: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
+  trackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  track: {
+    flex: 1,
+    height: 4,
+    backgroundColor: Colors.borderLight,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+  },
+  trackFill: { height: '100%', backgroundColor: Colors.text, borderRadius: Radius.full },
+  trackPct: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary, width: 28, textAlign: 'right' },
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+    paddingHorizontal: Spacing.md,
+    paddingTop: 8,
+    paddingBottom: 2,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 9,
+    gap: Spacing.sm,
+  },
+  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.borderLight },
+  rowRank: { fontSize: 11, fontWeight: '700', color: Colors.textMuted, width: 16, textAlign: 'center' },
+  rowInfo: { flex: 1, gap: 4 },
+  rowName: { fontSize: 13, fontWeight: '600', color: Colors.text },
+  rowBarTrack: {
+    height: 3,
+    backgroundColor: Colors.borderLight,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+  },
+  rowBarFill: { height: '100%', backgroundColor: Colors.text, borderRadius: Radius.full },
+  rowRight: { alignItems: 'flex-end', minWidth: 40 },
+  rowRate: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  rowCount: { fontSize: 10, color: Colors.textMuted, marginTop: 1 },
 });
