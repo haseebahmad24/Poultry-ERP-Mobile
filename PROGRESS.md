@@ -1,5 +1,36 @@
 # Mobile App Progress
 
+## Session 92 — 2026-06-16
+
+### Completed This Session
+
+**AccountsPayable — Vendor Payment Velocity (avg terms)** (`src/screens/finance/AccountsPayableScreen.tsx`)
+- Added `vendorTermsMap` to `vendorPaymentStats` useMemo: `Map<vendorName, avgTermsDays>` (per-vendor avg days from bill issue to due date)
+- `VendorCard` accepts new `avgTermsDays?: number` prop; renders `termsBadge` pill "avg Xd terms" before existing paymentRate badge
+- `termsBadge` / `termsBadgeText` styles: hairline border, `Colors.borderLight`, `Colors.textMuted` — visually lighter than paymentRate badge
+
+**Inventory — Reorder Suggestion Card** (`src/screens/inventory/InventoryScreen.tsx`)
+- `itemTotals` useMemo: aggregate total qty + unit per item name across all warehouses
+- `reorderItems` useMemo: items where DUS ≤ 30d (from dusMap) OR qty < lowStockThreshold; sorted by urgency (out-of-stock first, then lowest DUS); capped at 8
+- `ReorderSuggestionCard` component: per-item row with 3px left urgency bar (critical=text/≤7d, warning=textSecondary/8-14d, caution=textMuted/15-30d+low), item name, on-hand qty + avg daily usage, DUS badge (or "OUT")
+- Shown in Stock tab above category breakdown when no active search and filter='all'; `rsStyles`: monochrome, hairline borders
+
+**Dashboard — Overdue Aging Heatmap** (`src/screens/dashboard/DashboardScreen.tsx`)
+- `OverdueAgingHeatmap` component: 2×4 grid — AP row and AR row, 4 overdue-only columns (1-30d, 31-60d, 61-90d, 90+d)
+- Cell background: `rgba(0,0,0, intensity × 0.28)` where intensity = `amount / maxAmt` across all 8 cells; minimum 0.08 for non-zero cells
+- `fmtHeat` helper: K/M shorthand for amounts (e.g. "42K", "1.3M"), "—" for zero cells
+- Placed immediately after overdue payments banner; guard: any overdue bucket (index 1-4) has amount > 0
+- `oahStyles`: monochrome, `Colors.surface` card, hairline dividers
+
+### Next Session
+- Consider: JournalEntries — account-level drill: tap a voucher type segment to also filter by account
+- Consider: SalesOrders — period comparison toggle: current vs prior period total with % change badge
+- Consider: AccountsPayable — overdue escalation score per vendor: weighted score combining overdue amount, days overdue, and bill count
+- Consider: Inventory — stockout risk timeline: when (date) each item will hit zero based on current DUS
+- Consider: Dashboard — creditor concentration: top 3 vendors as % of total AP outstanding
+
+---
+
 ### UI Polish Log (Monochrome)
 
 - **2026-06-16** — Session-91 audit: DashboardScreen `cffStyles.dayLabel` fontSize 9 → 10 (CashFlowForecastChart added in session 90); full sweep of screens and components — no raw hex colors, no semantic colors, no heavy shadows, no emojis found; borderWidth 1 in sparkline dots confirmed intentional.
