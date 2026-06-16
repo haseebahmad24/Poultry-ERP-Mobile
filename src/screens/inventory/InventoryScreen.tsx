@@ -303,6 +303,48 @@ export default function InventoryScreen() {
   const outOfStockCount = stockData.filter((s) => (s.qty ?? 0) <= 0).length;
   const lowStockCount = stockData.filter((s) => { const q = s.qty ?? 0; return q > 0 && q < lowStockThreshold; }).length;
 
+  // Aggregate total qty per item name across all warehouses
+  const itemTotals = useMemo(() => {
+    const map = new Map<string, { qty: number; unit?: string }>();
+    for (const s of stockData) {
+      const existing = map.get(s.item_name);
+      if (existing) {
+        existing.qty += s.qty ?? 0;
+      } else {
+        map.set(s.item_name, { qty: s.qty ?? 0, unit: s.unit });
+      }
+    }
+    return map;
+  }, [stockData]);
+
+  // Items needing reorder: out-of-stock OR DUS ≤ 30 OR qty < lowStockThreshold
+  const reorderItems = useMemo(() => {
+    interface ReorderItem { name: string; qty: number; unit?: string; days: number; avgDaily: number; isOut: boolean }
+    const result: ReorderItem[] = [];
+    const seen = new Set<string>();
+    // DUS-based candidates
+    for (const [name, info] of dusMap.entries()) {
+      if (info.days > 30) continue;
+      const totals = itemTotals.get(name);
+      const qty = totals?.qty ?? info.balance;
+      seen.add(name);
+      result.push({ name, qty, unit: totals?.unit, days: info.days, avgDaily: info.avgDaily, isOut: qty <= 0 });
+    }
+    // Low-stock items not already in the DUS result
+    for (const [name, totals] of itemTotals.entries()) {
+      if (seen.has(name)) continue;
+      const qty = totals.qty;
+      if (qty <= 0 || qty < lowStockThreshold) {
+        result.push({ name, qty, unit: totals.unit, days: qty <= 0 ? 0 : 999, avgDaily: 0, isOut: qty <= 0 });
+      }
+    }
+    return result.sort((a, b) => {
+      if (a.isOut !== b.isOut) return a.isOut ? -1 : 1;
+      if (a.days !== b.days) return a.days - b.days;
+      return a.name.localeCompare(b.name);
+    }).slice(0, 8);
+  }, [dusMap, itemTotals, lowStockThreshold]);
+
   const categoryBreakdown = useMemo(() => {
     const itemCategoryMap = new Map<number, string>();
     for (const item of itemsData) {
@@ -545,6 +587,12 @@ export default function InventoryScreen() {
       >
         {activeTab === 'stock' && (
           <>
+            {reorderItems.length > 0 && !search && stockFilter === 'all' && (
+              <>
+                <SectionHeader title="Reorder Needed" meta={`${reorderItems.length} items`} />
+                <ReorderSuggestionCard items={reorderItems} />
+              </>
+            )}
             {categoryBreakdown.length > 1 && !search && stockFilter === 'all' && (
               <>
                 <SectionHeader title="Stock by Category" meta={`${categoryBreakdown.length} categories`} />
@@ -1327,6 +1375,83 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   emptyText: { ...Typography.body, color: Colors.textMuted },
+});
+
+// ─── Reorder Suggestion Card ──────────────────────────────────────────────────
+
+interface ReorderRowItem { name: string; qty: number; unit?: string; days: number; avgDaily: number; isOut: boolean }
+
+function ReorderSuggestionCard({ items }: { items: ReorderRowItem[] }) {
+  if (items.length === 0) return null;
+  return (
+    <View style={rsStyles.card}>
+      {items.map((item, idx) => {
+        const isLast = idx === items.length - 1;
+        const urgency: 'critical' | 'warning' | 'caution' =
+          item.isOut || item.days <= 7 ? 'critical' : item.days <= 14 ? 'warning' : 'caution';
+        const urgencyColor =
+          urgency === 'critical' ? Colors.text : urgency === 'warning' ? Colors.textSecondary : Colors.textMuted;
+        const label = item.isOut ? 'OUT' : `${item.days}d`;
+        return (
+          <View key={item.name} style={[rsStyles.row, !isLast && rsStyles.rowBorder]}>
+            <View style={[rsStyles.urgencyBar, { backgroundColor: urgencyColor }]} />
+            <View style={rsStyles.rowBody}>
+              <Text style={rsStyles.itemName} numberOfLines={1}>{item.name}</Text>
+              <Text style={rsStyles.itemMeta}>
+                {item.qty > 0 ? `${item.qty.toLocaleString()}${item.unit ? ` ${item.unit}` : ''} on hand` : 'No stock'}
+                {item.avgDaily > 0 ? `  ·  ${item.avgDaily.toFixed(1)}/day` : ''}
+              </Text>
+            </View>
+            <View style={[rsStyles.badge, { borderColor: urgencyColor }]}>
+              <Text style={[rsStyles.badgeText, { color: urgencyColor }]}>{label}</Text>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+const rsStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingRight: Spacing.md,
+    gap: Spacing.sm,
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  urgencyBar: {
+    width: 3,
+    height: 32,
+    borderRadius: 2,
+    marginLeft: 10,
+  },
+  rowBody: { flex: 1, gap: 2 },
+  itemName: { fontSize: 13, fontWeight: '600', color: Colors.text },
+  itemMeta: { fontSize: 11, color: Colors.textMuted },
+  badge: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.background,
+    minWidth: 38,
+    alignItems: 'center',
+  },
+  badgeText: { fontSize: 11, fontWeight: '700' },
 });
 
 // ─── Category Breakdown Card ──────────────────────────────────────────────────

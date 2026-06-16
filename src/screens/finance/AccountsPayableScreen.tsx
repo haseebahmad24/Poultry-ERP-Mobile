@@ -341,7 +341,8 @@ export default function AccountsPayableScreen() {
     const allTerms = rows.flatMap((r) => r.avgTermsDays != null ? [r.avgTermsDays] : []);
     const avgTerms = allTerms.length > 0 ? Math.round(allTerms.reduce((s, d) => s + d, 0) / allTerms.length) : null;
     const topPayers = [...rows].sort((a, b) => b.paymentRate - a.paymentRate).slice(0, 3);
-    return { overallBilled, overallPaid, overallRate, avgTerms, topPayers, vendorRateMap: new Map(rows.map((r) => [r.name, r.paymentRate])) };
+    const vendorTermsMap = new Map(rows.filter((r) => r.avgTermsDays != null).map((r) => [r.name, r.avgTermsDays as number]));
+    return { overallBilled, overallPaid, overallRate, avgTerms, topPayers, vendorRateMap: new Map(rows.map((r) => [r.name, r.paymentRate])), vendorTermsMap };
   }, [bills]);
 
   // 30-day daily payment schedule — next 30 calendar days grouped by due_date
@@ -758,6 +759,7 @@ export default function AccountsPayableScreen() {
                     vendor={v}
                     aging={v.name ? vendorAgingMap.get(v.name) : undefined}
                     paymentRate={v.name ? vendorPaymentStats.vendorRateMap.get(v.name) : undefined}
+                    avgTermsDays={v.name ? vendorPaymentStats.vendorTermsMap.get(v.name) : undefined}
                     onPress={() => navigation.navigate('VendorDetail', {
                       vendorId: v.id,
                       vendorName: v.name ?? `Vendor ${v.id}`,
@@ -972,11 +974,13 @@ function VendorCard({
   vendor: v,
   aging,
   paymentRate,
+  avgTermsDays,
   onPress,
 }: {
   vendor: APVendor;
   aging?: { current: number; d30: number; d60: number; d90: number; over90: number };
   paymentRate?: number;
+  avgTermsDays?: number;
   onPress?: () => void;
 }) {
   const agingTotal = aging ? aging.current + aging.d30 + aging.d60 + aging.d90 + aging.over90 : 0;
@@ -996,6 +1000,11 @@ function VendorCard({
         <Text style={[styles.cardTitle, { flex: 1 }]}>{v.name ?? `Vendor ${v.id}`}</Text>
         {v.bills_count != null && (
           <Text style={styles.countBadge}>{v.bills_count} bills</Text>
+        )}
+        {avgTermsDays != null && (
+          <View style={vendorAgingStyles.termsBadge}>
+            <Text style={vendorAgingStyles.termsBadgeText}>avg {avgTermsDays}d terms</Text>
+          </View>
         )}
         {paymentRate != null && (
           <View style={vendorAgingStyles.rateBadge}>
@@ -1057,6 +1066,15 @@ const vendorAgingStyles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   rateBadgeText: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary },
+  termsBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.surface,
+  },
+  termsBadgeText: { fontSize: 10, fontWeight: '500', color: Colors.textMuted },
 });
 
 function EmptyState({ icon, message }: { icon: string; message: string }) {
