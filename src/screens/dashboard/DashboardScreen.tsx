@@ -526,8 +526,8 @@ const nwcStyles = StyleSheet.create({
   bar: { width: '55%', borderRadius: Radius.sm },
   barPos: { backgroundColor: Colors.text },
   barNeg: { backgroundColor: Colors.textSecondary },
-  monthLabel: { fontSize: 9, color: Colors.textMuted, fontWeight: '500' },
-  nwcVal: { fontSize: 9, fontWeight: '600' },
+  monthLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '500' },
+  nwcVal: { fontSize: 10, fontWeight: '600' },
   hint: { fontSize: 10, color: Colors.textMuted, textAlign: 'center' },
 });
 

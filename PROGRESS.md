@@ -1,5 +1,9 @@
 # Mobile App Progress
 
+### UI Polish Log (Monochrome)
+
+- **2026-06-16** — Session-89 audit: DashboardScreen `NWCTrendCard` fontSize 9 → 10 for `monthLabel` + `nwcVal`; VendorRankCard (PO) and CustomerCollectionRateCard (AR) clean — all Colors tokens, hairline borders, no semantic colors.
+
 ## Session 89 — 2026-06-16
 
 ### Completed This Session
