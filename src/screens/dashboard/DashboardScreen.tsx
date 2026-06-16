@@ -849,6 +849,113 @@ const ncfStyles = StyleSheet.create({
   cellSub: { fontSize: 10, color: Colors.textMuted },
 });
 
+// ─── 7-Day Cash Flow Forecast Chart ─────────────────────────────────────────
+
+const CFF_BAR_H = 40;
+
+function CashFlowForecastChart({
+  days,
+}: {
+  days: Array<{ label: string; arAmt: number; apAmt: number; isToday: boolean }>;
+}) {
+  const maxAmt = Math.max(...days.flatMap((d) => [d.arAmt, d.apAmt]), 1);
+  const hasAny = days.some((d) => d.arAmt > 0 || d.apAmt > 0);
+  if (!hasAny) return null;
+
+  return (
+    <View style={cffStyles.card}>
+      <View style={cffStyles.header}>
+        <Feather name="bar-chart-2" size={12} color={Colors.text} />
+        <Text style={cffStyles.headerTitle}>7-Day Cash Flow Forecast</Text>
+        <View style={cffStyles.legend}>
+          <View style={cffStyles.legendDotAR} />
+          <Text style={cffStyles.legendLabel}>AR</Text>
+          <View style={cffStyles.legendDotAP} />
+          <Text style={cffStyles.legendLabel}>AP</Text>
+        </View>
+      </View>
+      <View style={cffStyles.chart}>
+        {days.map((day, i) => {
+          const arH = day.arAmt > 0 ? Math.max((day.arAmt / maxAmt) * CFF_BAR_H, 3) : 0;
+          const apH = day.apAmt > 0 ? Math.max((day.apAmt / maxAmt) * CFF_BAR_H, 3) : 0;
+          return (
+            <View key={i} style={[cffStyles.dayCol, day.isToday && cffStyles.dayColToday]}>
+              <View style={cffStyles.barsWrapper}>
+                <View style={[cffStyles.barAR, { height: arH }]} />
+                <View style={[cffStyles.barAP, { height: apH }]} />
+              </View>
+              <Text style={[cffStyles.dayLabel, day.isToday && cffStyles.dayLabelToday]}>
+                {day.label}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const cffStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 9,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  headerTitle: { fontSize: 12, fontWeight: '700', color: Colors.text, letterSpacing: 0.3, flex: 1 },
+  legend: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDotAR: {
+    width: 8,
+    height: 8,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.text,
+  },
+  legendDotAP: {
+    width: 8,
+    height: 8,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.textSecondary,
+  },
+  legendLabel: { fontSize: 10, color: Colors.textMuted, marginRight: 2 },
+  chart: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: Spacing.sm,
+    paddingTop: Spacing.sm,
+    paddingBottom: 6,
+  },
+  dayCol: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    borderRadius: Radius.sm,
+  },
+  dayColToday: { backgroundColor: Colors.background },
+  barsWrapper: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 2,
+    height: CFF_BAR_H + 4,
+  },
+  barAR: { width: 6, backgroundColor: Colors.text, borderRadius: 2 },
+  barAP: { width: 6, backgroundColor: Colors.textSecondary, borderRadius: 2 },
+  dayLabel: { fontSize: 9, color: Colors.textMuted, fontWeight: '500' },
+  dayLabelToday: { color: Colors.text, fontWeight: '700' },
+});
+
 // ─── Low-Stock Alert Card ─────────────────────────────────────────────────────
 
 function LowStockAlertCard({
@@ -2134,6 +2241,24 @@ export default function DashboardScreen() {
     return { arAmt, apAmt, net: arAmt - apAmt };
   }, [due30Bills, due30Invoices]);
 
+  // Per-day AR vs AP amounts for next 7 days
+  const cashFlowForecast = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const abbrevs = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today.getTime() + i * 86_400_000);
+      const dateStr = d.toISOString().slice(0, 10);
+      const arAmt = due30Invoices
+        .filter((inv) => inv.due_date === dateStr)
+        .reduce((s, inv) => s + (inv.outstanding ?? inv.amount ?? 0), 0);
+      const apAmt = due30Bills
+        .filter((b) => b.due_date === dateStr)
+        .reduce((s, b) => s + (b.outstanding ?? b.amount ?? 0), 0);
+      return { label: i === 0 ? 'Now' : abbrevs[d.getDay()], arAmt, apAmt, isToday: i === 0 };
+    });
+  }, [due30Bills, due30Invoices]);
+
   const load = useCallback(async (isRefresh = false, isSilent = false) => {
     let hadCachedData = false;
     if (isRefresh && !isSilent) {
@@ -2569,6 +2694,9 @@ export default function DashboardScreen() {
             onPressAP={() => navigation.navigate('Finance', { screen: 'AccountsPayable' } as any)}
           />
         )}
+
+        {/* 7-Day Cash Flow Forecast — per-day AR vs AP bar chart */}
+        <CashFlowForecastChart days={cashFlowForecast} />
 
         {/* Week at a Glance — 7-day strip with AP/AR dots per day */}
         <WeekAtAGlanceStrip

@@ -139,6 +139,22 @@ export default function SalesOrdersScreen() {
     return { overdueCount, thisWeekCount, onTrackCount, completedCount };
   }, [orders]);
 
+  const customerRevenue = React.useMemo(() => {
+    const map = new Map<string, { total: number; count: number }>();
+    for (const so of orders) {
+      if (!(so.total ?? 0)) continue;
+      const name = so.customer ?? 'Unknown';
+      const e = map.get(name) ?? { total: 0, count: 0 };
+      e.total += so.total!;
+      e.count++;
+      map.set(name, e);
+    }
+    return Array.from(map.entries())
+      .map(([name, { total, count }]) => ({ name, total, count }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+  }, [orders]);
+
   const handleExport = async () => {
     setExporting(true);
     try {
@@ -226,6 +242,10 @@ export default function SalesOrdersScreen() {
           >
             {activeTab === 'register' && orders.length > 0 && (
               <DeliveryPerfCard perf={deliveryPerf} />
+            )}
+
+            {activeTab === 'register' && customerRevenue.length >= 2 && !search && (
+              <CustomerRevenueCard customers={customerRevenue} />
             )}
 
             <SectionHeader title="Orders" meta={`${filtered.length} total`} />
@@ -344,6 +364,88 @@ const dpStyles = StyleSheet.create({
   tileLabel: { fontSize: 11, fontWeight: '600', color: Colors.text },
   tileSub: { fontSize: 10, color: Colors.textMuted, textAlign: 'center' },
 });
+
+// ─── Customer Revenue Ranking Card ───────────────────────────────────────────
+
+interface CustomerRevRow { name: string; total: number; count: number }
+
+function CustomerRevenueCard({ customers }: { customers: CustomerRevRow[] }) {
+  const maxTotal = customers[0]?.total ?? 1;
+  return (
+    <View style={crStyles.card}>
+      <View style={crStyles.header}>
+        <Feather name="users" size={12} color={Colors.text} />
+        <Text style={crStyles.title}>Top Customers by Revenue</Text>
+      </View>
+      {customers.map((c, i) => {
+        const barPct = maxTotal > 0 ? Math.max(c.total / maxTotal, 0.04) : 0;
+        return (
+          <View key={c.name} style={[crStyles.row, i < customers.length - 1 && crStyles.rowBorder]}>
+            <Text style={crStyles.rank}>{i + 1}</Text>
+            <View style={crStyles.nameCol}>
+              <Text style={crStyles.name} numberOfLines={1}>{c.name}</Text>
+              <View style={crStyles.barTrack}>
+                <View style={[crStyles.barFill, { width: `${Math.round(barPct * 100)}%` as any }]} />
+              </View>
+            </View>
+            <View style={crStyles.amtCol}>
+              <Text style={crStyles.amt}>{formatCurrency(c.total)}</Text>
+              <Text style={crStyles.soCount}>{c.count} SO{c.count !== 1 ? 's' : ''}</Text>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+const crStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 9,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  title: { fontSize: 12, fontWeight: '700', color: Colors.text, letterSpacing: 0.3 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 9,
+    gap: Spacing.sm,
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  rank: { width: 14, fontSize: 11, fontWeight: '700', color: Colors.textMuted, textAlign: 'center' },
+  nameCol: { flex: 1, gap: 4 },
+  name: { fontSize: 12, fontWeight: '600', color: Colors.text },
+  barTrack: {
+    height: 3,
+    backgroundColor: Colors.borderLight,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+  },
+  barFill: { height: 3, backgroundColor: Colors.text, borderRadius: Radius.full },
+  amtCol: { alignItems: 'flex-end', gap: 1 },
+  amt: { fontSize: 12, fontWeight: '700', color: Colors.text },
+  soCount: { fontSize: 10, color: Colors.textMuted },
+});
+
+// ─── SO Card ─────────────────────────────────────────────────────────────────
 
 function SOCard({ so, onPress }: { so: SalesOrder; onPress: () => void }) {
   const isClosed = ['CLOSED', 'CANCELLED'].includes((so.status ?? '').toUpperCase());
