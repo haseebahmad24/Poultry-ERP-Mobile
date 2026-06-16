@@ -952,7 +952,7 @@ const cffStyles = StyleSheet.create({
   },
   barAR: { width: 6, backgroundColor: Colors.text, borderRadius: 2 },
   barAP: { width: 6, backgroundColor: Colors.textSecondary, borderRadius: 2 },
-  dayLabel: { fontSize: 9, color: Colors.textMuted, fontWeight: '500' },
+  dayLabel: { fontSize: 10, color: Colors.textMuted, fontWeight: '500' },
   dayLabelToday: { color: Colors.text, fontWeight: '700' },
 });
 

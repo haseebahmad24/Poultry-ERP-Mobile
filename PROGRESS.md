@@ -2,6 +2,7 @@
 
 ### UI Polish Log (Monochrome)
 
+- **2026-06-16** — Session-91 audit: DashboardScreen `cffStyles.dayLabel` fontSize 9 → 10 (CashFlowForecastChart added in session 90); full sweep of screens and components — no raw hex colors, no semantic colors, no heavy shadows, no emojis found; borderWidth 1 in sparkline dots confirmed intentional.
 - **2026-06-16** — Session-89 audit: DashboardScreen `NWCTrendCard` fontSize 9 → 10 for `monthLabel` + `nwcVal`; VendorRankCard (PO) and CustomerCollectionRateCard (AR) clean — all Colors tokens, hairline borders, no semantic colors.
 
 ## Session 90 — 2026-06-16
